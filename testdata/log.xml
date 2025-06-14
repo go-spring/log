@@ -6,19 +6,19 @@
         <Dummy/>
     </Properties>
     <Appenders>
-        <Console name="Console_JSON">
+        <File name="file" fileName="log.txt">
             <JSONLayout bufferSize="${LayoutBufferSize}"/>
-        </Console>
-        <Console name="Console_Text">
+        </File>
+        <Console name="console">
             <TextLayout/>
         </Console>
     </Appenders>
     <Loggers>
         <Root level="warn">
-            <AppenderRef ref="Console_Text"/>
+            <AppenderRef ref="console"/>
         </Root>
-        <Logger name="file" level="trace" tags="_com_request_*">
-            <AppenderRef ref="Console_JSON"/>
+        <Logger name="logger" level="trace" tags="_com_request_*">
+            <AppenderRef ref="file"/>
         </Logger>
     </Loggers>
 </Configuration>

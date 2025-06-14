@@ -84,9 +84,8 @@ import (
 )
 
 var (
-	TagGS  = GetTag("_gs")
-	TagDef = GetTag("_def")
-	TagBiz = GetTag("_biz")
+	TagDef = GetTag("_def") // used when the classification of the log is unknown.
+	TagApp = GetTag("_app") // used when representing the logs of the application.
 )
 
 // TimeNow is a function that can be overridden to provide custom timestamp behavior (e.g., for testing).

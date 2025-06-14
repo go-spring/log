@@ -197,7 +197,8 @@ func RefreshReader(input io.Reader, ext string) error {
 
 	var (
 		logArray []*Logger
-		tagArray []*regexp.Regexp
+		tagArray []string
+		rexArray []*regexp.Regexp
 	)
 
 	for _, s := range OrderedMapKeys(cTags) {
@@ -205,7 +206,8 @@ func RefreshReader(input io.Reader, ext string) error {
 		if err != nil {
 			return WrapError(err, "RefreshReader: `%s` regexp compile error", s)
 		}
-		tagArray = append(tagArray, r)
+		tagArray = append(tagArray, s)
+		rexArray = append(rexArray, r)
 		logArray = append(logArray, cTags[s])
 	}
 
@@ -223,15 +225,16 @@ func RefreshReader(input io.Reader, ext string) error {
 		}
 	}
 
-	for s, tag := range tagMap {
+	for tag, obj := range tagMap {
 		logger := cRoot
-		for i, r := range tagArray {
-			if r.MatchString(s) {
+		for i := 0; i < len(tagArray); i++ {
+			s, r := tagArray[i], rexArray[i]
+			if s == tag || r.MatchString(tag) {
 				logger = logArray[i]
 				break
 			}
 		}
-		tag.SetLogger(logger)
+		obj.SetLogger(logger)
 	}
 
 	return nil
