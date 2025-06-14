@@ -14,34 +14,33 @@
  * limitations under the License.
  */
 
-package internal_test
+package log
 
 import (
 	"testing"
 
-	"github.com/go-spring/log/internal"
 	"github.com/lvan100/go-assert"
 )
 
 func TestCaller(t *testing.T) {
 
 	t.Run("error skip", func(t *testing.T) {
-		file, line := internal.Caller(100, true)
+		file, line := Caller(100, true)
 		assert.ThatString(t, file).Equal("")
 		assert.That(t, line).Equal(0)
 	})
 
 	t.Run("fast false", func(t *testing.T) {
-		file, line := internal.Caller(0, false)
+		file, line := Caller(0, false)
 		assert.ThatString(t, file).Matches(".*/caller_test.go")
-		assert.That(t, line).Equal(35)
+		assert.That(t, line).Equal(34)
 	})
 
 	t.Run("fast true", func(t *testing.T) {
 		for range 2 {
-			file, line := internal.Caller(0, true)
+			file, line := Caller(0, true)
 			assert.ThatString(t, file).Matches(".*/caller_test.go")
-			assert.That(t, line).Equal(42)
+			assert.That(t, line).Equal(41)
 		}
 	})
 }
@@ -53,13 +52,13 @@ func BenchmarkCaller(b *testing.B) {
 
 	b.Run("fast", func(b *testing.B) {
 		for b.Loop() {
-			internal.Caller(0, true)
+			Caller(0, true)
 		}
 	})
 
 	b.Run("slow", func(b *testing.B) {
 		for b.Loop() {
-			internal.Caller(0, false)
+			Caller(0, false)
 		}
 	})
 }

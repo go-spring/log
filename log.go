@@ -14,13 +14,73 @@
  * limitations under the License.
  */
 
+/*
+Package log is a high-performance and extensible logging library designed specifically for the Go programming
+language. It offers flexible and structured logging capabilities, including context field extraction, multi-level
+logging configuration, and multiple output options, making it ideal for a wide range of server-side applications.
+
+Context field extraction can be customized:
+
+	log.StringFromContext = func(ctx context.Context) string {
+		return ""
+	}
+
+	log.FieldsFromContext = func(ctx context.Context) []log.Field {
+		return []log.Field{
+			log.String("trace_id", "0a882193682db71edd48044db54cae88"),
+			log.String("span_id", "50ef0724418c0a66"),
+		}
+	}
+
+Load configuration from a file:
+
+	err := log.RefreshFile("log.xml")
+	if err != nil {
+		panic(err)
+	}
+
+Log messages with formatted output:
+
+	log.Tracef(ctx, TagRequestOut, "hello %s", "world")
+	log.Debugf(ctx, TagRequestOut, "hello %s", "world")
+	log.Infof(ctx, TagRequestIn, "hello %s", "world")
+	log.Warnf(ctx, TagRequestIn, "hello %s", "world")
+	log.Errorf(ctx, TagRequestIn, "hello %s", "world")
+	log.Panicf(ctx, TagRequestIn, "hello %s", "world")
+	log.Fatalf(ctx, TagRequestIn, "hello %s", "world")
+
+Structured logging using field functions:
+
+	log.Trace(ctx, TagRequestOut, func() []log.Field {
+		return []log.Field{
+			log.Msgf("hello %s", "world"),
+		}
+	})
+
+	log.Debug(ctx, TagRequestOut, func() []log.Field {
+		return []log.Field{
+			log.Msgf("hello %s", "world"),
+		}
+	})
+
+	log.Info(ctx, TagRequestIn, log.Msgf("hello %s", "world"))
+	log.Warn(ctx, TagRequestIn, log.Msgf("hello %s", "world"))
+	log.Error(ctx, TagRequestIn, log.Msgf("hello %s", "world"))
+	log.Panic(ctx, TagRequestIn, log.Msgf("hello %s", "world"))
+	log.Fatal(ctx, TagRequestIn, log.Msgf("hello %s", "world"))
+
+Log structured fields using a map:
+
+	log.Error(ctx, TagDefault, log.Fields(map[string]any{
+		"key1": "value1",
+		"key2": "value2",
+	})...)
+*/
 package log
 
 import (
 	"context"
 	"time"
-
-	"github.com/go-spring/log/internal"
 )
 
 var (
@@ -136,7 +196,7 @@ func Record(ctx context.Context, level Level, tag *Tag, skip int, fields ...Fiel
 		return
 	}
 
-	file, line := internal.Caller(skip, true)
+	file, line := Caller(skip, true)
 
 	// Determine the log timestamp
 	now := time.Now()
