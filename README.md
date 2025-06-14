@@ -4,7 +4,9 @@
    <img src="https://img.shields.io/github/license/go-spring/log" alt="license"/>
    <img src="https://img.shields.io/github/go-mod/go-version/go-spring/log" alt="go-version"/>
    <img src="https://img.shields.io/github/v/release/go-spring/log?include_prereleases" alt="release"/>
-   <img src="https://codecov.io/gh/go-spring/log/branch/main/graph/badge.svg" alt="test-coverage"/>
+   <a href="https://codecov.io/gh/go-spring/log" > 
+      <img src="https://codecov.io/gh/go-spring/log/graph/badge.svg?token=QBCHVEK97Q" alt="test-coverage"/> 
+   </a>
    <a href="https://deepwiki.com/go-spring/log"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
 </div>
 
