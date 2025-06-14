@@ -22,8 +22,18 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"unicode"
 )
+
+var (
+	bufferPool sync.Pool
+	bufferCap  atomic.Int32
+)
+
+func init() {
+	bufferCap.Store(10 * 1024) // 10KB
+}
 
 var bytesSizeTable = map[string]int64{
 	"B":  1,
@@ -32,7 +42,6 @@ var bytesSizeTable = map[string]int64{
 }
 
 func init() {
-	RegisterConverter[HumanizeBytes](ParseHumanizeBytes)
 	RegisterPlugin[TextLayout]("TextLayout", PluginTypeLayout)
 	RegisterPlugin[JSONLayout]("JSONLayout", PluginTypeLayout)
 }
@@ -68,28 +77,22 @@ type Layout interface {
 
 // BaseLayout is the base class for Layout.
 type BaseLayout struct {
-	BufferSize     HumanizeBytes `PluginAttribute:"bufferSize,default=1MB"`
-	FileLineLength int           `PluginAttribute:"fileLineLength,default=48"`
-
-	pool sync.Pool
+	FileLineLength int `PluginAttribute:"fileLineLength,default=48"`
 }
 
 // GetBuffer returns a buffer that can be used to format the log event.
 func (c *BaseLayout) GetBuffer() *bytes.Buffer {
-	if v := c.pool.Get(); v != nil {
-		buf := v.(*bytes.Buffer)
-		buf.Reset()
-		return buf
+	if v := bufferPool.Get(); v != nil {
+		return v.(*bytes.Buffer)
 	}
-	buf := bytes.NewBuffer(nil)
-	buf.Grow(int(c.BufferSize))
-	return buf
+	return bytes.NewBuffer(nil)
 }
 
 // PutBuffer puts a buffer back into the pool.
 func (c *BaseLayout) PutBuffer(buf *bytes.Buffer) {
-	if buf.Cap() <= int(c.BufferSize) {
-		c.pool.Put(buf)
+	if buf.Cap() <= int(bufferCap.Load()) {
+		buf.Reset()
+		bufferPool.Put(buf)
 	}
 }
 

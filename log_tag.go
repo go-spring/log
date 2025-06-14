@@ -34,7 +34,6 @@ var initLogger = &Logger{
 						BaseAppender: BaseAppender{
 							Layout: &TextLayout{
 								BaseLayout: BaseLayout{
-									BufferSize:     500 * 1024,
 									FileLineLength: 48,
 								},
 							},

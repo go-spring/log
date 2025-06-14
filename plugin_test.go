@@ -185,25 +185,6 @@ func TestInjectElement(t *testing.T) {
 
 	t.Run("NewPlugin error - 1", func(t *testing.T) {
 		type ErrorPlugin struct {
-			Layout Layout `PluginElement:"Layout"`
-		}
-		typ := reflect.TypeFor[ErrorPlugin]()
-		_, err := NewPlugin(typ, &Node{
-			Children: []*Node{
-				{
-					Label: "TextLayout",
-					Attributes: map[string]string{
-						"bufferSize": "1GB",
-					},
-				},
-			},
-		}, nil)
-		assert.ThatError(t, err).Matches(`create plugin log.ErrorPlugin error << create plugin log.TextLayout error ` +
-			`<< inject struct field BufferSize error << unhandled size name: \"GB\"`)
-	})
-
-	t.Run("NewPlugin error - 2", func(t *testing.T) {
-		type ErrorPlugin struct {
 			Appender Appender `PluginElement:"Appender,default=File"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
@@ -212,7 +193,7 @@ func TestInjectElement(t *testing.T) {
 			`<< found no attribute for struct field Name`)
 	})
 
-	t.Run("NewPlugin error - 3", func(t *testing.T) {
+	t.Run("NewPlugin error - 2", func(t *testing.T) {
 		type ErrorPlugin struct {
 			Layout Layout `PluginElement:"Layout"`
 		}
@@ -226,7 +207,7 @@ func TestInjectElement(t *testing.T) {
 		assert.ThatError(t, err).Matches("create plugin log.ErrorPlugin error << found 2 plugin elements for struct field Layout")
 	})
 
-	t.Run("NewPlugin error - 4", func(t *testing.T) {
+	t.Run("NewPlugin error - 3", func(t *testing.T) {
 		type ErrorPlugin struct {
 			Layout map[string]Layout `PluginElement:"Layout"`
 		}

@@ -62,10 +62,9 @@ func TestGetTag(t *testing.T) {
 func TestGetAllTags(t *testing.T) {
 	tags := GetAllTags()
 	assert.That(t, tags).Equal([]string{
-		"_biz",
+		"_app",
 		"_com_request_in",
 		"_com_request_out",
 		"_def",
-		"_gs",
 	})
 }

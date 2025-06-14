@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration>
     <Properties>
-        <Property name="LayoutBufferSize">100KB</Property>
+        <Property name="bufferCap">1KB</Property>
         <!-- Dummy is unused -->
         <Dummy/>
     </Properties>
     <Appenders>
         <File name="file" fileName="log.txt">
-            <JSONLayout bufferSize="${LayoutBufferSize}"/>
+            <JSONLayout/>
         </File>
         <Console name="console">
             <TextLayout/>

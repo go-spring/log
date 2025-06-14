@@ -237,5 +237,13 @@ func RefreshReader(input io.Reader, ext string) error {
 		obj.SetLogger(logger)
 	}
 
+	if s, ok := properties["bufferCap"]; ok {
+		n, err := ParseHumanizeBytes(s)
+		if err != nil {
+			return WrapError(err, "RefreshReader: bufferCap parse error")
+		}
+		bufferCap.Store(int32(n))
+	}
+
 	return nil
 }
