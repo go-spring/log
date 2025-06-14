@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 )
 
@@ -70,26 +71,26 @@ type BaseLayout struct {
 	BufferSize     HumanizeBytes `PluginAttribute:"bufferSize,default=1MB"`
 	FileLineLength int           `PluginAttribute:"fileLineLength,default=48"`
 
-	buffer *bytes.Buffer
+	pool sync.Pool
 }
 
 // GetBuffer returns a buffer that can be used to format the log event.
 func (c *BaseLayout) GetBuffer() *bytes.Buffer {
-	if c.buffer == nil {
-		c.buffer = &bytes.Buffer{}
-		c.buffer.Grow(int(c.BufferSize))
+	if v := c.pool.Get(); v != nil {
+		buf := v.(*bytes.Buffer)
+		buf.Reset()
+		return buf
 	}
-	return c.buffer
+	buf := bytes.NewBuffer(nil)
+	buf.Grow(int(c.BufferSize))
+	return buf
 }
 
 // PutBuffer puts a buffer back into the pool.
 func (c *BaseLayout) PutBuffer(buf *bytes.Buffer) {
-	if buf.Cap() > int(c.BufferSize) {
-		c.buffer = nil
-		return
+	if buf.Cap() <= int(c.BufferSize) {
+		c.pool.Put(buf)
 	}
-	c.buffer = buf
-	c.buffer.Reset()
 }
 
 // GetFileLine returns the file name and line number of the log event.
