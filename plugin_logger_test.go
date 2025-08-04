@@ -43,7 +43,7 @@ func TestLoggerConfig(t *testing.T) {
 		err := a.Start()
 		assert.ThatError(t, err).Nil()
 
-		l := &LoggerConfig{baseLoggerConfig{
+		l := &SyncLogger{BaseLogger{
 			Level: InfoLevel,
 			Tags:  "_com_*",
 			AppenderRefs: []*AppenderRef{
@@ -76,8 +76,8 @@ func TestLoggerConfig(t *testing.T) {
 func TestAsyncLoggerConfig(t *testing.T) {
 
 	t.Run("enable level", func(t *testing.T) {
-		l := &AsyncLoggerConfig{
-			baseLoggerConfig: baseLoggerConfig{
+		l := &AsyncLogger{
+			BaseLogger: BaseLogger{
 				Level: InfoLevel,
 			},
 		}
@@ -92,8 +92,8 @@ func TestAsyncLoggerConfig(t *testing.T) {
 	})
 
 	t.Run("error BufferSize", func(t *testing.T) {
-		l := &AsyncLoggerConfig{
-			baseLoggerConfig: baseLoggerConfig{
+		l := &AsyncLogger{
+			BaseLogger: BaseLogger{
 				Name: "file",
 			},
 			BufferSize: 10,
@@ -119,8 +119,8 @@ func TestAsyncLoggerConfig(t *testing.T) {
 			OnDropEvent = nil
 		}()
 
-		l := &AsyncLoggerConfig{
-			baseLoggerConfig: baseLoggerConfig{
+		l := &AsyncLogger{
+			BaseLogger: BaseLogger{
 				Level: InfoLevel,
 				Tags:  "_com_*",
 				AppenderRefs: []*AppenderRef{
@@ -153,8 +153,8 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		err := a.Start()
 		assert.ThatError(t, err).Nil()
 
-		l := &AsyncLoggerConfig{
-			baseLoggerConfig: baseLoggerConfig{
+		l := &AsyncLogger{
+			BaseLogger: BaseLogger{
 				Level: InfoLevel,
 				Tags:  "_com_*",
 				AppenderRefs: []*AppenderRef{

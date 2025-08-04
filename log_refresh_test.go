@@ -281,7 +281,7 @@ func TestRefresh(t *testing.T) {
 				</Loggers>
 			</Configuration>
 		`), ".xml")
-		assert.ThatError(t, err).Matches("create plugin log.LoggerConfig error << found no attribute for struct field Level")
+		assert.ThatError(t, err).Matches("create plugin log.SyncLogger error << found no attribute for struct field Level")
 	})
 
 	t.Run("Logger error - 4", func(t *testing.T) {
@@ -359,7 +359,7 @@ func TestRefresh(t *testing.T) {
 				</Loggers>
 			</Configuration>
 		`), ".xml")
-		assert.ThatError(t, err).Matches("create plugin log.LoggerConfig error << found no attribute for struct field Level")
+		assert.ThatError(t, err).Matches("create plugin log.SyncLogger error << found no attribute for struct field Level")
 	})
 
 	t.Run("Root error - 3", func(t *testing.T) {
@@ -377,7 +377,7 @@ func TestRefresh(t *testing.T) {
 				</Loggers>
 			</Configuration>
 		`), ".xml")
-		assert.ThatError(t, err).Matches("create plugin log.LoggerConfig error << found no plugin elements for struct field AppenderRefs")
+		assert.ThatError(t, err).Matches("create plugin log.SyncLogger error << found no plugin elements for struct field AppenderRefs")
 	})
 
 	t.Run("Root error - 4", func(t *testing.T) {

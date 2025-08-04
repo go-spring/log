@@ -24,18 +24,16 @@ import (
 
 var tagMap = map[string]*Tag{}
 
-var initLogger = &Logger{
-	privateConfig: &LoggerConfig{
-		baseLoggerConfig: baseLoggerConfig{
-			Level: InfoLevel,
-			AppenderRefs: []*AppenderRef{
-				{
-					appender: &ConsoleAppender{
-						BaseAppender: BaseAppender{
-							Layout: &TextLayout{
-								BaseLayout: BaseLayout{
-									FileLineLength: 48,
-								},
+var initLogger Logger = &SyncLogger{
+	BaseLogger: BaseLogger{
+		Level: InfoLevel,
+		AppenderRefs: []*AppenderRef{
+			{
+				appender: &ConsoleAppender{
+					BaseAppender: BaseAppender{
+						Layout: &TextLayout{
+							BaseLayout: BaseLayout{
+								FileLineLength: 48,
 							},
 						},
 					},
@@ -48,7 +46,7 @@ var initLogger = &Logger{
 // Tag is a struct representing a named logging tag.
 // It holds a pointer to a Logger and a string identifier.
 type Tag struct {
-	v atomic.Pointer[Logger]
+	v atomic.Value
 	s string
 }
 
@@ -59,13 +57,13 @@ func (m *Tag) GetName() string {
 
 // GetLogger returns the Logger associated with this tag.
 // It uses atomic loading to ensure safe concurrent access.
-func (m *Tag) GetLogger() *Logger {
-	return m.v.Load()
+func (m *Tag) GetLogger() Logger {
+	return m.v.Load().(Logger)
 }
 
 // SetLogger sets or replaces the Logger associated with this tag.
 // Uses atomic storing to ensure thread safety.
-func (m *Tag) SetLogger(logger *Logger) {
+func (m *Tag) SetLogger(logger Logger) {
 	m.v.Store(logger)
 }
 
@@ -94,7 +92,8 @@ func isValidTag(tag string) bool {
 }
 
 // GetTag creates or retrieves a Tag by name.
-// If the tag does not exist, it is created and added to the global registry.
+// If the tag does not exist in the global registry, it is created and associated with a default logger.
+// Normally, you should use GetAppTag, GetBizTag, or GetRPCTag to create tags semantically.
 func GetTag(tag string) *Tag {
 	if !isValidTag(tag) {
 		panic("invalid tag name")

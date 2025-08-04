@@ -84,9 +84,36 @@ import (
 )
 
 var (
-	TagDef = GetTag("_def") // used when the classification of the log is unknown.
-	TagApp = GetTag("_app") // used when representing the logs of the application.
+	TagAppDef = GetAppTag("def", "")
+	TagBizDef = GetBizTag("def", "")
 )
+
+// GetAppTag returns a Tag used for application-layer logs (e.g., framework events, lifecycle).
+// subType represents the component or module, action represents the lifecycle phase or behavior.
+func GetAppTag(subType, action string) *Tag {
+	return GetTag(buildTag("app", subType, action))
+}
+
+// GetBizTag returns a Tag used for business-logic logs (e.g., use cases, domain events).
+// subType is the business domain or feature name, action is the operation being logged.
+func GetBizTag(subType, action string) *Tag {
+	return GetTag(buildTag("biz", subType, action))
+}
+
+// GetRPCTag returns a Tag used for RPC or external/internal dependency logs.
+// subType is the protocol or target system, action is the RPC phase (e.g., sent, retry, fail).
+func GetRPCTag(subType, action string) *Tag {
+	return GetTag(buildTag("rpc", subType, action))
+}
+
+// buildTag constructs a structured tag string based on main type, sub type, and action.
+// The format is: _<mainType>_<subType> or _<mainType>_<subType>_<action>.
+func buildTag(mainType, subType, action string) string {
+	if action == "" {
+		return "_" + mainType + "_" + subType
+	}
+	return "_" + mainType + "_" + subType + "_" + action
+}
 
 // TimeNow is a function that can be overridden to provide custom timestamp behavior (e.g., for testing).
 var TimeNow func(ctx context.Context) time.Time
@@ -188,7 +215,7 @@ func Fatalf(ctx context.Context, tag *Tag, format string, args ...any) {
 // It checks the logger level, captures caller information, gathers context fields,
 // and sends the log event to the logger.
 func Record(ctx context.Context, level Level, tag *Tag, skip int, fields ...Field) {
-	var l *Logger
+	var l Logger
 
 	// Check if the logger is enabled for the given level
 	if l = tag.GetLogger(); !l.EnableLevel(level) {

@@ -68,10 +68,10 @@ func RefreshReader(input io.Reader, ext string) error {
 	}
 
 	var (
-		cRoot      *Logger
-		cLoggers   = make(map[string]*Logger)
+		cRoot      Logger
+		cLoggers   = make(map[string]Logger)
 		cAppenders = make(map[string]Appender)
-		cTags      = make(map[string]*Logger)
+		cTags      = make(map[string]Logger)
 		properties = make(map[string]string)
 	)
 
@@ -147,18 +147,18 @@ func RefreshReader(input io.Reader, ext string) error {
 			return err
 		}
 
-		logger := &Logger{v.Interface().(privateConfig)}
+		logger := v.Interface().(Logger)
 		if isRootLogger {
 			cRoot = logger
 		}
 		cLoggers[name] = logger
 
-		var base *baseLoggerConfig
+		var base *BaseLogger
 		switch config := v.Interface().(type) {
-		case *LoggerConfig:
-			base = &config.baseLoggerConfig
-		case *AsyncLoggerConfig:
-			base = &config.baseLoggerConfig
+		case *SyncLogger:
+			base = &config.BaseLogger
+		case *AsyncLogger:
+			base = &config.BaseLogger
 		default: // for linter
 		}
 
@@ -196,7 +196,7 @@ func RefreshReader(input io.Reader, ext string) error {
 	}
 
 	var (
-		logArray []*Logger
+		logArray []Logger
 		tagArray []string
 		rexArray []*regexp.Regexp
 	)

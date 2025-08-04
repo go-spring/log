@@ -25,19 +25,14 @@ var OnDropEvent func(logger string, e *Event)
 
 func init() {
 	RegisterPlugin[AppenderRef]("AppenderRef", PluginTypeAppenderRef)
-	RegisterPlugin[LoggerConfig]("Root", PluginTypeRoot)
-	RegisterPlugin[AsyncLoggerConfig]("AsyncRoot", PluginTypeAsyncRoot)
-	RegisterPlugin[LoggerConfig]("Logger", PluginTypeLogger)
-	RegisterPlugin[AsyncLoggerConfig]("AsyncLogger", PluginTypeAsyncLogger)
+	RegisterPlugin[SyncLogger]("Root", PluginTypeRoot)
+	RegisterPlugin[AsyncLogger]("AsyncRoot", PluginTypeAsyncRoot)
+	RegisterPlugin[SyncLogger]("Logger", PluginTypeLogger)
+	RegisterPlugin[AsyncLogger]("AsyncLogger", PluginTypeAsyncLogger)
 }
 
-// Logger is the primary logging structure used to emit log events.
-type Logger struct {
-	privateConfig
-}
-
-// privateConfig is the interface implemented by all logger configs.
-type privateConfig interface {
+// Logger is the interface implemented by all logger configs.
+type Logger interface {
 	Lifecycle                     // Start/Stop methods
 	GetName() string              // Get the name of the logger
 	Publish(e *Event)             // Logic for sending events to appenders
@@ -51,8 +46,8 @@ type AppenderRef struct {
 	appender Appender
 }
 
-// baseLoggerConfig contains shared fields for all logger configurations.
-type baseLoggerConfig struct {
+// BaseLogger contains shared fields for all logger configurations.
+type BaseLogger struct {
 	Name         string         `PluginAttribute:"name"`
 	Level        Level          `PluginAttribute:"level"`
 	Tags         string         `PluginAttribute:"tags,default="`
@@ -60,40 +55,40 @@ type baseLoggerConfig struct {
 }
 
 // GetName returns the name of the logger.
-func (c *baseLoggerConfig) GetName() string {
+func (c *BaseLogger) GetName() string {
 	return c.Name
 }
 
 // callAppenders sends the event to all configured appenders.
-func (c *baseLoggerConfig) callAppenders(e *Event) {
+func (c *BaseLogger) callAppenders(e *Event) {
 	for _, r := range c.AppenderRefs {
 		r.appender.Append(e)
 	}
 }
 
 // EnableLevel returns true if the specified log level is enabled.
-func (c *baseLoggerConfig) EnableLevel(level Level) bool {
+func (c *BaseLogger) EnableLevel(level Level) bool {
 	return level >= c.Level
 }
 
-// LoggerConfig is a synchronous logger configuration.
-type LoggerConfig struct {
-	baseLoggerConfig
+// SyncLogger is a synchronous logger configuration.
+type SyncLogger struct {
+	BaseLogger
 }
 
-func (c *LoggerConfig) Start() error { return nil }
-func (c *LoggerConfig) Stop()        {}
+func (c *SyncLogger) Start() error { return nil }
+func (c *SyncLogger) Stop()        {}
 
 // Publish sends the event directly to the appenders.
-func (c *LoggerConfig) Publish(e *Event) {
+func (c *SyncLogger) Publish(e *Event) {
 	c.callAppenders(e)
 	PutEvent(e)
 }
 
-// AsyncLoggerConfig is an asynchronous logger configuration.
+// AsyncLogger is an asynchronous logger configuration.
 // It buffers log events and processes them in a separate goroutine.
-type AsyncLoggerConfig struct {
-	baseLoggerConfig
+type AsyncLogger struct {
+	BaseLogger
 	BufferSize int `PluginAttribute:"bufferSize,default=10000"`
 
 	buf  chan *Event // Channel buffer for log events
@@ -101,7 +96,7 @@ type AsyncLoggerConfig struct {
 }
 
 // Start initializes the asynchronous logger and starts its worker goroutine.
-func (c *AsyncLoggerConfig) Start() error {
+func (c *AsyncLogger) Start() error {
 	if c.BufferSize < 100 {
 		return errors.New("bufferSize is too small")
 	}
@@ -120,7 +115,7 @@ func (c *AsyncLoggerConfig) Start() error {
 }
 
 // Publish places the event in the buffer if there's space; drops it otherwise.
-func (c *AsyncLoggerConfig) Publish(e *Event) {
+func (c *AsyncLogger) Publish(e *Event) {
 	select {
 	case c.buf <- e:
 	default:
@@ -134,7 +129,7 @@ func (c *AsyncLoggerConfig) Publish(e *Event) {
 }
 
 // Stop shuts down the asynchronous logger and waits for the worker goroutine to finish.
-func (c *AsyncLoggerConfig) Stop() {
+func (c *AsyncLogger) Stop() {
 	close(c.buf)
 	<-c.wait
 }
