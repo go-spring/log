@@ -12,6 +12,10 @@
         <Console name="console">
             <TextLayout/>
         </Console>
+        <!-- user defined Appender and Layout -->
+        <MultiAppender name="multi">
+            <TextLayout/>
+        </MultiAppender>
     </Appenders>
     <Loggers>
         <Root level="warn">
@@ -19,6 +23,7 @@
         </Root>
         <Logger name="logger" level="trace" tags="_com_request_*">
             <AppenderRef ref="file"/>
+            <AppenderRef ref="multi"/>
         </Logger>
     </Loggers>
 </Configuration>
