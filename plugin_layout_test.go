@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lvan100/go-assert"
+	"github.com/go-spring/gs-assert/assert"
 )
 
 func TestParseHumanizeBytes(t *testing.T) {

@@ -20,7 +20,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/lvan100/go-assert"
+	"github.com/go-spring/gs-assert/assert"
 )
 
 func TestRegisterPlugin(t *testing.T) {
@@ -231,7 +231,7 @@ func TestInjectElement(t *testing.T) {
 				{Label: "TextLayout"},
 			},
 		}, nil)
-		assert.Nil(t, err)
+		assert.ThatError(t, err).Nil()
 	})
 
 	t.Run("NewPlugin success - 2", func(t *testing.T) {
@@ -240,7 +240,7 @@ func TestInjectElement(t *testing.T) {
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
 		_, err := NewPlugin(typ, &Node{}, nil)
-		assert.Nil(t, err)
+		assert.ThatError(t, err).Nil()
 	})
 
 	t.Run("NewPlugin success - 3", func(t *testing.T) {
@@ -249,6 +249,6 @@ func TestInjectElement(t *testing.T) {
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
 		_, err := NewPlugin(typ, &Node{}, nil)
-		assert.Nil(t, err)
+		assert.ThatError(t, err).Nil()
 	})
 }

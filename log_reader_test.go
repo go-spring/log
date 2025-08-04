@@ -20,7 +20,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/lvan100/go-assert"
+	"github.com/go-spring/gs-assert/assert"
 )
 
 func TestXMLReader(t *testing.T) {
@@ -64,7 +64,7 @@ func TestXMLReader(t *testing.T) {
 				</Loggers>
 			</Configuration>
 		`))
-		assert.Nil(t, err)
+		assert.That(t, err).Nil()
 
 		buf := bytes.NewBuffer(nil)
 		buf.WriteString("\n")

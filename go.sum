@@ -1,4 +1,2 @@
-github.com/lvan100/go-assert v0.0.2 h1:K1G++zfdM5h+1Q/hSctEEqqcJIOs327k2kLiO3MmE5E=
-github.com/lvan100/go-assert v0.0.2/go.mod h1:osFFuU9zt4/SdTaJ9uU3y9qabAFDYlaH4Yte/ndDAj4=
-go.uber.org/mock v0.5.2 h1:LbtPTcP8A5k9WPXj54PPPbjcI4Y6lhyOZXn+VS7wNko=
-go.uber.org/mock v0.5.2/go.mod h1:wLlUxC2vVTPTaE3UD51E0BGOAElKrILxhVSDYQLld5o=
+github.com/go-spring/gs-assert v1.0.2 h1:9vDppl7ZwMvQE4c83ac7GzN0VxZC5BrQue7dND7NclQ=
+github.com/go-spring/gs-assert v1.0.2/go.mod h1:FfibkqWz4HUBpbig1cKMlzW8Ha7RywTB93f1Q/NuF9I=

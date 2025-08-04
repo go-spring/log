@@ -20,7 +20,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/lvan100/go-assert"
+	"github.com/go-spring/gs-assert/assert"
 )
 
 var testFields = []Field{
@@ -105,7 +105,7 @@ func TestJSONEncoder(t *testing.T) {
 		enc.AppendEncoderBegin()
 		WriteFields(enc, testFields)
 		enc.AppendEncoderEnd()
-		assert.ThatString(t, buf.String()).JsonEqual(`{
+		assert.ThatString(t, buf.String()).JSONEqual(`{
 	    "msg": "hello world\n\\\t\"\r",
 	    "null": null,
 	    "bool": false,

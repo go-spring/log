@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lvan100/go-assert"
+	"github.com/go-spring/gs-assert/assert"
 )
 
 type CountAppender struct {
@@ -41,7 +41,7 @@ func TestLoggerConfig(t *testing.T) {
 		}
 
 		err := a.Start()
-		assert.Nil(t, err)
+		assert.ThatError(t, err).Nil()
 
 		l := &LoggerConfig{baseLoggerConfig{
 			Level: InfoLevel,
@@ -52,15 +52,15 @@ func TestLoggerConfig(t *testing.T) {
 		}}
 
 		err = l.Start()
-		assert.Nil(t, err)
+		assert.ThatError(t, err).Nil()
 
-		assert.False(t, l.EnableLevel(TraceLevel))
-		assert.False(t, l.EnableLevel(DebugLevel))
-		assert.True(t, l.EnableLevel(InfoLevel))
-		assert.True(t, l.EnableLevel(WarnLevel))
-		assert.True(t, l.EnableLevel(ErrorLevel))
-		assert.True(t, l.EnableLevel(PanicLevel))
-		assert.True(t, l.EnableLevel(FatalLevel))
+		assert.That(t, l.EnableLevel(TraceLevel)).False()
+		assert.That(t, l.EnableLevel(DebugLevel)).False()
+		assert.That(t, l.EnableLevel(InfoLevel)).True()
+		assert.That(t, l.EnableLevel(WarnLevel)).True()
+		assert.That(t, l.EnableLevel(ErrorLevel)).True()
+		assert.That(t, l.EnableLevel(PanicLevel)).True()
+		assert.That(t, l.EnableLevel(FatalLevel)).True()
 
 		for range 5 {
 			l.Publish(&Event{})
@@ -82,13 +82,13 @@ func TestAsyncLoggerConfig(t *testing.T) {
 			},
 		}
 
-		assert.False(t, l.EnableLevel(TraceLevel))
-		assert.False(t, l.EnableLevel(DebugLevel))
-		assert.True(t, l.EnableLevel(InfoLevel))
-		assert.True(t, l.EnableLevel(WarnLevel))
-		assert.True(t, l.EnableLevel(ErrorLevel))
-		assert.True(t, l.EnableLevel(PanicLevel))
-		assert.True(t, l.EnableLevel(FatalLevel))
+		assert.That(t, l.EnableLevel(TraceLevel)).False()
+		assert.That(t, l.EnableLevel(DebugLevel)).False()
+		assert.That(t, l.EnableLevel(InfoLevel)).True()
+		assert.That(t, l.EnableLevel(WarnLevel)).True()
+		assert.That(t, l.EnableLevel(ErrorLevel)).True()
+		assert.That(t, l.EnableLevel(PanicLevel)).True()
+		assert.That(t, l.EnableLevel(FatalLevel)).True()
 	})
 
 	t.Run("error BufferSize", func(t *testing.T) {
@@ -109,7 +109,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		}
 
 		err := a.Start()
-		assert.Nil(t, err)
+		assert.ThatError(t, err).Nil()
 
 		dropCount := 0
 		OnDropEvent = func(logger string, e *Event) {
@@ -131,7 +131,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		}
 
 		err = l.Start()
-		assert.Nil(t, err)
+		assert.ThatError(t, err).Nil()
 
 		for range 5000 {
 			l.Publish(GetEvent())
@@ -142,7 +142,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		l.Stop()
 		a.Stop()
 
-		assert.True(t, dropCount > 0)
+		assert.That(t, dropCount > 0).True()
 	})
 
 	t.Run("success", func(t *testing.T) {
@@ -151,7 +151,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		}
 
 		err := a.Start()
-		assert.Nil(t, err)
+		assert.ThatError(t, err).Nil()
 
 		l := &AsyncLoggerConfig{
 			baseLoggerConfig: baseLoggerConfig{
@@ -165,7 +165,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		}
 
 		err = l.Start()
-		assert.Nil(t, err)
+		assert.ThatError(t, err).Nil()
 
 		for range 5 {
 			l.Publish(GetEvent())

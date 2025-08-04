@@ -21,13 +21,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lvan100/go-assert"
+	"github.com/go-spring/gs-assert/assert"
 )
 
 func TestDiscardAppender(t *testing.T) {
 	a := &DiscardAppender{}
 	err := a.Start()
-	assert.Nil(t, err)
+	assert.ThatError(t, err).Nil()
 	a.Append(&Event{})
 	a.Stop()
 }
@@ -36,7 +36,7 @@ func TestConsoleAppender(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		file, err := os.CreateTemp(os.TempDir(), "")
-		assert.Nil(t, err)
+		assert.ThatError(t, err).Nil()
 
 		Stdout = file
 		defer func() {
@@ -63,10 +63,10 @@ func TestConsoleAppender(t *testing.T) {
 		})
 
 		err = file.Close()
-		assert.Nil(t, err)
+		assert.ThatError(t, err).Nil()
 
 		b, err := os.ReadFile(file.Name())
-		assert.Nil(t, err)
+		assert.ThatError(t, err).Nil()
 		assert.ThatString(t, string(b)).Equal("[INFO][0001-01-01T00:00:00.000][file.go:100] _def||msg=hello world\n")
 	})
 }
@@ -90,9 +90,9 @@ func TestFileAppender(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		file, err := os.CreateTemp(os.TempDir(), "")
-		assert.Nil(t, err)
+		assert.ThatError(t, err).Nil()
 		err = file.Close()
-		assert.Nil(t, err)
+		assert.ThatError(t, err).Nil()
 
 		a := &FileAppender{
 			BaseAppender: BaseAppender{
@@ -105,7 +105,7 @@ func TestFileAppender(t *testing.T) {
 			FileName: file.Name(),
 		}
 		err = a.Start()
-		assert.Nil(t, err)
+		assert.ThatError(t, err).Nil()
 
 		a.Append(&Event{
 			Level:     InfoLevel,
@@ -120,7 +120,7 @@ func TestFileAppender(t *testing.T) {
 		a.Stop()
 
 		b, err := os.ReadFile(a.file.Name())
-		assert.Nil(t, err)
+		assert.ThatError(t, err).Nil()
 		assert.ThatString(t, string(b)).Equal("[INFO][0001-01-01T00:00:00.000][file.go:100] _def||msg=hello world\n")
 	})
 }

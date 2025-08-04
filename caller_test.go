@@ -19,7 +19,7 @@ package log
 import (
 	"testing"
 
-	"github.com/lvan100/go-assert"
+	"github.com/go-spring/gs-assert/assert"
 )
 
 func TestCaller(t *testing.T) {

@@ -21,7 +21,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lvan100/go-assert"
+	"github.com/go-spring/gs-assert/assert"
 )
 
 type funcReader func(p []byte) (n int, err error)
@@ -46,7 +46,7 @@ func TestRefresh(t *testing.T) {
 	t.Run("already refresh", func(t *testing.T) {
 		defer func() { initOnce.Store(false) }()
 		err := RefreshFile("testdata/log.xml")
-		assert.Nil(t, err)
+		assert.ThatError(t, err).Nil()
 		// ...
 		err = RefreshFile("testdata/log.xml")
 		assert.ThatError(t, err).Matches("RefreshReader: log refresh already done")

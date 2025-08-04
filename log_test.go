@@ -25,8 +25,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-spring/gs-assert/assert"
 	"github.com/go-spring/log"
-	"github.com/lvan100/go-assert"
 )
 
 var (
@@ -83,7 +83,7 @@ func TestLog(t *testing.T) {
 	log.Info(ctx, TagRequestIn, log.Msgf("hello %s", "world"))
 
 	err := log.RefreshFile("testdata/log.xml")
-	assert.Nil(t, err)
+	assert.ThatError(t, err).Nil()
 
 	ctx = context.WithValue(ctx, &keyTraceID, "0a882193682db71edd48044db54cae88")
 	ctx = context.WithValue(ctx, &keySpanID, "50ef0724418c0a66")
@@ -163,6 +163,6 @@ func TestLog(t *testing.T) {
 `
 
 	b, err := os.ReadFile("log.txt")
-	assert.Nil(t, err)
+	assert.ThatError(t, err).Nil()
 	assert.ThatString(t, string(b)).Equal(strings.TrimLeft(expectLog, "\n"))
 }

@@ -20,7 +20,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lvan100/go-assert"
+	"github.com/go-spring/gs-assert/assert"
 )
 
 func TestIsValidTag(t *testing.T) {
