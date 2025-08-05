@@ -34,9 +34,9 @@ var (
 	keySpanID  int
 )
 
-var TagDefault = log.GetTag("_def")
-var TagRequestIn = log.GetTag("_com_request_in")
-var TagRequestOut = log.GetTag("_com_request_out")
+var TagDefault = log.RegisterTag("_def")
+var TagRequestIn = log.RegisterTag("_com_request_in")
+var TagRequestOut = log.RegisterTag("_com_request_out")
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -147,10 +147,10 @@ func TestLog(t *testing.T) {
 	log.Panic(ctx, TagDefault, log.Msgf("hello %s", "world"))
 
 	// print
-	log.Error(ctx, TagDefault, log.Fields(map[string]any{
+	log.Error(ctx, TagDefault, log.FieldsFromMap(map[string]any{
 		"key1": "value1",
 		"key2": "value2",
-	})...)
+	}))
 
 	expectLog := `
 [INFO][2025-06-01T00:00:00.000][log_test.go:100] _def||trace_id=||span_id=||msg=hello world

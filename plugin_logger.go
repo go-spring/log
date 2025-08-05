@@ -21,7 +21,7 @@ import (
 )
 
 // OnDropEvent is a callback function that is called when an event is dropped.
-var OnDropEvent func(logger string, e *Event)
+var OnDropEvent func(logger string, v interface{})
 
 func init() {
 	RegisterPlugin[AppenderRef]("AppenderRef", PluginTypeAppenderRef)
@@ -36,6 +36,7 @@ type Logger interface {
 	Lifecycle                     // Start/Stop methods
 	GetName() string              // Get the name of the logger
 	Publish(e *Event)             // Logic for sending events to appenders
+	Write(b []byte)               // Direct write of raw bytes to appenders
 	EnableLevel(level Level) bool // Whether a log level is enabled
 }
 
@@ -66,6 +67,13 @@ func (c *BaseLogger) callAppenders(e *Event) {
 	}
 }
 
+// writeAppenders writes the raw bytes directly to the appenders.
+func (c *BaseLogger) writeAppenders(b []byte) {
+	for _, r := range c.AppenderRefs {
+		r.appender.Write(b)
+	}
+}
+
 // EnableLevel returns true if the specified log level is enabled.
 func (c *BaseLogger) EnableLevel(level Level) bool {
 	return level >= c.Level
@@ -85,13 +93,18 @@ func (c *SyncLogger) Publish(e *Event) {
 	PutEvent(e)
 }
 
+// Write writes the raw bytes directly to the appenders.
+func (c *SyncLogger) Write(b []byte) {
+	c.writeAppenders(b)
+}
+
 // AsyncLogger is an asynchronous logger configuration.
 // It buffers log events and processes them in a separate goroutine.
 type AsyncLogger struct {
 	BaseLogger
 	BufferSize int `PluginAttribute:"bufferSize,default=10000"`
 
-	buf  chan *Event // Channel buffer for log events
+	buf  chan interface{} // Channel buffer for log events
 	wait chan struct{}
 }
 
@@ -100,14 +113,20 @@ func (c *AsyncLogger) Start() error {
 	if c.BufferSize < 100 {
 		return errors.New("bufferSize is too small")
 	}
-	c.buf = make(chan *Event, c.BufferSize)
+	c.buf = make(chan interface{}, c.BufferSize)
 	c.wait = make(chan struct{})
 
 	// Launch a background goroutine to process events
 	go func() {
-		for e := range c.buf {
-			c.callAppenders(e)
-			PutEvent(e)
+		for v := range c.buf {
+			switch x := v.(type) {
+			case *Event:
+				c.callAppenders(x)
+				PutEvent(x)
+			case []byte:
+				c.writeAppenders(x)
+			default: // for linter
+			}
 		}
 		close(c.wait)
 	}()
@@ -123,8 +142,19 @@ func (c *AsyncLogger) Publish(e *Event) {
 		if OnDropEvent != nil {
 			OnDropEvent(c.Name, e)
 		}
-		// Return the event to the pool
 		PutEvent(e)
+	}
+}
+
+// Write writes the raw bytes directly to the appenders.
+func (c *AsyncLogger) Write(b []byte) {
+	select {
+	case c.buf <- b:
+	default:
+		// Drop the event if the buffer is full
+		if OnDropEvent != nil {
+			OnDropEvent(c.Name, b)
+		}
 	}
 }
 

@@ -35,6 +35,7 @@ type Appender interface {
 	Lifecycle        // Appenders must be startable and stoppable
 	GetName() string // Returns the appender name
 	Append(e *Event) // Handles writing a log event
+	Write(b []byte)  // Directly writes a bytes slice
 }
 
 var (
@@ -53,6 +54,7 @@ func (c *BaseAppender) GetName() string { return c.Name }
 func (c *BaseAppender) Start() error    { return nil }
 func (c *BaseAppender) Stop()           {}
 func (c *BaseAppender) Append(e *Event) {}
+func (c *BaseAppender) Write(b []byte)  {}
 
 // DiscardAppender ignores all log events (no output).
 type DiscardAppender struct {
@@ -66,8 +68,12 @@ type ConsoleAppender struct {
 
 // Append formats the event and writes it to standard output.
 func (c *ConsoleAppender) Append(e *Event) {
-	data := c.Layout.ToBytes(e)
-	_, _ = Stdout.Write(data)
+	c.Write(c.Layout.ToBytes(e))
+}
+
+// Write writes a bytes slice directly to the stdout.
+func (c *ConsoleAppender) Write(b []byte) {
+	_, _ = Stdout.Write(b)
 }
 
 // FileAppender writes formatted log events to a specified file.
@@ -90,8 +96,12 @@ func (c *FileAppender) Start() error {
 
 // Append formats the log event and writes it to the file.
 func (c *FileAppender) Append(e *Event) {
-	data := c.Layout.ToBytes(e)
-	_, _ = c.file.Write(data)
+	c.Write(c.Layout.ToBytes(e))
+}
+
+// Write writes a bytes slice directly to the file.
+func (c *FileAppender) Write(b []byte) {
+	_, _ = c.file.Write(b)
 }
 
 // Stop closes the file.

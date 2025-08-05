@@ -196,9 +196,9 @@ func RefreshReader(input io.Reader, ext string) error {
 	}
 
 	var (
-		logArray []Logger
-		tagArray []string
-		rexArray []*regexp.Regexp
+		tagArray    []string
+		tagExpArray []*regexp.Regexp
+		loggerArray []Logger
 	)
 
 	for _, s := range OrderedMapKeys(cTags) {
@@ -207,8 +207,8 @@ func RefreshReader(input io.Reader, ext string) error {
 			return WrapError(err, "RefreshReader: `%s` regexp compile error", s)
 		}
 		tagArray = append(tagArray, s)
-		rexArray = append(rexArray, r)
-		logArray = append(logArray, cTags[s])
+		tagExpArray = append(tagExpArray, r)
+		loggerArray = append(loggerArray, cTags[s])
 	}
 
 	// todo(lvan100): currently, there is only one refresh operation,
@@ -225,16 +225,24 @@ func RefreshReader(input io.Reader, ext string) error {
 		}
 	}
 
+	for _, l := range loggerMap {
+		v, ok := cLoggers[l.name]
+		if !ok {
+			return fmt.Errorf("RefreshReader: logger %s not found", l.name)
+		}
+		l.setLogger(v)
+	}
+
 	for tag, obj := range tagMap {
 		logger := cRoot
 		for i := 0; i < len(tagArray); i++ {
-			s, r := tagArray[i], rexArray[i]
+			s, r := tagArray[i], tagExpArray[i]
 			if s == tag || r.MatchString(tag) {
-				logger = logArray[i]
+				logger = loggerArray[i]
 				break
 			}
 		}
-		obj.SetLogger(logger)
+		obj.setLogger(logger)
 	}
 
 	if s, ok := properties["bufferCap"]; ok {

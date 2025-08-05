@@ -84,79 +84,50 @@ import (
 )
 
 var (
-	TagAppDef = GetAppTag("def", "")
-	TagBizDef = GetBizTag("def", "")
+	// TagAppDef is a default tag for application logs.
+	TagAppDef = RegisterAppTag("def", "")
+
+	// TagBizDef is a default tag for business logs.
+	TagBizDef = RegisterBizTag("def", "")
 )
 
-// GetAppTag returns a Tag used for application-layer logs (e.g., framework events, lifecycle).
-// subType represents the component or module, action represents the lifecycle phase or behavior.
-func GetAppTag(subType, action string) *Tag {
-	return GetTag(buildTag("app", subType, action))
-}
+var (
+	// TimeNow is a function that can be overridden to provide custom
+	// timestamp behavior (e.g., for testing).
+	TimeNow func(ctx context.Context) time.Time
 
-// GetBizTag returns a Tag used for business-logic logs (e.g., use cases, domain events).
-// subType is the business domain or feature name, action is the operation being logged.
-func GetBizTag(subType, action string) *Tag {
-	return GetTag(buildTag("biz", subType, action))
-}
+	// StringFromContext can be set to extract a string from the context.
+	StringFromContext func(ctx context.Context) string
 
-// GetRPCTag returns a Tag used for RPC or external/internal dependency logs.
-// subType is the protocol or target system, action is the RPC phase (e.g., sent, retry, fail).
-func GetRPCTag(subType, action string) *Tag {
-	return GetTag(buildTag("rpc", subType, action))
-}
-
-// buildTag constructs a structured tag string based on main type, sub type, and action.
-// The format is: _<mainType>_<subType> or _<mainType>_<subType>_<action>.
-func buildTag(mainType, subType, action string) string {
-	if action == "" {
-		return "_" + mainType + "_" + subType
-	}
-	return "_" + mainType + "_" + subType + "_" + action
-}
-
-// TimeNow is a function that can be overridden to provide custom timestamp behavior (e.g., for testing).
-var TimeNow func(ctx context.Context) time.Time
-
-// StringFromContext can be set to extract a string from the context.
-var StringFromContext func(ctx context.Context) string
-
-// FieldsFromContext can be set to extract structured fields from the context (e.g., trace IDs, user IDs).
-var FieldsFromContext func(ctx context.Context) []Field
-
-// Fields converts a map of string keys to any values to a slice of Field.
-func Fields(fields map[string]any) []Field {
-	var ret []Field
-	for _, k := range OrderedMapKeys(fields) {
-		ret = append(ret, Any(k, fields[k]))
-	}
-	return ret
-}
+	// FieldsFromContext can be set to extract structured fields from
+	// the context (e.g., trace IDs, user IDs).
+	FieldsFromContext func(ctx context.Context) []Field
+)
 
 // Trace logs a message at TraceLevel using a tag and a lazy field-generating function.
 func Trace(ctx context.Context, tag *Tag, fn func() []Field) {
-	if tag.GetLogger().EnableLevel(TraceLevel) {
+	if tag.getLogger().EnableLevel(TraceLevel) {
 		Record(ctx, TraceLevel, tag, 2, fn()...)
 	}
 }
 
 // Tracef logs a message at TraceLevel using a tag and a formatted message.
 func Tracef(ctx context.Context, tag *Tag, format string, args ...any) {
-	if tag.GetLogger().EnableLevel(TraceLevel) {
+	if tag.getLogger().EnableLevel(TraceLevel) {
 		Record(ctx, TraceLevel, tag, 2, Msgf(format, args...))
 	}
 }
 
 // Debug logs a message at DebugLevel using a tag and a lazy field-generating function.
 func Debug(ctx context.Context, tag *Tag, fn func() []Field) {
-	if tag.GetLogger().EnableLevel(DebugLevel) {
+	if tag.getLogger().EnableLevel(DebugLevel) {
 		Record(ctx, DebugLevel, tag, 2, fn()...)
 	}
 }
 
 // Debugf logs a message at DebugLevel using a tag and a formatted message.
 func Debugf(ctx context.Context, tag *Tag, format string, args ...any) {
-	if tag.GetLogger().EnableLevel(DebugLevel) {
+	if tag.getLogger().EnableLevel(DebugLevel) {
 		Record(ctx, DebugLevel, tag, 2, Msgf(format, args...))
 	}
 }
@@ -218,7 +189,7 @@ func Record(ctx context.Context, level Level, tag *Tag, skip int, fields ...Fiel
 	var l Logger
 
 	// Check if the logger is enabled for the given level
-	if l = tag.GetLogger(); !l.EnableLevel(level) {
+	if l = tag.getLogger(); !l.EnableLevel(level) {
 		return
 	}
 
@@ -247,7 +218,7 @@ func Record(ctx context.Context, level Level, tag *Tag, skip int, fields ...Fiel
 	e.Time = now
 	e.File = file
 	e.Line = line
-	e.Tag = tag.GetName()
+	e.Tag = tag.name
 	e.Fields = fields
 	e.CtxString = ctxString
 	e.CtxFields = ctxFields

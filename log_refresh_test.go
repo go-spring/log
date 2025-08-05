@@ -33,7 +33,7 @@ func (r funcReader) Read(p []byte) (n int, err error) {
 func TestRefresh(t *testing.T) {
 	t.Cleanup(func() {
 		for _, tag := range tagMap {
-			tag.SetLogger(initLogger)
+			tag.setLogger(initLogger)
 		}
 	})
 

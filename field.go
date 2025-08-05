@@ -36,6 +36,7 @@ const (
 	ValueTypeReflect
 	ValueTypeArray
 	ValueTypeObject
+	ValueTypeFromMap
 )
 
 // Field represents a structured log field with a key and a value.
@@ -256,6 +257,18 @@ func Object(key string, fields ...Field) Field {
 	}
 }
 
+// FieldsFromMap creates a special Field that wraps a map[string]any.
+// When encoded, it expands the map into individual key-value fields.
+// This allows existing map structures to be easily converted into log fields
+// without manually iterating through the map and adding each field individually.
+func FieldsFromMap(m map[string]any) Field {
+	return Field{
+		Key:  "",
+		Type: ValueTypeFromMap,
+		Any:  m,
+	}
+}
+
 // Any creates a Field from a value of any type by inspecting its dynamic type.
 // It dispatches to the appropriate typed constructor based on the actual value.
 // If the type is not explicitly handled, it falls back to using Reflect.
@@ -368,29 +381,41 @@ func Any(key string, value any) Field {
 }
 
 // Encode encodes the Field into the Encoder based on its type.
-func (f *Field) Encode(enc Encoder) {
-	enc.AppendKey(f.Key)
+func (f Field) Encode(enc Encoder) {
 	switch f.Type {
 	case ValueTypeBool:
+		enc.AppendKey(f.Key)
 		enc.AppendBool(f.Num != 0)
 	case ValueTypeInt64:
+		enc.AppendKey(f.Key)
 		enc.AppendInt64(int64(f.Num))
 	case ValueTypeUint64:
+		enc.AppendKey(f.Key)
 		enc.AppendUint64(f.Num)
 	case ValueTypeFloat64:
+		enc.AppendKey(f.Key)
 		enc.AppendFloat64(math.Float64frombits(f.Num))
 	case ValueTypeString:
+		enc.AppendKey(f.Key)
 		enc.AppendString(unsafe.String(f.Any.(*byte), f.Num))
 	case ValueTypeReflect:
+		enc.AppendKey(f.Key)
 		enc.AppendReflect(f.Any)
 	case ValueTypeArray:
+		enc.AppendKey(f.Key)
 		enc.AppendArrayBegin()
 		f.Any.(ArrayValue).EncodeArray(enc)
 		enc.AppendArrayEnd()
 	case ValueTypeObject:
+		enc.AppendKey(f.Key)
 		enc.AppendObjectBegin()
 		WriteFields(enc, f.Any.([]Field))
 		enc.AppendObjectEnd()
+	case ValueTypeFromMap:
+		m := f.Any.(map[string]any)
+		for _, k := range OrderedMapKeys(m) {
+			Any(k, m[k]).Encode(enc)
+		}
 	default: // for linter
 	}
 }

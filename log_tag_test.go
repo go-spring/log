@@ -55,7 +55,7 @@ func TestIsValidTag(t *testing.T) {
 
 func TestGetTag(t *testing.T) {
 	assert.Panic(t, func() {
-		GetTag("1")
+		RegisterTag("1")
 	}, "invalid tag name")
 }
 

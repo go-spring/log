@@ -112,7 +112,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		assert.ThatError(t, err).Nil()
 
 		dropCount := 0
-		OnDropEvent = func(logger string, e *Event) {
+		OnDropEvent = func(logger string, v interface{}) {
 			dropCount++
 		}
 		defer func() {
