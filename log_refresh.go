@@ -27,7 +27,10 @@ import (
 	"sync/atomic"
 )
 
-var initOnce atomic.Bool
+var global struct {
+	init    atomic.Bool
+	loggers []Logger
+}
 
 // RefreshFile loads a logging configuration from a file by its name.
 func RefreshFile(fileName string) error {
@@ -43,7 +46,7 @@ func RefreshFile(fileName string) error {
 
 // RefreshReader reads the configuration from an io.Reader using the reader for the given extension.
 func RefreshReader(input io.Reader, ext string) error {
-	if !initOnce.CompareAndSwap(false, true) {
+	if !global.init.CompareAndSwap(false, true) {
 		return errors.New("RefreshReader: log refresh already done")
 	}
 
@@ -253,5 +256,19 @@ func RefreshReader(input io.Reader, ext string) error {
 		bufferCap.Store(int32(n))
 	}
 
+	for _, l := range cLoggers {
+		global.loggers = append(global.loggers, l)
+	}
+
 	return nil
+}
+
+// Destroy destroys all loggers.
+func Destroy() {
+	if !global.init.Load() {
+		panic("Destroy: log not refreshed")
+	}
+	for _, l := range global.loggers {
+		l.Stop()
+	}
 }

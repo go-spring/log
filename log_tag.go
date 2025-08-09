@@ -95,6 +95,9 @@ func isValidTag(tag string) bool {
 // If the tag does not exist in the global registry, it is created and associated with a default logger.
 // Normally, you should use GetAppTag, GetBizTag, or GetRPCTag to create tags semantically.
 func RegisterTag(tag string) *Tag {
+	if global.init.Load() {
+		panic("log refresh already done")
+	}
 	if !isValidTag(tag) {
 		panic("invalid tag name")
 	}

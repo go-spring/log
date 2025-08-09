@@ -47,7 +47,7 @@ func (m *LoggerWrapper) setLogger(logger Logger) {
 // GetLogger retrieves an existing LoggerWrapper by name or creates a new one.
 // It panics if the global initialization phase has completed.
 func GetLogger(name string) *LoggerWrapper {
-	if initOnce.Load() {
+	if global.init.Load() {
 		panic("log refresh already done")
 	}
 	m, ok := loggerMap[name]

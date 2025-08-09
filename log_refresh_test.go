@@ -38,13 +38,13 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("file not exist", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshFile("testdata/file-not-exist.xml")
 		assert.ThatError(t, err).Matches("open testdata/file-not-exist.xml")
 	})
 
 	t.Run("already refresh", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshFile("testdata/log.xml")
 		assert.ThatError(t, err).Nil()
 		// ...
@@ -53,13 +53,13 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("unsupported file", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(nil, ".json")
 		assert.ThatError(t, err).Matches("RefreshReader: unsupported file type .json")
 	})
 
 	t.Run("read file error", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(funcReader(func(p []byte) (n int, err error) {
 			return 0, errors.New("read error")
 		}), ".xml")
@@ -67,13 +67,13 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("read node error - 1", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(""), ".xml")
 		assert.ThatError(t, err).Matches("invalid XML structure: missing root element")
 	})
 
 	t.Run("read node error - 2", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(`
 			<?xml version="1.0" encoding="UTF-8"?>
 			<Map></Map>
@@ -82,7 +82,7 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("more Properties", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(`
 			<?xml version="1.0" encoding="UTF-8"?>
 			<Configuration>
@@ -94,7 +94,7 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("error Property", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(`
 			<?xml version="1.0" encoding="UTF-8"?>
 			<Configuration>
@@ -107,7 +107,7 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("no Appenders", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(`
 			<?xml version="1.0" encoding="UTF-8"?>
 			<Configuration>
@@ -117,7 +117,7 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("more Appenders", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(`
 			<?xml version="1.0" encoding="UTF-8"?>
 			<Configuration>
@@ -129,7 +129,7 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("unfound Appender", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(`
 			<?xml version="1.0" encoding="UTF-8"?>
 			<Configuration>
@@ -142,7 +142,7 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("Appender error - 1", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(`
 			<?xml version="1.0" encoding="UTF-8"?>
 			<Configuration>
@@ -155,7 +155,7 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("Appender error - 2", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(`
 			<?xml version="1.0" encoding="UTF-8"?>
 			<Configuration>
@@ -168,7 +168,7 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("Appender error - 3", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(`
 			<?xml version="1.0" encoding="UTF-8"?>
 			<Configuration>
@@ -183,7 +183,7 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("no Loggers", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(`
 			<?xml version="1.0" encoding="UTF-8"?>
 			<Configuration>
@@ -198,7 +198,7 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("more Loggers", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(`
 			<?xml version="1.0" encoding="UTF-8"?>
 			<Configuration>
@@ -215,7 +215,7 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("no Logger", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(`
 			<?xml version="1.0" encoding="UTF-8"?>
 			<Configuration>
@@ -231,7 +231,7 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("Logger error - 1", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(`
 			<?xml version="1.0" encoding="UTF-8"?>
 			<Configuration>
@@ -249,7 +249,7 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("Logger error - 2", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(`
 			<?xml version="1.0" encoding="UTF-8"?>
 			<Configuration>
@@ -267,7 +267,7 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("Logger error - 3", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(`
 			<?xml version="1.0" encoding="UTF-8"?>
 			<Configuration>
@@ -285,7 +285,7 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("Logger error - 4", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(`
 			<?xml version="1.0" encoding="UTF-8"?>
 			<Configuration>
@@ -305,7 +305,7 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("Logger error - 5", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(`
 			<?xml version="1.0" encoding="UTF-8"?>
 			<Configuration>
@@ -325,7 +325,7 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("Root error - 1", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(`
 			<?xml version="1.0" encoding="UTF-8"?>
 			<Configuration>
@@ -345,7 +345,7 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("Root error - 2", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(`
 			<?xml version="1.0" encoding="UTF-8"?>
 			<Configuration>
@@ -363,7 +363,7 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("Root error - 3", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(`
 			<?xml version="1.0" encoding="UTF-8"?>
 			<Configuration>
@@ -381,7 +381,7 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("Root error - 4", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(`
 			<?xml version="1.0" encoding="UTF-8"?>
 			<Configuration>
@@ -401,7 +401,7 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("Root error - 5", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(`
 			<?xml version="1.0" encoding="UTF-8"?>
 			<Configuration>
@@ -424,7 +424,7 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("tag error", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(`
 			<?xml version="1.0" encoding="UTF-8"?>
 			<Configuration>
@@ -450,7 +450,7 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("appender start error", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(`
 			<?xml version="1.0" encoding="UTF-8"?>
 			<Configuration>
@@ -476,7 +476,7 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("logger start error", func(t *testing.T) {
-		defer func() { initOnce.Store(false) }()
+		defer func() { global.init.Store(false) }()
 		err := RefreshReader(strings.NewReader(`
 			<?xml version="1.0" encoding="UTF-8"?>
 			<Configuration>

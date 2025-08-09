@@ -189,4 +189,6 @@ this message is written directly
 	b, err := os.ReadFile("log.txt")
 	assert.ThatError(t, err).Nil()
 	assert.ThatString(t, string(b)).Equal(strings.TrimLeft(expectLog, "\n"))
+
+	log.Destroy()
 }
