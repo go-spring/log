@@ -28,9 +28,12 @@ import (
 )
 
 var global struct {
-	init    atomic.Bool
-	loggers []Logger
+	init      atomic.Bool
+	loggers   []Logger
+	appenders []Appender
 }
+
+const rootLoggerName = "::ROOT::"
 
 // RefreshFile loads a logging configuration from a file by its name.
 func RefreshFile(fileName string) error {
@@ -134,7 +137,7 @@ func RefreshReader(input io.Reader, ext string) error {
 			if cRoot != nil {
 				return errors.New("RefreshReader: found more than one root loggers")
 			}
-			c.Attributes["name"] = "::root::"
+			c.Attributes["name"] = rootLoggerName
 		}
 
 		p, ok := plugins[c.Label]
@@ -238,7 +241,7 @@ func RefreshReader(input io.Reader, ext string) error {
 
 	for tag, obj := range tagMap {
 		logger := cRoot
-		for i := 0; i < len(tagArray); i++ {
+		for i := range len(tagArray) {
 			s, r := tagArray[i], tagExpArray[i]
 			if s == tag || r.MatchString(tag) {
 				logger = loggerArray[i]
@@ -248,16 +251,20 @@ func RefreshReader(input io.Reader, ext string) error {
 		obj.setLogger(logger)
 	}
 
-	if s, ok := properties["bufferCap"]; ok {
-		n, err := ParseHumanizeBytes(s)
-		if err != nil {
-			return WrapError(err, "RefreshReader: bufferCap parse error")
+	for k, f := range propertyMap {
+		if s, ok := properties[k]; ok {
+			if err := f(s); err != nil {
+				return WrapError(err, "RefreshReader: inject property %s error", k)
+			}
 		}
-		bufferCap.Store(int32(n))
 	}
 
 	for _, l := range cLoggers {
 		global.loggers = append(global.loggers, l)
+	}
+
+	for _, a := range cAppenders {
+		global.appenders = append(global.appenders, a)
 	}
 
 	return nil
@@ -271,4 +278,10 @@ func Destroy() {
 	for _, l := range global.loggers {
 		l.Stop()
 	}
+	for _, a := range global.appenders {
+		a.Stop()
+	}
+	global.init.Store(false)
+	global.appenders = nil
+	global.loggers = nil
 }

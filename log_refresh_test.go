@@ -495,6 +495,32 @@ func TestRefresh(t *testing.T) {
 				</Loggers>
 			</Configuration>
 		`), ".xml")
-		assert.ThatError(t, err).Matches("RefreshReader: logger ::root:: start error << bufferSize is too small")
+		assert.ThatError(t, err).Matches("RefreshReader: logger ::ROOT:: start error << bufferSize is too small")
+	})
+
+	t.Run("error Property value", func(t *testing.T) {
+		defer func() { global.init.Store(false) }()
+		err := RefreshReader(strings.NewReader(`
+			<?xml version="1.0" encoding="UTF-8"?>
+			<Configuration>
+			    <Properties>
+			        <Property name="bufferCap">1GB</Property>
+			    </Properties>
+			    <Appenders>
+			        <Console name="console">
+			            <TextLayout/>
+			        </Console>
+			    </Appenders>
+			    <Loggers>
+			        <Root level="warn">
+			            <AppenderRef ref="console"/>
+			        </Root>
+					<AsyncLogger name="myLogger" level="info" tags="^a$">
+						<AppenderRef ref="console"/>
+					</AsyncLogger>
+			    </Loggers>
+			</Configuration>
+		`), ".xml")
+		assert.ThatError(t, err).Matches(`RefreshReader: inject property bufferCap error << unhandled size name: "GB"`)
 	})
 }

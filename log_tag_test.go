@@ -53,10 +53,15 @@ func TestIsValidTag(t *testing.T) {
 	}
 }
 
-func TestGetTag(t *testing.T) {
+func TestRegisterTag(t *testing.T) {
+
 	assert.Panic(t, func() {
 		RegisterTag("1")
 	}, "invalid tag name")
+
+	assert.Panic(t, func() {
+		RegisterAppTag("", "")
+	}, "subType cannot be empty")
 }
 
 func TestGetAllTags(t *testing.T) {

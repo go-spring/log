@@ -43,6 +43,12 @@ var initLogger Logger = &SyncLogger{
 	},
 }
 
+// LoggerHolder is a wrapper struct used to store a Logger in an atomic.Value,
+// ensuring type consistency and safe concurrent access.
+type LoggerHolder struct {
+	Logger
+}
+
 // Tag is a struct representing a named logging tag.
 // It holds a pointer to a Logger and a string identifier.
 type Tag struct {
@@ -53,13 +59,13 @@ type Tag struct {
 // getLogger returns the Logger associated with this tag.
 // It uses atomic loading to ensure safe concurrent access.
 func (m *Tag) getLogger() Logger {
-	return m.logger.Load().(Logger)
+	return m.logger.Load().(LoggerHolder)
 }
 
 // setLogger sets or replaces the Logger associated with this tag.
 // Uses atomic storing to ensure thread safety.
 func (m *Tag) setLogger(logger Logger) {
-	m.logger.Store(logger)
+	m.logger.Store(LoggerHolder{logger})
 }
 
 // GetAllTags returns all registered tags.

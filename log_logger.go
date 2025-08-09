@@ -36,12 +36,12 @@ func (m *LoggerWrapper) Write(b []byte) {
 
 // getLogger retrieves the currently stored Logger instance.
 func (m *LoggerWrapper) getLogger() Logger {
-	return m.logger.Load().(Logger)
+	return m.logger.Load().(LoggerHolder)
 }
 
 // setLogger updates the Logger instance atomically.
 func (m *LoggerWrapper) setLogger(logger Logger) {
-	m.logger.Store(logger)
+	m.logger.Store(LoggerHolder{logger})
 }
 
 // GetLogger retrieves an existing LoggerWrapper by name or creates a new one.
@@ -56,4 +56,9 @@ func GetLogger(name string) *LoggerWrapper {
 		loggerMap[name] = m
 	}
 	return m
+}
+
+// GetRootLogger retrieves the root LoggerWrapper.
+func GetRootLogger() *LoggerWrapper {
+	return GetLogger(rootLoggerName)
 }

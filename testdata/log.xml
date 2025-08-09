@@ -2,6 +2,7 @@
 <Configuration>
     <Properties>
         <Property name="bufferCap">1KB</Property>
+        <Property name="bufferSize">1000</Property>
         <!-- Dummy is unused -->
         <Dummy/>
     </Properties>
@@ -21,9 +22,9 @@
         <Root level="warn">
             <AppenderRef ref="console"/>
         </Root>
-        <Logger name="logger" level="trace" tags="_com_request_*">
+        <AsyncLogger name="myLogger" level="trace" tags="_com_request_*" bufferSize="${bufferSize}">
             <AppenderRef ref="file"/>
             <AppenderRef ref="multi"/>
-        </Logger>
+        </AsyncLogger>
     </Loggers>
 </Configuration>

@@ -110,6 +110,7 @@ func (c *FileAppender) Write(b []byte) {
 func (c *FileAppender) Stop() {
 	if c.file != nil {
 		// ignore error deliberately
+		_ = c.file.Sync()
 		_ = c.file.Close()
 	}
 }

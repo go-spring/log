@@ -23,6 +23,23 @@ import (
 	"github.com/go-spring/gs-assert/assert"
 )
 
+func TestParseBufferFullPolicy(t *testing.T) {
+	_, err := ParseBufferFullPolicy("block")
+	assert.ThatError(t, err).Matches("invalid BufferFullPolicy block")
+
+	p, err := ParseBufferFullPolicy("Block")
+	assert.ThatError(t, err).Nil()
+	assert.That(t, p).Equal(BufferFullPolicyBlock)
+
+	p, err = ParseBufferFullPolicy("Discard")
+	assert.ThatError(t, err).Nil()
+	assert.That(t, p).Equal(BufferFullPolicyDiscard)
+
+	p, err = ParseBufferFullPolicy("DiscardOldest")
+	assert.ThatError(t, err).Nil()
+	assert.That(t, p).Equal(BufferFullPolicyDiscardOldest)
+}
+
 type CountAppender struct {
 	Appender
 	count int
@@ -103,7 +120,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		assert.ThatError(t, err).Matches("bufferSize is too small")
 	})
 
-	t.Run("drop events", func(t *testing.T) {
+	t.Run("buffer full - discard", func(t *testing.T) {
 		a := &CountAppender{
 			Appender: &DiscardAppender{},
 		}
@@ -126,6 +143,12 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		err = l.Start()
 		assert.ThatError(t, err).Nil()
 
+		go func() {
+			for range 100 {
+				l.Write([]byte("hello"))
+			}
+		}()
+
 		for range 5000 {
 			l.Publish(GetEvent())
 		}
@@ -136,6 +159,88 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		a.Stop()
 
 		assert.That(t, l.GetDiscardCounter() > 0).True()
+	})
+
+	t.Run("buffer full - discard oldest", func(t *testing.T) {
+		a := &CountAppender{
+			Appender: &DiscardAppender{},
+		}
+
+		err := a.Start()
+		assert.ThatError(t, err).Nil()
+
+		l := &AsyncLogger{
+			BaseLogger: BaseLogger{
+				Level: InfoLevel,
+				Tags:  "_com_*",
+				AppenderRefs: []*AppenderRef{
+					{appender: a},
+				},
+			},
+			BufferSize:       100,
+			BufferFullPolicy: BufferFullPolicyDiscardOldest,
+		}
+
+		err = l.Start()
+		assert.ThatError(t, err).Nil()
+
+		go func() {
+			for range 100 {
+				l.Write([]byte("hello"))
+			}
+		}()
+
+		for range 5000 {
+			l.Publish(GetEvent())
+		}
+
+		time.Sleep(200 * time.Millisecond)
+
+		l.Stop()
+		a.Stop()
+
+		assert.That(t, l.GetDiscardCounter() > 0).True()
+	})
+
+	t.Run("buffer full - block", func(t *testing.T) {
+		a := &CountAppender{
+			Appender: &DiscardAppender{},
+		}
+
+		err := a.Start()
+		assert.ThatError(t, err).Nil()
+
+		l := &AsyncLogger{
+			BaseLogger: BaseLogger{
+				Level: InfoLevel,
+				Tags:  "_com_*",
+				AppenderRefs: []*AppenderRef{
+					{appender: a},
+				},
+			},
+			BufferSize:       100,
+			BufferFullPolicy: BufferFullPolicyBlock,
+		}
+
+		err = l.Start()
+		assert.ThatError(t, err).Nil()
+
+		go func() {
+			for range 100 {
+				l.Write([]byte("hello"))
+			}
+		}()
+
+		for range 5000 {
+			l.Publish(GetEvent())
+		}
+
+		time.Sleep(200 * time.Millisecond)
+
+		l.Stop()
+		a.Stop()
+
+		assert.That(t, l.GetDiscardCounter() == 0).True()
 	})
 
 	t.Run("success", func(t *testing.T) {

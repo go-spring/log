@@ -35,6 +35,13 @@ func RegisterConverter[T any](fn Converter[T]) {
 	converters[t] = fn
 }
 
+var propertyMap = make(map[string]func(string) error)
+
+// RegisterProperty Registers a property with a given key.
+func RegisterProperty(key string, val func(string) error) {
+	propertyMap[key] = val
+}
+
 // Lifecycle Optional lifecycle interface for plugin instances.
 type Lifecycle interface {
 	Start() error

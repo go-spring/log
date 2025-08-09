@@ -33,6 +33,14 @@ var (
 
 func init() {
 	bufferCap.Store(10 * 1024) // 10KB
+	RegisterProperty("bufferCap", func(s string) error {
+		n, err := ParseHumanizeBytes(s)
+		if err != nil {
+			return err
+		}
+		bufferCap.Store(int32(n))
+		return nil
+	})
 }
 
 var bytesSizeTable = map[string]int64{

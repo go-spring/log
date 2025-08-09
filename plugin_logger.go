@@ -23,18 +23,7 @@ import (
 )
 
 func init() {
-	RegisterConverter[BufferFullPolicy](func(s string) (BufferFullPolicy, error) {
-		switch s {
-		case "Block":
-			return BufferFullPolicyBlock, nil
-		case "Discard":
-			return BufferFullPolicyDiscard, nil
-		case "DiscardOldest":
-			return BufferFullPolicyDiscardOldest, nil
-		default:
-			return -1, fmt.Errorf("invalid BufferFullPolicy %s", s)
-		}
-	})
+	RegisterConverter[BufferFullPolicy](ParseBufferFullPolicy)
 }
 
 func init() {
@@ -121,6 +110,20 @@ const (
 	BufferFullPolicyDiscardOldest = BufferFullPolicy(2) // Drop the oldest event or data
 )
 
+// ParseBufferFullPolicy converts a string to a BufferFullPolicy.
+func ParseBufferFullPolicy(s string) (BufferFullPolicy, error) {
+	switch s {
+	case "Block":
+		return BufferFullPolicyBlock, nil
+	case "Discard":
+		return BufferFullPolicyDiscard, nil
+	case "DiscardOldest":
+		return BufferFullPolicyDiscardOldest, nil
+	default:
+		return -1, fmt.Errorf("invalid BufferFullPolicy %s", s)
+	}
+}
+
 // AsyncLogger is an asynchronous logger configuration.
 // It buffers log events and processes them in a separate goroutine.
 type AsyncLogger struct {
@@ -128,9 +131,9 @@ type AsyncLogger struct {
 	BufferSize       int              `PluginAttribute:"bufferSize,default=10000"`
 	BufferFullPolicy BufferFullPolicy `PluginAttribute:"bufferFullPolicy,default=Discard"`
 
-	buf  chan interface{} // Channel buffer for log events
-	wait chan struct{}    // Channel for waiting for the worker goroutine to finish
-	stop *Event           // Event for stopping the worker goroutine
+	buf  chan any      // Channel buffer for log events
+	wait chan struct{} // Channel for waiting for the worker goroutine to finish
+	stop *Event        // Event for stopping the worker goroutine
 
 	discardCounter int64 // Counter for discarded events
 }
@@ -145,7 +148,7 @@ func (c *AsyncLogger) Start() error {
 	if c.BufferSize < 100 {
 		return errors.New("bufferSize is too small")
 	}
-	c.buf = make(chan interface{}, c.BufferSize)
+	c.buf = make(chan any, c.BufferSize)
 	c.wait = make(chan struct{})
 	c.stop = &Event{}
 
@@ -188,7 +191,7 @@ func (c *AsyncLogger) Write(b []byte) {
 }
 
 // onBufferFull is called when the buffer is full.
-func (c *AsyncLogger) onBufferFull(v interface{}) {
+func (c *AsyncLogger) onBufferFull(v any) {
 	switch c.BufferFullPolicy {
 	case BufferFullPolicyDiscardOldest:
 		var exit bool
