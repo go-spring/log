@@ -214,7 +214,7 @@ func RefreshReader(input io.Reader, ext string) error {
 		loggerArray = append(loggerArray, cTags[s])
 	}
 
-	// todo(lvan100): currently, there is only one refresh operation,
+	// TODO(lvan100): Currently, there is only one refresh operation,
 	// so exception handling is temporarily ignored.
 
 	for _, a := range cAppenders {

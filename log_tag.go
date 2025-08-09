@@ -113,6 +113,9 @@ func RegisterTag(tag string) *Tag {
 // BuildTag constructs a structured tag string based on main type, sub type, and action.
 // The format is: _<mainType>_<subType> or _<mainType>_<subType>_<action>.
 func BuildTag(mainType, subType, action string) string {
+	if subType == "" {
+		panic("subType cannot be empty")
+	}
 	if action == "" {
 		return "_" + mainType + "_" + subType
 	}

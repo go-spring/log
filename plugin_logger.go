@@ -18,10 +18,24 @@ package log
 
 import (
 	"errors"
+	"fmt"
+	"sync/atomic"
 )
 
-// OnDropEvent is a callback function that is called when an event is dropped.
-var OnDropEvent func(logger string, v interface{})
+func init() {
+	RegisterConverter[BufferFullPolicy](func(s string) (BufferFullPolicy, error) {
+		switch s {
+		case "Block":
+			return BufferFullPolicyBlock, nil
+		case "Discard":
+			return BufferFullPolicyDiscard, nil
+		case "DiscardOldest":
+			return BufferFullPolicyDiscardOldest, nil
+		default:
+			return -1, fmt.Errorf("invalid BufferFullPolicy %s", s)
+		}
+	})
+}
 
 func init() {
 	RegisterPlugin[AppenderRef]("AppenderRef", PluginTypeAppenderRef)
@@ -98,14 +112,32 @@ func (c *SyncLogger) Write(b []byte) {
 	c.writeAppenders(b)
 }
 
+// BufferFullPolicy specifies the behavior when the buffer is full.
+type BufferFullPolicy int
+
+const (
+	BufferFullPolicyBlock         = BufferFullPolicy(0) // Block until space is available
+	BufferFullPolicyDiscard       = BufferFullPolicy(1) // Drop the new event or data
+	BufferFullPolicyDiscardOldest = BufferFullPolicy(2) // Drop the oldest event or data
+)
+
 // AsyncLogger is an asynchronous logger configuration.
 // It buffers log events and processes them in a separate goroutine.
 type AsyncLogger struct {
 	BaseLogger
-	BufferSize int `PluginAttribute:"bufferSize,default=10000"`
+	BufferSize       int              `PluginAttribute:"bufferSize,default=10000"`
+	BufferFullPolicy BufferFullPolicy `PluginAttribute:"bufferFullPolicy,default=Discard"`
 
 	buf  chan interface{} // Channel buffer for log events
-	wait chan struct{}
+	wait chan struct{}    // Channel for waiting for the worker goroutine to finish
+	stop *Event           // Event for stopping the worker goroutine
+
+	discardCounter int64 // Counter for discarded events
+}
+
+// GetDiscardCounter returns the count of discarded events.
+func (c *AsyncLogger) GetDiscardCounter() int64 {
+	return atomic.LoadInt64(&c.discardCounter)
 }
 
 // Start initializes the asynchronous logger and starts its worker goroutine.
@@ -115,10 +147,14 @@ func (c *AsyncLogger) Start() error {
 	}
 	c.buf = make(chan interface{}, c.BufferSize)
 	c.wait = make(chan struct{})
+	c.stop = &Event{}
 
 	// Launch a background goroutine to process events
 	go func() {
 		for v := range c.buf {
+			if v == c.stop {
+				break
+			}
 			switch x := v.(type) {
 			case *Event:
 				c.callAppenders(x)
@@ -138,11 +174,7 @@ func (c *AsyncLogger) Publish(e *Event) {
 	select {
 	case c.buf <- e:
 	default:
-		// Drop the event if the buffer is full
-		if OnDropEvent != nil {
-			OnDropEvent(c.Name, e)
-		}
-		PutEvent(e)
+		c.onBufferFull(e)
 	}
 }
 
@@ -151,15 +183,48 @@ func (c *AsyncLogger) Write(b []byte) {
 	select {
 	case c.buf <- b:
 	default:
-		// Drop the event if the buffer is full
-		if OnDropEvent != nil {
-			OnDropEvent(c.Name, b)
+		c.onBufferFull(b)
+	}
+}
+
+// onBufferFull is called when the buffer is full.
+func (c *AsyncLogger) onBufferFull(v interface{}) {
+	switch c.BufferFullPolicy {
+	case BufferFullPolicyDiscardOldest:
+		var exit bool
+		for {
+			select {
+			case c.buf <- v:
+				exit = true
+			default:
+				select {
+				case x := <-c.buf:
+					atomic.AddInt64(&c.discardCounter, 1)
+					if e, ok := x.(*Event); ok {
+						PutEvent(e)
+					}
+				default: // for linter
+				}
+			}
+			if exit {
+				break
+			}
 		}
+	case BufferFullPolicyBlock:
+		c.buf <- v
+	case BufferFullPolicyDiscard:
+		atomic.AddInt64(&c.discardCounter, 1)
+		if e, ok := v.(*Event); ok {
+			PutEvent(e)
+		}
+		return
+	default: // for linter
 	}
 }
 
 // Stop shuts down the asynchronous logger and waits for the worker goroutine to finish.
 func (c *AsyncLogger) Stop() {
-	close(c.buf)
+	c.buf <- c.stop
 	<-c.wait
+	close(c.buf)
 }

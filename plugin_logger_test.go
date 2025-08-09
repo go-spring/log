@@ -111,14 +111,6 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		err := a.Start()
 		assert.ThatError(t, err).Nil()
 
-		dropCount := 0
-		OnDropEvent = func(logger string, v interface{}) {
-			dropCount++
-		}
-		defer func() {
-			OnDropEvent = nil
-		}()
-
 		l := &AsyncLogger{
 			BaseLogger: BaseLogger{
 				Level: InfoLevel,
@@ -127,7 +119,8 @@ func TestAsyncLoggerConfig(t *testing.T) {
 					{appender: a},
 				},
 			},
-			BufferSize: 100,
+			BufferSize:       100,
+			BufferFullPolicy: BufferFullPolicyDiscard,
 		}
 
 		err = l.Start()
@@ -142,7 +135,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		l.Stop()
 		a.Stop()
 
-		assert.That(t, dropCount > 0).True()
+		assert.That(t, l.GetDiscardCounter() > 0).True()
 	})
 
 	t.Run("success", func(t *testing.T) {

@@ -73,6 +73,7 @@ func (c *ConsoleAppender) Append(e *Event) {
 
 // Write writes a bytes slice directly to the stdout.
 func (c *ConsoleAppender) Write(b []byte) {
+	// ignore error deliberately
 	_, _ = Stdout.Write(b)
 }
 
@@ -101,12 +102,14 @@ func (c *FileAppender) Append(e *Event) {
 
 // Write writes a bytes slice directly to the file.
 func (c *FileAppender) Write(b []byte) {
+	// ignore error deliberately
 	_, _ = c.file.Write(b)
 }
 
 // Stop closes the file.
 func (c *FileAppender) Stop() {
 	if c.file != nil {
+		// ignore error deliberately
 		_ = c.file.Close()
 	}
 }

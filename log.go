@@ -16,30 +16,53 @@
 
 /*
 Package log is a high-performance and extensible logging library designed specifically for the Go programming
-language. It offers flexible and structured logging capabilities, including context field extraction, multi-level
-logging configuration, and multiple output options, making it ideal for a wide range of server-side applications.
+language. It provides flexible and structured logging capabilities, including context field extraction, multi-level
+logging configuration, and multiple output options, making it ideal for server-side applications.
 
-Context field extraction can be customized:
+## Core Concepts:
 
-	log.StringFromContext = func(ctx context.Context) string {
-		return ""
-	}
+Tags:
 
-	log.FieldsFromContext = func(ctx context.Context) []log.Field {
-		return []log.Field{
-			log.String("trace_id", "0a882193682db71edd48044db54cae88"),
-			log.String("span_id", "50ef0724418c0a66"),
-		}
-	}
+Tags are a core concept in the log package used to categorize logs. By registering a tag via the `RegisterTag`
+function, you can use regular expressions to match the user-defined tags. This approach allows for a unified API
+for logging without explicitly creating logger instances. Even third-party libraries can write logs without
+setting up a logger object.
 
-Load configuration from a file:
+Loggers:
 
-	err := log.RefreshFile("log.xml")
-	if err != nil {
-		panic(err)
-	}
+A Logger is the object that actually handles the logging process. You can obtain a logger instance using the
+`GetLogger` function, which is mainly provided for compatibility with legacy projects. This allows you to
+directly retrieve a logger by its name and log pre-formatted messages using the `Write` function.
 
-Log messages with formatted output:
+Context Field Extraction:
+
+Contextual data can be extracted and included in log entries via configurable functions:
+- `log.StringFromContext`: Extracts a string value (e.g., a request ID) from the context.
+- `log.FieldsFromContext`: Returns a list of structured fields from the context, such as trace IDs or user IDs.
+
+Configuration from File:
+
+The `log.RefreshFile` function allows loading the logger's configuration from an external file (e.g., XML or JSON).
+
+Logger Initialization and Logging:
+
+- Using `GetLogger`, you can fetch a logger instance (often for compatibility with older systems).
+- You can also register custom tags using `RegisterTag` to classify logs according to your needs.
+
+Logging Messages:
+
+The package provides various logging functions, such as `Tracef`, `Debugf`, `Infof`, `Warnf`, etc.,
+which log messages at different levels (e.g., Trace, Debug, Info, Warn).
+These functions can either accept structured fields or formatted messages.
+
+Structured Logging:
+
+The logger also supports structured logging, where fields are captured as key-value pairs and logged with the message.
+The fields can be provided directly in the log functions or through a map.
+
+## Examples:
+
+Using a pre-registered tag:
 
 	log.Tracef(ctx, TagRequestOut, "hello %s", "world")
 	log.Debugf(ctx, TagRequestOut, "hello %s", "world")
@@ -49,7 +72,7 @@ Log messages with formatted output:
 	log.Panicf(ctx, TagRequestIn, "hello %s", "world")
 	log.Fatalf(ctx, TagRequestIn, "hello %s", "world")
 
-Structured logging using field functions:
+Using structured fields:
 
 	log.Trace(ctx, TagRequestOut, func() []log.Field {
 		return []log.Field{
@@ -57,24 +80,10 @@ Structured logging using field functions:
 		}
 	})
 
-	log.Debug(ctx, TagRequestOut, func() []log.Field {
-		return []log.Field{
-			log.Msgf("hello %s", "world"),
-		}
-	})
-
-	log.Info(ctx, TagRequestIn, log.Msgf("hello %s", "world"))
-	log.Warn(ctx, TagRequestIn, log.Msgf("hello %s", "world"))
-	log.Error(ctx, TagRequestIn, log.Msgf("hello %s", "world"))
-	log.Panic(ctx, TagRequestIn, log.Msgf("hello %s", "world"))
-	log.Fatal(ctx, TagRequestIn, log.Msgf("hello %s", "world"))
-
-Log structured fields using a map:
-
-	log.Error(ctx, TagDefault, log.Fields(map[string]any{
+	log.Error(ctx, TagRequestIn, log.FieldsFromMap(map[string]any{
 		"key1": "value1",
 		"key2": "value2",
-	})...)
+	}))
 */
 package log
 
@@ -84,23 +93,22 @@ import (
 )
 
 var (
-	// TagAppDef is a default tag for application logs.
+	// TagAppDef is the default tag used for application logs.
 	TagAppDef = RegisterAppTag("def", "")
 
-	// TagBizDef is a default tag for business logs.
+	// TagBizDef is the default tag used for business-related logs.
 	TagBizDef = RegisterBizTag("def", "")
 )
 
 var (
 	// TimeNow is a function that can be overridden to provide custom
-	// timestamp behavior (e.g., for testing).
+	// timestamp behavior, e.g., for testing or mocking.
 	TimeNow func(ctx context.Context) time.Time
 
-	// StringFromContext can be set to extract a string from the context.
+	// StringFromContext allows extraction of a string (e.g., trace ID) from the context.
 	StringFromContext func(ctx context.Context) string
 
-	// FieldsFromContext can be set to extract structured fields from
-	// the context (e.g., trace IDs, user IDs).
+	// FieldsFromContext allows extraction of structured fields (e.g., trace ID, span ID) from the context.
 	FieldsFromContext func(ctx context.Context) []Field
 )
 
@@ -186,10 +194,10 @@ func Fatalf(ctx context.Context, tag *Tag, format string, args ...any) {
 // It checks the logger level, captures caller information, gathers context fields,
 // and sends the log event to the logger.
 func Record(ctx context.Context, level Level, tag *Tag, skip int, fields ...Field) {
-	var l Logger
+	l := tag.getLogger()
 
 	// Check if the logger is enabled for the given level
-	if l = tag.getLogger(); !l.EnableLevel(level) {
+	if !l.EnableLevel(level) {
 		return
 	}
 
