@@ -23,11 +23,6 @@ import (
 )
 
 func TestGetLogger(t *testing.T) {
-
-	assert.Panic(t, func() {
-		Destroy()
-	}, "Destroy: log not refreshed")
-
 	l := GetLogger("logger-not-exist")
 	err := RefreshFile("testdata/log.xml")
 	assert.ThatError(t, err).Matches(`RefreshReader: logger logger-not-exist not found`)

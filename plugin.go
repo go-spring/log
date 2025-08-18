@@ -22,6 +22,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/go-spring/barky"
 )
 
 var converters = map[reflect.Type]any{}
@@ -52,6 +54,7 @@ type Lifecycle interface {
 type PluginType string
 
 const (
+	PluginTypeProperty    PluginType = "Property"
 	PluginTypeAppender    PluginType = "Appender"
 	PluginTypeLayout      PluginType = "Layout"
 	PluginTypeAppenderRef PluginType = "AppenderRef"
@@ -62,6 +65,10 @@ const (
 )
 
 var plugins = map[string]*Plugin{}
+
+func init() {
+	RegisterPlugin[struct{}]("Property", PluginTypeProperty)
+}
 
 // Plugin metadata structure
 type Plugin struct {
@@ -92,34 +99,34 @@ func RegisterPlugin[T any](name string, typ PluginType) {
 }
 
 // NewPlugin Creates and initializes a plugin instance.
-func NewPlugin(t reflect.Type, node *Node, properties map[string]string) (reflect.Value, error) {
+func NewPlugin(t reflect.Type, prefix string, s *barky.Storage) (reflect.Value, error) {
 	v := reflect.New(t)
-	if err := inject(v.Elem(), t, node, properties); err != nil {
+	if err := inject(v.Elem(), t, prefix, s); err != nil {
 		return reflect.Value{}, WrapError(err, "create plugin %s error", t.String())
 	}
 	return v, nil
 }
 
 // inject Recursively injects values into struct fields based on tags.
-func inject(v reflect.Value, t reflect.Type, node *Node, properties map[string]string) error {
+func inject(v reflect.Value, t reflect.Type, prefix string, s *barky.Storage) error {
 	for i := range v.NumField() {
 		ft := t.Field(i)
 		fv := v.Field(i)
 		if tag, ok := ft.Tag.Lookup("PluginAttribute"); ok {
-			if err := injectAttribute(tag, fv, ft, node, properties); err != nil {
+			if err := injectAttribute(tag, fv, ft, prefix, s); err != nil {
 				return err
 			}
 			continue
 		}
 		if tag, ok := ft.Tag.Lookup("PluginElement"); ok {
-			if err := injectElement(tag, fv, ft, node, properties); err != nil {
+			if err := injectElement(tag, fv, ft, prefix, s); err != nil {
 				return err
 			}
 			continue
 		}
 		// Recursively process anonymous embedded structs
 		if ft.Anonymous && ft.Type.Kind() == reflect.Struct {
-			if err := inject(fv, fv.Type(), node, properties); err != nil {
+			if err := inject(fv, fv.Type(), prefix, s); err != nil {
 				return err
 			}
 		}
@@ -153,15 +160,25 @@ func (tag PluginTag) Lookup(key string) (value string, ok bool) {
 }
 
 // injectAttribute Injects a value into a struct field from plugin attribute.
-func injectAttribute(tag string, fv reflect.Value, ft reflect.StructField, node *Node, properties map[string]string) error {
+func injectAttribute(tag string, fv reflect.Value, ft reflect.StructField, prefix string, s *barky.Storage) error {
 
 	attrTag := PluginTag(tag)
 	attrName := attrTag.Get("")
 	if attrName == "" {
 		return fmt.Errorf("found no attribute for struct field %s", ft.Name)
 	}
-	val, ok := node.Attributes[attrName]
-	if !ok {
+
+	if attrName == "name" {
+		name := prefix[strings.LastIndex(prefix, ".")+1:]
+		fv.SetString(name)
+		return nil
+	}
+
+	var val string
+	key := prefix + "." + ToCamelKey(attrName)
+	if v, ok := s.RawData()[key]; ok {
+		val = v.Value
+	} else {
 		val, ok = attrTag.Lookup("default")
 		if !ok {
 			return fmt.Errorf("found no attribute for struct field %s", ft.Name)
@@ -171,11 +188,11 @@ func injectAttribute(tag string, fv reflect.Value, ft reflect.StructField, node 
 	// Use a property if available
 	val = strings.TrimSpace(val)
 	if strings.HasPrefix(val, "${") && strings.HasSuffix(val, "}") {
-		s, exist := properties[val[2:len(val)-1]]
-		if !exist {
+		v, ok := s.RawData()[ToCamelKey(val[2:len(val)-1])]
+		if !ok {
 			return fmt.Errorf("property %s not found", val)
 		}
-		val = s
+		val = v.Value
 	}
 
 	// Use a custom converter if available
@@ -228,60 +245,81 @@ func injectAttribute(tag string, fv reflect.Value, ft reflect.StructField, node 
 }
 
 // injectElement Injects plugin elements (child nodes) into struct fields.
-func injectElement(tag string, fv reflect.Value, ft reflect.StructField, node *Node, properties map[string]string) error {
+func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix string, s *barky.Storage) error {
 
 	elemTag := PluginTag(tag)
 	elemType := elemTag.Get("")
 	if elemType == "" {
 		return fmt.Errorf("found no element for struct field %s", ft.Name)
 	}
-
-	var children []reflect.Value
-	for _, c := range node.Children {
-		p, ok := plugins[c.Label]
-		if !ok {
-			return fmt.Errorf("plugin %s not found for struct field %s", c.Label, ft.Name)
-		}
-		if string(p.Type) != elemType {
-			continue
-		}
-		v, err := NewPlugin(p.Class, c, properties)
-		if err != nil {
-			return err
-		}
-		children = append(children, v)
-	}
-
-	if len(children) == 0 {
-		elemLabel, ok := elemTag.Lookup("default")
-		if !ok {
-			return fmt.Errorf("found no plugin elements for struct field %s", ft.Name)
-		}
-		p, ok := plugins[elemLabel]
-		if !ok {
-			return fmt.Errorf("plugin %s not found for struct field %s", elemLabel, ft.Name)
-		}
-		v, err := NewPlugin(p.Class, &Node{Label: elemLabel}, properties)
-		if err != nil {
-			return err
-		}
-		children = append(children, v)
-	}
+	elemKey := prefix + "." + ToCamelKey(elemType)
 
 	switch fv.Kind() {
 	case reflect.Slice:
-		slice := reflect.MakeSlice(ft.Type, 0, len(children))
-		for j := range len(children) {
-			slice = reflect.Append(slice, children[j])
+
+		p, ok := plugins[elemType]
+		if !ok {
+			return fmt.Errorf("plugin %s not found for struct field %s", elemType, ft.Name)
 		}
+
+		slice := reflect.MakeSlice(ft.Type, 0, 1)
+		if s.Has(elemKey + "[0]") { // 多个配置
+			for i := 0; ; i++ {
+				subKey := elemKey + "[" + strconv.Itoa(i) + "]"
+				if !s.Has(subKey) {
+					break
+				}
+				v, err := NewPlugin(p.Class, subKey, s)
+				if err != nil {
+					return err
+				}
+				slice = reflect.Append(slice, v)
+			}
+		} else if s.Has(elemKey) { // 单个配置
+			v, err := NewPlugin(p.Class, elemKey, s)
+			if err != nil {
+				return err
+			}
+			slice = reflect.Append(slice, v)
+		}
+
+		if slice.Len() == 0 {
+			return fmt.Errorf("found no plugin elements for struct field %s", ft.Name)
+		}
+
 		fv.Set(slice)
 		return nil
+
 	case reflect.Interface:
-		if len(children) > 1 {
-			return fmt.Errorf("found %d plugin elements for struct field %s", len(children), ft.Name)
+
+		var strType string
+		if s.Has(elemKey) {
+			typeKey := elemKey + ".type"
+			if v, ok := s.RawData()[typeKey]; ok {
+				strType = v.Value
+			} else {
+				return fmt.Errorf("found no plugin elements for struct field %s", ft.Name)
+			}
+		} else {
+			elemLabel, ok := elemTag.Lookup("default")
+			if !ok {
+				return fmt.Errorf("found no plugin elements for struct field %s", ft.Name)
+			}
+			strType = elemLabel
 		}
-		fv.Set(children[0])
+
+		p, ok := plugins[strType]
+		if !ok {
+			return fmt.Errorf("plugin %s not found for struct field %s", strType, ft.Name)
+		}
+
+		v, err := NewPlugin(p.Class, elemKey, s)
+		if err != nil {
+			return err
+		}
+		fv.Set(v)
 		return nil
+
 	default:
 		return fmt.Errorf("unsupported inject type %s for struct field %s", ft.Type.String(), ft.Name)
 	}

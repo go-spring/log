@@ -3,8 +3,6 @@
     <Properties>
         <Property name="bufferCap">1KB</Property>
         <Property name="bufferSize">1000</Property>
-        <!-- Dummy is unused -->
-        <Dummy/>
     </Properties>
     <Appenders>
         <File name="file" fileName="log.txt">

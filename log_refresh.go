@@ -19,9 +19,7 @@ package log
 import (
 	"errors"
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync/atomic"
@@ -37,128 +35,49 @@ const rootLoggerName = "::ROOT::"
 
 // RefreshFile loads a logging configuration from a file by its name.
 func RefreshFile(fileName string) error {
-	file, err := os.Open(fileName)
-	if err != nil {
-		return err
-	}
-	// nolint: errcheck
-	defer file.Close()
-	ext := filepath.Ext(fileName)
-	return RefreshReader(file, ext)
-}
 
-// RefreshReader reads the configuration from an io.Reader using the reader for the given extension.
-func RefreshReader(input io.Reader, ext string) error {
+	s, err := readConfigFromFile(fileName)
+	if err != nil {
+		return fmt.Errorf("RefreshReader: %s", err)
+	}
+
+	if !s.Has("rootLogger") {
+		return errors.New("RefreshReader: rootLogger not found")
+	}
+
+	appenders, err := s.SubKeys("appender")
+	if err != nil {
+		return fmt.Errorf("RefreshReader: read appenders error %w", err)
+	}
+	if len(appenders) == 0 {
+		return errors.New("RefreshReader: Appenders section not found")
+	}
+
+	loggers, err := s.SubKeys("logger")
+	if err != nil {
+		return fmt.Errorf("RefreshReader: read loggers error %w", err)
+	}
+	if len(loggers) == 0 {
+		return errors.New("RefreshReader: Loggers section not found")
+	}
+
 	if !global.init.CompareAndSwap(false, true) {
 		return errors.New("RefreshReader: log refresh already done")
 	}
 
-	var rootNode *Node
-	{
-		r, ok := readers[ext]
+	newPlugin := func(typeKey string) (reflect.Value, error) {
+		if !s.Has(typeKey) {
+			return reflect.Value{}, fmt.Errorf("RefreshReader: attribute 'type' not found")
+		}
+		strType := s.Get(typeKey)
+		p, ok := plugins[strType]
 		if !ok {
-			return fmt.Errorf("RefreshReader: unsupported file type %s", ext)
+			return reflect.Value{}, fmt.Errorf("RefreshReader: plugin %s not found", strType)
 		}
-		data, err := io.ReadAll(input)
-		if err != nil {
-			return err
-		}
-		rootNode, err = r.Read(data)
-		if err != nil {
-			return err
-		}
+		return NewPlugin(p.Class, typeKey[:strings.LastIndex(typeKey, ".")], s)
 	}
 
-	if rootNode.Label != "Configuration" {
-		return errors.New("RefreshReader: Configuration root not found")
-	}
-
-	var (
-		cRoot      Logger
-		cLoggers   = make(map[string]Logger)
-		cAppenders = make(map[string]Appender)
-		cTags      = make(map[string]Logger)
-		properties = make(map[string]string)
-	)
-
-	// Parse <Properties> section
-	nodes := rootNode.getChildren("Properties")
-	if len(nodes) > 1 {
-		return errors.New("RefreshReader: Properties section must be unique")
-	}
-	if len(nodes) == 1 {
-		for _, c := range nodes[0].Children {
-			if c.Label != "Property" {
-				continue
-			}
-			name, ok := c.Attributes["name"]
-			if !ok {
-				return fmt.Errorf("RefreshReader: attribute 'name' not found for node %s", c.Label)
-			}
-			properties[name] = c.Text
-		}
-	}
-
-	// Parse <Appenders> section
-	nodes = rootNode.getChildren("Appenders")
-	if len(nodes) == 0 {
-		return errors.New("RefreshReader: Appenders section not found")
-	}
-	if len(nodes) > 1 {
-		return errors.New("RefreshReader: Appenders section must be unique")
-	}
-	for _, c := range nodes[0].Children {
-		p, ok := plugins[c.Label]
-		if !ok {
-			return fmt.Errorf("RefreshReader: plugin %s not found", c.Label)
-		}
-		name, ok := c.Attributes["name"]
-		if !ok {
-			return errors.New("RefreshReader: attribute 'name' not found")
-		}
-		v, err := NewPlugin(p.Class, c, properties)
-		if err != nil {
-			return err
-		}
-		cAppenders[name] = v.Interface().(Appender)
-	}
-
-	// Parse <Loggers> section
-	nodes = rootNode.getChildren("Loggers")
-	if len(nodes) == 0 {
-		return errors.New("RefreshReader: Loggers section not found")
-	}
-	if len(nodes) > 1 {
-		return errors.New("RefreshReader: Loggers section must be unique")
-	}
-	for _, c := range nodes[0].Children {
-		isRootLogger := c.Label == "Root" || c.Label == "AsyncRoot"
-		if isRootLogger {
-			if cRoot != nil {
-				return errors.New("RefreshReader: found more than one root loggers")
-			}
-			c.Attributes["name"] = rootLoggerName
-		}
-
-		p, ok := plugins[c.Label]
-		if !ok || p == nil {
-			return fmt.Errorf("RefreshReader: plugin %s not found", c.Label)
-		}
-		name, ok := c.Attributes["name"]
-		if !ok {
-			return fmt.Errorf("RefreshReader: attribute 'name' not found for node %s", c.Label)
-		}
-		v, err := NewPlugin(p.Class, c, properties)
-		if err != nil {
-			return err
-		}
-
-		logger := v.Interface().(Logger)
-		if isRootLogger {
-			cRoot = logger
-		}
-		cLoggers[name] = logger
-
+	initAppenderRefs := func(v reflect.Value, cAppenders map[string]Appender) (*BaseLogger, error) {
 		var base *BaseLogger
 		switch config := v.Interface().(type) {
 		case *SyncLogger:
@@ -167,38 +86,70 @@ func RefreshReader(input io.Reader, ext string) error {
 			base = &config.BaseLogger
 		default: // for linter
 		}
-
 		for _, r := range base.AppenderRefs {
 			appender, ok := cAppenders[r.Ref]
 			if !ok {
-				return fmt.Errorf("RefreshReader: appender %s not found", r.Ref)
+				return nil, fmt.Errorf("RefreshReader: appender %s not found", r.Ref)
 			}
 			r.appender = appender
 		}
-
-		if isRootLogger {
-			if base.Tags != "" {
-				return fmt.Errorf("RefreshReader: root logger can not have attribute 'tags'")
-			}
-		} else {
-			var ss []string
-			for s := range strings.SplitSeq(base.Tags, ",") {
-				if s = strings.TrimSpace(s); s == "" {
-					continue
-				}
-				ss = append(ss, s)
-			}
-			if len(ss) == 0 {
-				return fmt.Errorf("RefreshReader: logger must have attribute 'tags'")
-			}
-			for _, s := range ss {
-				cTags[s] = logger
-			}
-		}
+		return base, nil
 	}
 
-	if cRoot == nil {
-		return errors.New("RefreshReader: found no root logger")
+	var (
+		cRoot      Logger
+		cLoggers   = make(map[string]Logger)
+		cAppenders = make(map[string]Appender)
+		cTags      = make(map[string]Logger)
+	)
+
+	for _, name := range appenders {
+		v, err := newPlugin("appender." + name + ".type")
+		if err != nil {
+			return err
+		}
+		cAppenders[name] = v.Interface().(Appender)
+	}
+
+	{
+		v, err := newPlugin("rootLogger.type")
+		if err != nil {
+			return err
+		}
+		base, err := initAppenderRefs(v, cAppenders)
+		if err != nil {
+			return err
+		}
+		base.Name = rootLoggerName
+		cRoot = v.Interface().(Logger)
+		cLoggers[rootLoggerName] = cRoot
+	}
+
+	for _, name := range loggers {
+		v, err := newPlugin("logger." + name + ".type")
+		if err != nil {
+			return err
+		}
+		base, err := initAppenderRefs(v, cAppenders)
+		if err != nil {
+			return err
+		}
+		logger := v.Interface().(Logger)
+		cLoggers[name] = logger
+
+		var tags []string
+		for tag := range strings.SplitSeq(base.Tags, ",") {
+			if tag = strings.TrimSpace(tag); tag == "" {
+				continue
+			}
+			tags = append(tags, tag)
+		}
+		if len(tags) == 0 {
+			return fmt.Errorf("RefreshReader: logger must have attribute 'tags'")
+		}
+		for _, strTag := range tags {
+			cTags[strTag] = logger
+		}
 	}
 
 	var (
@@ -252,10 +203,13 @@ func RefreshReader(input io.Reader, ext string) error {
 	}
 
 	for k, f := range propertyMap {
-		if s, ok := properties[k]; ok {
-			if err := f(s); err != nil {
-				return WrapError(err, "RefreshReader: inject property %s error", k)
-			}
+		const defVal = "::def::"
+		v := s.Get(ToCamelKey(k), defVal)
+		if v == defVal {
+			return fmt.Errorf("RefreshReader: property %s not found", k)
+		}
+		if err = f(v); err != nil {
+			return WrapError(err, "RefreshReader: inject property %s error", k)
 		}
 	}
 
@@ -273,7 +227,7 @@ func RefreshReader(input io.Reader, ext string) error {
 // Destroy destroys all loggers.
 func Destroy() {
 	if !global.init.Load() {
-		panic("Destroy: log not refreshed")
+		return
 	}
 	for _, l := range global.loggers {
 		l.Stop()

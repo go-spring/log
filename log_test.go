@@ -106,7 +106,7 @@ func TestLog(t *testing.T) {
 	log.Info(ctx, TagDefault, log.Msgf("hello %s", "world"))
 	log.Info(ctx, TagRequestIn, log.Msgf("hello %s", "world"))
 
-	err := log.RefreshFile("testdata/log.xml")
+	err := log.RefreshFile("testdata/log.properties")
 	assert.ThatError(t, err).Nil()
 
 	assert.Panic(t, func() {

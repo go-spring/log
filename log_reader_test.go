@@ -17,72 +17,70 @@
 package log
 
 import (
-	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/go-spring/gs-assert/assert"
+	"github.com/go-spring/gs-assert/require"
 )
 
-func TestXMLReader(t *testing.T) {
+func TestReaders(t *testing.T) {
+	expected := map[string]string{
+		"appender.console.layout.type":        "TextLayout",
+		"appender.console.type":               "Console",
+		"appender.file.fileName":              "log.txt",
+		"appender.file.layout.type":           "JSONLayout",
+		"appender.file.type":                  "File",
+		"appender.multi.layout.type":          "TextLayout",
+		"appender.multi.type":                 "MultiAppender",
+		"bufferCap":                           "1KB",
+		"bufferSize":                          "1000",
+		"logger.myLogger.appenderRef[0].ref":  "file",
+		"logger.myLogger.appenderRef[0].type": "AppenderRef",
+		"logger.myLogger.appenderRef[1].ref":  "multi",
+		"logger.myLogger.appenderRef[1].type": "AppenderRef",
+		"logger.myLogger.bufferSize":          "${bufferSize}",
+		"logger.myLogger.level":               "trace",
+		"logger.myLogger.tags":                "_com_request_*",
+		"logger.myLogger.type":                "AsyncLogger",
+		"rootLogger.appenderRef.ref":          "console",
+		"rootLogger.appenderRef.type":         "AppenderRef",
+		"rootLogger.level":                    "warn",
+		"rootLogger.type":                     "Root",
+	}
+	testFiles := []string{
+		"testdata/log.properties",
+		"testdata/log.json",
+		"testdata/log.xml",
+		"testdata/log.yaml",
+	}
+	for _, fileName := range testFiles {
+		s, err := readConfigFromFile(fileName)
+		require.ThatError(t, err).Nil()
+		s.Set("rootLogger.appenderRef.type", "AppenderRef", 0)
+		s.Set("logger.myLogger.appenderRef[0].type", "AppenderRef", 0)
+		s.Set("logger.myLogger.appenderRef[1].type", "AppenderRef", 0)
+		assert.ThatMap(t, s.Data()).Equal(expected, fileName)
+	}
+}
 
-	t.Run("empty", func(t *testing.T) {
-		reader := XMLReader{}
-		_, err := reader.Read([]byte(``))
-		assert.ThatError(t, err).Matches("invalid XML structure: missing root element")
-	})
+func TestReadJson(t *testing.T) {
+	_, err := readConfigFromReader(strings.NewReader(`
+		=1
+	`), ".json")
+	require.ThatError(t, err).Matches(`ReadJSON error: invalid character '=' looking for beginning of value`)
+}
 
-	t.Run("invalid", func(t *testing.T) {
-		reader := XMLReader{}
-		_, err := reader.Read([]byte(`<>`))
-		assert.ThatError(t, err).Matches("XML syntax error on line 1: .*")
-	})
+func TestReadYaml(t *testing.T) {
+	_, err := readConfigFromReader(strings.NewReader(`
+		=1
+	`), ".yaml")
+	require.ThatError(t, err).Matches(`ReadYaml error: yaml: line 2: found character that cannot start any token`)
+}
 
-	t.Run("success", func(t *testing.T) {
-		reader := XMLReader{}
-		node, err := reader.Read([]byte(`
-			<?xml version="1.0" encoding="UTF-8"?>
-			<Configuration>
-				<Properties>
-					<Property name="MaxBufferSize">1048576</Property>
-					<Property name="Dummy">foo,bar</Property>
-				</Properties>
-				<Appenders>
-					<Console name="Console_JSON">
-						<JSONLayout/>
-					</Console>
-					<Console name="Console_Text">
-						<TextLayout/>
-					</Console>
-				</Appenders>
-				<Loggers>
-					<Root level="trace">
-						<AppenderRef ref="Console_Text"/>
-					</Root>
-					<Logger name="file" level="trace" tags="_com_request_*">
-						<AppenderRef ref="Console_JSON"/>
-					</Logger>
-				</Loggers>
-			</Configuration>
-		`))
-		assert.That(t, err).Nil()
-
-		buf := bytes.NewBuffer(nil)
-		buf.WriteString("\n")
-		DumpNode(node, 3, buf)
-		assert.ThatString(t, buf.String()).Equal(`
-			Configuration
-				Properties
-					Property {name=MaxBufferSize} : 1048576
-					Property {name=Dummy} : foo,bar
-				Appenders
-					Console {name=Console_JSON}
-						JSONLayout
-					Console {name=Console_Text}
-						TextLayout
-				Loggers
-					Root {level=trace}
-						AppenderRef {ref=Console_Text}
-					Logger {level=trace name=file tags=_com_request_*}
-						AppenderRef {ref=Console_JSON}`)
-	})
+func TestReadProperties(t *testing.T) {
+	_, err := readConfigFromReader(strings.NewReader(`
+		=1
+	`), ".properties")
+	require.ThatError(t, err).Matches(`ReadProperties error: properties: Line 2: \"1\"`)
 }
