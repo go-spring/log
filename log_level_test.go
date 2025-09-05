@@ -18,7 +18,6 @@ package log
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/go-spring/gs-assert/assert"
@@ -64,7 +63,7 @@ func TestParseLevel(t *testing.T) {
 		},
 		{
 			str:     "unknown",
-			want:    Level(-1),
+			want:    NoneLevel,
 			wantErr: fmt.Errorf("invalid level unknown"),
 		},
 	}
@@ -72,10 +71,6 @@ func TestParseLevel(t *testing.T) {
 		got, err := ParseLevel(tt.str)
 		assert.That(t, got).Equal(tt.want)
 		assert.That(t, err).Equal(tt.wantErr)
-		if tt.str == "unknown" {
-			assert.ThatString(t, got.String()).Equal("INVALID")
-		} else {
-			assert.ThatString(t, got.String()).Equal(strings.ToUpper(tt.str))
-		}
+		assert.ThatNumber(t, got.Code()).Equal(tt.want.Code())
 	}
 }

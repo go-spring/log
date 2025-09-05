@@ -19,12 +19,16 @@ package log
 import (
 	"errors"
 	"fmt"
+	"io"
 	"reflect"
 	"regexp"
 	"strings"
 	"sync/atomic"
+
+	"github.com/go-spring/barky"
 )
 
+// global holds the global state of loggers and appenders
 var global struct {
 	init      atomic.Bool
 	loggers   []Logger
@@ -35,48 +39,64 @@ const rootLoggerName = "::ROOT::"
 
 // RefreshFile loads a logging configuration from a file by its name.
 func RefreshFile(fileName string) error {
-
 	s, err := readConfigFromFile(fileName)
+	if err != nil {
+		return fmt.Errorf("RefreshFile: %s", err)
+	}
+	return RefreshConfig(s)
+}
+
+// RefreshReader loads a logging configuration from an io.Reader.
+func RefreshReader(r io.Reader, ext string) error {
+	s, err := readConfigFromReader(r, ext)
 	if err != nil {
 		return fmt.Errorf("RefreshReader: %s", err)
 	}
+	return RefreshConfig(s)
+}
 
+// RefreshConfig loads a logging configuration from a *barky.Storage object.
+func RefreshConfig(s *barky.Storage) error {
+
+	// Ensure root logger exists
 	if !s.Has("rootLogger") {
-		return errors.New("RefreshReader: rootLogger not found")
+		return errors.New("rootLogger not found")
 	}
 
+	// Read appenders
 	appenders, err := s.SubKeys("appender")
 	if err != nil {
-		return fmt.Errorf("RefreshReader: read appenders error %w", err)
+		return fmt.Errorf("read appenders error %w", err)
 	}
 	if len(appenders) == 0 {
-		return errors.New("RefreshReader: Appenders section not found")
+		return errors.New("appenders section not found")
 	}
 
+	// Read loggers
 	loggers, err := s.SubKeys("logger")
 	if err != nil {
-		return fmt.Errorf("RefreshReader: read loggers error %w", err)
-	}
-	if len(loggers) == 0 {
-		return errors.New("RefreshReader: Loggers section not found")
+		return fmt.Errorf("read loggers error %w", err)
 	}
 
+	// Ensure this refresh is executed only once
 	if !global.init.CompareAndSwap(false, true) {
-		return errors.New("RefreshReader: log refresh already done")
+		return errors.New("log refresh already done")
 	}
 
+	// Factory function to create plugin instances
 	newPlugin := func(typeKey string) (reflect.Value, error) {
 		if !s.Has(typeKey) {
-			return reflect.Value{}, fmt.Errorf("RefreshReader: attribute 'type' not found")
+			return reflect.Value{}, fmt.Errorf("attribute 'type' not found")
 		}
 		strType := s.Get(typeKey)
 		p, ok := plugins[strType]
 		if !ok {
-			return reflect.Value{}, fmt.Errorf("RefreshReader: plugin %s not found", strType)
+			return reflect.Value{}, fmt.Errorf("plugin %s not found", strType)
 		}
 		return NewPlugin(p.Class, typeKey[:strings.LastIndex(typeKey, ".")], s)
 	}
 
+	// Initialize appender references in a logger
 	initAppenderRefs := func(v reflect.Value, cAppenders map[string]Appender) (*BaseLogger, error) {
 		var base *BaseLogger
 		switch config := v.Interface().(type) {
@@ -89,7 +109,7 @@ func RefreshFile(fileName string) error {
 		for _, r := range base.AppenderRefs {
 			appender, ok := cAppenders[r.Ref]
 			if !ok {
-				return nil, fmt.Errorf("RefreshReader: appender %s not found", r.Ref)
+				return nil, fmt.Errorf("appender %s not found", r.Ref)
 			}
 			r.appender = appender
 		}
@@ -103,6 +123,7 @@ func RefreshFile(fileName string) error {
 		cTags      = make(map[string]Logger)
 	)
 
+	// Initialize appenders
 	for _, name := range appenders {
 		v, err := newPlugin("appender." + name + ".type")
 		if err != nil {
@@ -111,6 +132,7 @@ func RefreshFile(fileName string) error {
 		cAppenders[name] = v.Interface().(Appender)
 	}
 
+	// Initialize root logger
 	{
 		v, err := newPlugin("rootLogger.type")
 		if err != nil {
@@ -125,6 +147,7 @@ func RefreshFile(fileName string) error {
 		cLoggers[rootLoggerName] = cRoot
 	}
 
+	// Initialize all other loggers
 	for _, name := range loggers {
 		v, err := newPlugin("logger." + name + ".type")
 		if err != nil {
@@ -137,6 +160,7 @@ func RefreshFile(fileName string) error {
 		logger := v.Interface().(Logger)
 		cLoggers[name] = logger
 
+		// Assign tags to logger
 		var tags []string
 		for tag := range strings.SplitSeq(base.Tags, ",") {
 			if tag = strings.TrimSpace(tag); tag == "" {
@@ -145,78 +169,81 @@ func RefreshFile(fileName string) error {
 			tags = append(tags, tag)
 		}
 		if len(tags) == 0 {
-			return fmt.Errorf("RefreshReader: logger must have attribute 'tags'")
+			return fmt.Errorf("logger must have attribute 'tags'")
 		}
 		for _, strTag := range tags {
+			if l, ok := cTags[strTag]; ok && l != logger {
+				return fmt.Errorf("tag '%s' already config in logger %s", strTag, l.GetName())
+			}
 			cTags[strTag] = logger
 		}
 	}
 
-	var (
-		tagArray    []string
-		tagExpArray []*regexp.Regexp
-		loggerArray []Logger
-	)
-
-	for _, s := range OrderedMapKeys(cTags) {
-		r, err := regexp.Compile(s)
+	tagRegexpMap := map[string]*regexp.Regexp{}
+	for tag := range cTags {
+		r, err := regexp.Compile(tag)
 		if err != nil {
-			return WrapError(err, "RefreshReader: `%s` regexp compile error", s)
+			return WrapError(err, "`%s` regexp compile error", tag)
 		}
-		tagArray = append(tagArray, s)
-		tagExpArray = append(tagExpArray, r)
-		loggerArray = append(loggerArray, cTags[s])
+		tagRegexpMap[tag] = r
 	}
 
-	// TODO(lvan100): Currently, there is only one refresh operation,
-	// so exception handling is temporarily ignored.
-
+	// Start all appenders
 	for _, a := range cAppenders {
 		if err := a.Start(); err != nil {
-			return WrapError(err, "RefreshReader: appender %s start error", a.GetName())
-		}
-	}
-	for _, l := range cLoggers {
-		if err := l.Start(); err != nil {
-			return WrapError(err, "RefreshReader: logger %s start error", l.GetName())
+			return WrapError(err, "appender %s start error", a.GetName())
 		}
 	}
 
+	// Start all loggers
+	for _, l := range cLoggers {
+		if err := l.Start(); err != nil {
+			return WrapError(err, "logger %s start error", l.GetName())
+		}
+	}
+
+	// Update logger references in loggerMap
 	for _, l := range loggerMap {
 		v, ok := cLoggers[l.name]
 		if !ok {
-			return fmt.Errorf("RefreshReader: logger %s not found", l.name)
+			return fmt.Errorf("logger %s not found", l.name)
 		}
 		l.setLogger(v)
 	}
 
+	// Update tagMap with corresponding loggers
 	for tag, obj := range tagMap {
-		logger := cRoot
-		for i := range len(tagArray) {
-			s, r := tagArray[i], tagExpArray[i]
-			if s == tag || r.MatchString(tag) {
-				logger = loggerArray[i]
+		if l, ok := cTags[tag]; ok {
+			obj.setLogger(l)
+			continue
+		}
+		found := false
+		for k, r := range tagRegexpMap {
+			if r.MatchString(tag) {
+				obj.setLogger(cTags[k])
+				found = true
 				break
 			}
 		}
-		obj.setLogger(logger)
+		if found {
+			continue
+		}
+		obj.setLogger(cRoot)
 	}
 
+	// Inject properties
 	for k, f := range propertyMap {
-		const defVal = "::def::"
-		v := s.Get(ToCamelKey(k), defVal)
-		if v == defVal {
-			return fmt.Errorf("RefreshReader: property %s not found", k)
-		}
-		if err = f(v); err != nil {
-			return WrapError(err, "RefreshReader: inject property %s error", k)
+		if v := s.Get(toCamelKey(k)); v == "" {
+			continue
+		} else if err = f(v); err != nil {
+			return WrapError(err, "inject property %s error", k)
 		}
 	}
 
+	// Update global loggers and appenders
 	for _, l := range cLoggers {
 		global.loggers = append(global.loggers, l)
 	}
-
 	for _, a := range cAppenders {
 		global.appenders = append(global.appenders, a)
 	}
@@ -224,7 +251,7 @@ func RefreshFile(fileName string) error {
 	return nil
 }
 
-// Destroy destroys all loggers.
+// Destroy stops all loggers and appenders and resets global state.
 func Destroy() {
 	if !global.init.Load() {
 		return
@@ -235,7 +262,7 @@ func Destroy() {
 	for _, a := range global.appenders {
 		a.Stop()
 	}
-	global.init.Store(false)
-	global.appenders = nil
 	global.loggers = nil
+	global.appenders = nil
+	global.init.Store(false)
 }

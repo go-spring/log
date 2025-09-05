@@ -20,6 +20,8 @@ import (
 	"slices"
 	"strings"
 	"sync/atomic"
+
+	"github.com/go-spring/barky"
 )
 
 var tagMap = map[string]*Tag{}
@@ -70,7 +72,7 @@ func (m *Tag) setLogger(logger Logger) {
 
 // GetAllTags returns all registered tags.
 func GetAllTags() []string {
-	return OrderedMapKeys(tagMap)
+	return barky.OrderedMapKeys(tagMap)
 }
 
 // isValidTag checks whether the tag is valid according to the following rules:

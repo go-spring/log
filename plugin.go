@@ -28,10 +28,10 @@ import (
 
 var converters = map[reflect.Type]any{}
 
-// Converter function type that converts string to a specific type T.
+// Converter defines a function that converts a string to type T.
 type Converter[T any] func(string) (T, error)
 
-// RegisterConverter Registers a converter for a specific type T.
+// RegisterConverter registers a custom converter for type T.
 func RegisterConverter[T any](fn Converter[T]) {
 	t := reflect.TypeFor[T]()
 	converters[t] = fn
@@ -39,18 +39,18 @@ func RegisterConverter[T any](fn Converter[T]) {
 
 var propertyMap = make(map[string]func(string) error)
 
-// RegisterProperty Registers a property with a given key.
+// RegisterProperty registers a property setter function with a given key.
 func RegisterProperty(key string, val func(string) error) {
 	propertyMap[key] = val
 }
 
-// Lifecycle Optional lifecycle interface for plugin instances.
+// Lifecycle is an optional interface for plugin lifecycle hooks.
 type Lifecycle interface {
 	Start() error
 	Stop()
 }
 
-// PluginType Defines types of plugins supported by the logging system.
+// PluginType represents different types of plugins.
 type PluginType string
 
 const (
@@ -70,16 +70,16 @@ func init() {
 	RegisterPlugin[struct{}]("Property", PluginTypeProperty)
 }
 
-// Plugin metadata structure
+// Plugin represents metadata about a plugin type.
 type Plugin struct {
-	Name  string       // Name of plugin
-	Type  PluginType   // Type of plugin
+	Name  string       // Name of the plugin
+	Type  PluginType   // Type of the plugin
 	Class reflect.Type // Underlying struct type
-	File  string       // Source file of registration
-	Line  int          // Line number of registration
+	File  string       // File where plugin was registered
+	Line  int          // Line number where plugin was registered
 }
 
-// RegisterPlugin Registers a plugin with a given name and type.
+// RegisterPlugin registers a plugin type T with a given name and plugin type.
 func RegisterPlugin[T any](name string, typ PluginType) {
 	_, file, line, _ := runtime.Caller(1)
 	if p, ok := plugins[name]; ok {
@@ -98,7 +98,7 @@ func RegisterPlugin[T any](name string, typ PluginType) {
 	}
 }
 
-// NewPlugin Creates and initializes a plugin instance.
+// NewPlugin creates a new plugin instance and injects configuration values.
 func NewPlugin(t reflect.Type, prefix string, s *barky.Storage) (reflect.Value, error) {
 	v := reflect.New(t)
 	if err := inject(v.Elem(), t, prefix, s); err != nil {
@@ -107,24 +107,29 @@ func NewPlugin(t reflect.Type, prefix string, s *barky.Storage) (reflect.Value, 
 	return v, nil
 }
 
-// inject Recursively injects values into struct fields based on tags.
+// inject recursively sets struct fields based on `PluginAttribute` and `PluginElement` tags.
 func inject(v reflect.Value, t reflect.Type, prefix string, s *barky.Storage) error {
 	for i := range v.NumField() {
 		ft := t.Field(i)
 		fv := v.Field(i)
+
+		// Inject from `PluginAttribute` tag
 		if tag, ok := ft.Tag.Lookup("PluginAttribute"); ok {
 			if err := injectAttribute(tag, fv, ft, prefix, s); err != nil {
 				return err
 			}
 			continue
 		}
+
+		// Inject from `PluginElement` tag
 		if tag, ok := ft.Tag.Lookup("PluginElement"); ok {
 			if err := injectElement(tag, fv, ft, prefix, s); err != nil {
 				return err
 			}
 			continue
 		}
-		// Recursively process anonymous embedded structs
+
+		// Recursively inject anonymous embedded structs
 		if ft.Anonymous && ft.Type.Kind() == reflect.Struct {
 			if err := inject(fv, fv.Type(), prefix, s); err != nil {
 				return err
@@ -134,15 +139,16 @@ func inject(v reflect.Value, t reflect.Type, prefix string, s *barky.Storage) er
 	return nil
 }
 
+// PluginTag is a wrapper for parsing struct field tags.
 type PluginTag string
 
-// Get Gets the value of a key or the first unnamed value.
+// Get returns the value for a key or the first unnamed value.
 func (tag PluginTag) Get(key string) string {
 	v, _ := tag.Lookup(key)
 	return v
 }
 
-// Lookup Looks up a key-value pair in the tag.
+// Lookup returns the value of a key in a tag and a boolean indicating existence.
 func (tag PluginTag) Lookup(key string) (value string, ok bool) {
 	kvs := strings.Split(string(tag), ",")
 	if key == "" {
@@ -159,7 +165,7 @@ func (tag PluginTag) Lookup(key string) (value string, ok bool) {
 	return "", false
 }
 
-// injectAttribute Injects a value into a struct field from plugin attribute.
+// injectAttribute injects a string value into a struct field based on its type.
 func injectAttribute(tag string, fv reflect.Value, ft reflect.StructField, prefix string, s *barky.Storage) error {
 
 	attrTag := PluginTag(tag)
@@ -168,6 +174,7 @@ func injectAttribute(tag string, fv reflect.Value, ft reflect.StructField, prefi
 		return fmt.Errorf("found no attribute for struct field %s", ft.Name)
 	}
 
+	// Special handling for "name" attribute
 	if attrName == "name" {
 		name := prefix[strings.LastIndex(prefix, ".")+1:]
 		fv.SetString(name)
@@ -175,7 +182,7 @@ func injectAttribute(tag string, fv reflect.Value, ft reflect.StructField, prefi
 	}
 
 	var val string
-	key := prefix + "." + ToCamelKey(attrName)
+	key := prefix + "." + toCamelKey(attrName)
 	if v, ok := s.RawData()[key]; ok {
 		val = v.Value
 	} else {
@@ -185,17 +192,17 @@ func injectAttribute(tag string, fv reflect.Value, ft reflect.StructField, prefi
 		}
 	}
 
-	// Use a property if available
+	// Handle properties in format ${prop}
 	val = strings.TrimSpace(val)
 	if strings.HasPrefix(val, "${") && strings.HasSuffix(val, "}") {
-		v, ok := s.RawData()[ToCamelKey(val[2:len(val)-1])]
+		v, ok := s.RawData()[toCamelKey(val[2:len(val)-1])]
 		if !ok {
 			return fmt.Errorf("property %s not found", val)
 		}
 		val = v.Value
 	}
 
-	// Use a custom converter if available
+	// Use custom converter if exists
 	if fn := converters[ft.Type]; fn != nil {
 		fnValue := reflect.ValueOf(fn)
 		out := fnValue.Call([]reflect.Value{reflect.ValueOf(val)})
@@ -244,30 +251,62 @@ func injectAttribute(tag string, fv reflect.Value, ft reflect.StructField, prefi
 	}
 }
 
-// injectElement Injects plugin elements (child nodes) into struct fields.
+// injectElement injects child plugin elements into a struct field.
 func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix string, s *barky.Storage) error {
 
 	elemTag := PluginTag(tag)
 	elemType := elemTag.Get("")
 	if elemType == "" {
-		return fmt.Errorf("found no element for struct field %s", ft.Name)
+		return fmt.Errorf("found no plugin element for struct field %s", ft.Name)
 	}
-	elemKey := prefix + "." + ToCamelKey(elemType)
+	elemKey := prefix + "." + toCamelKey(elemType)
 
 	switch fv.Kind() {
 	case reflect.Slice:
 
-		p, ok := plugins[elemType]
-		if !ok {
-			return fmt.Errorf("plugin %s not found for struct field %s", elemType, ft.Name)
+		if !s.Has(elemKey) && !s.Has(elemKey+"[0]") {
+			elemDef, ok := elemTag.Lookup("default")
+			if !ok {
+				return fmt.Errorf("found no plugin element for struct field %s", ft.Name)
+			}
+			index := 0
+			for _, typeClass := range strings.Split(elemDef, ";") {
+				typeClass = strings.TrimSpace(typeClass)
+				if typeClass == "" {
+					continue
+				}
+				typeKey := elemKey + "[" + strconv.Itoa(index) + "].type"
+				if err := s.Set(typeKey, typeClass, 0); err != nil {
+					return err // should always no error
+				}
+				index++
+			}
+			if index == 0 {
+				return fmt.Errorf("found no plugin element for struct field %s", ft.Name)
+			}
 		}
 
 		slice := reflect.MakeSlice(ft.Type, 0, 1)
-		if s.Has(elemKey + "[0]") { // 多个配置
+		if s.Has(elemKey + "[0]") { // Multiple elements
 			for i := 0; ; i++ {
 				subKey := elemKey + "[" + strconv.Itoa(i) + "]"
 				if !s.Has(subKey) {
 					break
+				}
+				var (
+					p  *Plugin
+					ok bool
+				)
+				const def = ":def:"
+				strType := s.Get(subKey+".type", def)
+				if strType != def {
+					if p, ok = plugins[strType]; !ok {
+						return fmt.Errorf("plugin %s not found for struct field %s", strType, ft.Name)
+					}
+				} else {
+					if p, ok = plugins[elemType]; !ok {
+						return fmt.Errorf("plugin %s not found for struct field %s", elemType, ft.Name)
+					}
 				}
 				v, err := NewPlugin(p.Class, subKey, s)
 				if err != nil {
@@ -275,35 +314,43 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 				}
 				slice = reflect.Append(slice, v)
 			}
-		} else if s.Has(elemKey) { // 单个配置
+		} else if s.Has(elemKey) { // Single element
+			var (
+				p  *Plugin
+				ok bool
+			)
+			const def = ":def:"
+			if strType := s.Get(elemKey+".type", def); strType != def {
+				if p, ok = plugins[strType]; !ok {
+					return fmt.Errorf("plugin %s not found for struct field %s", strType, ft.Name)
+				}
+			} else {
+				if p, ok = plugins[elemType]; !ok {
+					return fmt.Errorf("plugin %s not found for struct field %s", elemType, ft.Name)
+				}
+			}
 			v, err := NewPlugin(p.Class, elemKey, s)
 			if err != nil {
 				return err
 			}
 			slice = reflect.Append(slice, v)
 		}
-
-		if slice.Len() == 0 {
-			return fmt.Errorf("found no plugin elements for struct field %s", ft.Name)
-		}
-
 		fv.Set(slice)
 		return nil
 
 	case reflect.Interface:
-
 		var strType string
 		if s.Has(elemKey) {
 			typeKey := elemKey + ".type"
 			if v, ok := s.RawData()[typeKey]; ok {
 				strType = v.Value
 			} else {
-				return fmt.Errorf("found no plugin elements for struct field %s", ft.Name)
+				return fmt.Errorf("found no plugin element for struct field %s", ft.Name)
 			}
 		} else {
 			elemLabel, ok := elemTag.Lookup("default")
 			if !ok {
-				return fmt.Errorf("found no plugin elements for struct field %s", ft.Name)
+				return fmt.Errorf("found no plugin element for struct field %s", ft.Name)
 			}
 			strType = elemLabel
 		}

@@ -34,13 +34,13 @@ func init() {
 	RegisterPlugin[AsyncLogger]("AsyncLogger", PluginTypeAsyncLogger)
 }
 
-// Logger is the interface implemented by all logger configs.
+// Logger is the interface implemented by all loggers.
 type Logger interface {
-	Lifecycle                     // Start/Stop methods
-	GetName() string              // Get the name of the logger
-	Publish(e *Event)             // Logic for sending events to appenders
-	Write(b []byte)               // Direct write of raw bytes to appenders
-	EnableLevel(level Level) bool // Whether a log level is enabled
+	Lifecycle                          // Start/Stop methods
+	GetName() string                   // Get the name of the logger
+	Publish(e *Event)                  // Send events to appenders
+	EnableLevel(level Level) bool      // Whether a log level is enabled
+	Write(b []byte) (n int, err error) // Write raw bytes to appenders
 }
 
 // AppenderRef represents a reference to an appender by name,
@@ -79,7 +79,7 @@ func (c *BaseLogger) writeAppenders(b []byte) {
 
 // EnableLevel returns true if the specified log level is enabled.
 func (c *BaseLogger) EnableLevel(level Level) bool {
-	return level >= c.Level
+	return level.code >= c.Level.code
 }
 
 // SyncLogger is a synchronous logger configuration.
@@ -97,8 +97,9 @@ func (c *SyncLogger) Publish(e *Event) {
 }
 
 // Write writes the raw bytes directly to the appenders.
-func (c *SyncLogger) Write(b []byte) {
+func (c *SyncLogger) Write(b []byte) (n int, err error) {
 	c.writeAppenders(b)
+	return len(b), nil
 }
 
 // BufferFullPolicy specifies the behavior when the buffer is full.
@@ -182,12 +183,13 @@ func (c *AsyncLogger) Publish(e *Event) {
 }
 
 // Write writes the raw bytes directly to the appenders.
-func (c *AsyncLogger) Write(b []byte) {
+func (c *AsyncLogger) Write(b []byte) (n int, err error) {
 	select {
 	case c.buf <- b:
 	default:
 		c.onBufferFull(b)
 	}
+	return len(b), nil
 }
 
 // onBufferFull is called when the buffer is full.

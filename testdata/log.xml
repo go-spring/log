@@ -20,7 +20,7 @@
         <Root level="warn">
             <AppenderRef ref="console"/>
         </Root>
-        <AsyncLogger name="myLogger" level="trace" tags="_com_request_*" bufferSize="${bufferSize}">
+        <AsyncLogger name="myLogger" level="trace" tags="_com_request_in,_com_request_*" bufferSize="${bufferSize}">
             <AppenderRef ref="file"/>
             <AppenderRef ref="multi"/>
         </AsyncLogger>

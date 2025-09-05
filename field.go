@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"math"
 	"unsafe"
+
+	"github.com/go-spring/barky"
 )
 
 const MsgKey = "msg"
@@ -413,7 +415,7 @@ func (f Field) Encode(enc Encoder) {
 		enc.AppendObjectEnd()
 	case ValueTypeFromMap:
 		m := f.Any.(map[string]any)
-		for _, k := range OrderedMapKeys(m) {
+		for _, k := range barky.OrderedMapKeys(m) {
 			Any(k, m[k]).Encode(enc)
 		}
 	default: // for linter

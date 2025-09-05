@@ -17,9 +17,7 @@
 package log
 
 import (
-	"cmp"
 	"fmt"
-	"slices"
 )
 
 // IntType is the type of int, int8, int16, int32, int64.
@@ -40,22 +38,6 @@ type FloatType interface {
 // Ptr returns a pointer to the given value.
 func Ptr[T any](i T) *T {
 	return &i
-}
-
-// MapKeys returns the keys of the map m.
-func MapKeys[M ~map[K]V, K comparable, V any](m M) []K {
-	r := make([]K, 0, len(m))
-	for k := range m {
-		r = append(r, k)
-	}
-	return r
-}
-
-// OrderedMapKeys returns the keys of the map m in sorted order.
-func OrderedMapKeys[M ~map[K]V, K cmp.Ordered, V any](m M) []K {
-	r := MapKeys(m)
-	slices.Sort(r)
-	return r
 }
 
 // WrapError wraps an existing error, creating a new error with hierarchical relationships.

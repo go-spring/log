@@ -17,18 +17,13 @@
 package log
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/go-spring/gs-assert/assert"
 )
 
-type funcReader func(p []byte) (n int, err error)
-
-func (r funcReader) Read(p []byte) (n int, err error) {
-	return r(p)
-}
-
-func TestRefresh(t *testing.T) {
+func TestRefreshFile(t *testing.T) {
 	t.Cleanup(func() {
 		for _, tag := range tagMap {
 			tag.setLogger(initLogger)
@@ -36,489 +31,246 @@ func TestRefresh(t *testing.T) {
 	})
 
 	t.Run("file not exist", func(t *testing.T) {
-		defer func() { global.init.Store(false) }()
+		defer func() { Destroy() }()
 		err := RefreshFile("testdata/file-not-exist.xml")
 		assert.ThatError(t, err).Matches("open testdata/file-not-exist.xml")
 	})
 
 	t.Run("already refresh", func(t *testing.T) {
-		defer func() { global.init.Store(false) }()
+		defer func() { Destroy() }()
 		err := RefreshFile("testdata/log.xml")
 		assert.ThatError(t, err).Nil()
-		// ...
 		err = RefreshFile("testdata/log.xml")
-		assert.ThatError(t, err).Matches("RefreshReader: log refresh already done")
+		assert.ThatError(t, err).Matches("log refresh already done")
+	})
+}
+
+func TestRefreshConfig(t *testing.T) {
+	t.Cleanup(func() {
+		for _, tag := range tagMap {
+			tag.setLogger(initLogger)
+		}
 	})
 
-	//t.Run("unsupported file", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(nil, ".json")
-	//	assert.ThatError(t, err).Matches("RefreshReader: unsupported file type .json")
-	//})
-	//
-	//t.Run("read file error", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(funcReader(func(p []byte) (n int, err error) {
-	//		return 0, errors.New("read error")
-	//	}), ".xml")
-	//	assert.ThatError(t, err).Matches("read error")
-	//})
-	//
-	//t.Run("read node error - 1", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(""), ".xml")
-	//	assert.ThatError(t, err).Matches("invalid XML structure: missing root element")
-	//})
-	//
-	//t.Run("read node error - 2", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Map></Map>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches("RefreshReader: Configuration root not found")
-	//})
-	//
-	//t.Run("more Properties", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Configuration>
-	//			<Properties></Properties>
-	//			<Properties></Properties>
-	//		</Configuration>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches("RefreshReader: Properties section must be unique")
-	//})
-	//
-	//t.Run("error Property", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Configuration>
-	//			<Properties>
-	//				<Property>abc</Property>
-	//			</Properties>
-	//		</Configuration>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches("RefreshReader: attribute 'name' not found for node Property")
-	//})
-	//
-	//t.Run("no Appenders", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Configuration>
-	//		</Configuration>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches("RefreshReader: Appenders section not found")
-	//})
-	//
-	//t.Run("more Appenders", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Configuration>
-	//			<Appenders></Appenders>
-	//			<Appenders></Appenders>
-	//		</Configuration>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches("RefreshReader: Appenders section must be unique")
-	//})
-	//
-	//t.Run("unfound Appender", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Configuration>
-	//			<Appenders>
-	//				<NotExistAppender/>
-	//			</Appenders>
-	//		</Configuration>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches("RefreshReader: plugin NotExistAppender not found")
-	//})
-	//
-	//t.Run("Appender error - 1", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Configuration>
-	//			<Appenders>
-	//				<File/>
-	//			</Appenders>
-	//		</Configuration>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches("RefreshReader: attribute 'name' not found")
-	//})
-	//
-	//t.Run("Appender error - 2", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Configuration>
-	//			<Appenders>
-	//				<File name="file"/>
-	//			</Appenders>
-	//		</Configuration>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches("create plugin log.FileAppender error << found no plugin elements for struct field Layout")
-	//})
-	//
-	//t.Run("Appender error - 3", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Configuration>
-	//			<Appenders>
-	//				<File name="file">
-	//					<TextLayout/>
-	//				</File>
-	//			</Appenders>
-	//		</Configuration>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches("create plugin log.FileAppender error << found no attribute for struct field FileName")
-	//})
-	//
-	//t.Run("no Loggers", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Configuration>
-	//			<Appenders>
-	//				<File name="file" fileName="access.log">
-	//					<TextLayout/>
-	//				</File>
-	//			</Appenders>
-	//		</Configuration>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches("RefreshReader: Loggers section not found")
-	//})
-	//
-	//t.Run("more Loggers", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Configuration>
-	//			<Appenders>
-	//				<File name="file" fileName="access.log">
-	//					<TextLayout/>
-	//				</File>
-	//			</Appenders>
-	//			<Loggers></Loggers>
-	//			<Loggers></Loggers>
-	//		</Configuration>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches("RefreshReader: Loggers section must be unique")
-	//})
-	//
-	//t.Run("no Logger", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Configuration>
-	//			<Appenders>
-	//				<File name="file" fileName="access.log">
-	//					<TextLayout/>
-	//				</File>
-	//			</Appenders>
-	//			<Loggers></Loggers>
-	//		</Configuration>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches("RefreshReader: found no root logger")
-	//})
-	//
-	//t.Run("Logger error - 1", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Configuration>
-	//			<Appenders>
-	//				<File name="file" fileName="access.log">
-	//					<TextLayout/>
-	//				</File>
-	//			</Appenders>
-	//			<Loggers>
-	//				<NotExistLogger/>
-	//			</Loggers>
-	//		</Configuration>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches("RefreshReader: plugin NotExistLogger not found")
-	//})
-	//
-	//t.Run("Logger error - 2", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Configuration>
-	//			<Appenders>
-	//				<File name="file" fileName="access.log">
-	//					<TextLayout/>
-	//				</File>
-	//			</Appenders>
-	//			<Loggers>
-	//				<Logger/>
-	//			</Loggers>
-	//		</Configuration>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches("RefreshReader: attribute 'name' not found for node Logger")
-	//})
-	//
-	//t.Run("Logger error - 3", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Configuration>
-	//			<Appenders>
-	//				<File name="file" fileName="access.log">
-	//					<TextLayout/>
-	//				</File>
-	//			</Appenders>
-	//			<Loggers>
-	//				<Logger name="biz"/>
-	//			</Loggers>
-	//		</Configuration>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches("create plugin log.SyncLogger error << found no attribute for struct field Level")
-	//})
-	//
-	//t.Run("Logger error - 4", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Configuration>
-	//			<Appenders>
-	//				<File name="file" fileName="access.log">
-	//					<TextLayout/>
-	//				</File>
-	//			</Appenders>
-	//			<Loggers>
-	//				<Logger name="biz" level="info">
-	//					<AppenderRef ref="not-exist-appender"/>
-	//				</Logger>
-	//			</Loggers>
-	//		</Configuration>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches("RefreshReader: appender not-exist-appender not found")
-	//})
-	//
-	//t.Run("Logger error - 5", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Configuration>
-	//			<Appenders>
-	//				<File name="file" fileName="access.log">
-	//					<TextLayout/>
-	//				</File>
-	//			</Appenders>
-	//			<Loggers>
-	//				<Logger name="biz" level="info">
-	//					<AppenderRef ref="file"/>
-	//				</Logger>
-	//			</Loggers>
-	//		</Configuration>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches("RefreshReader: logger must have attribute 'tags'")
-	//})
-	//
-	//t.Run("Root error - 1", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Configuration>
-	//			<Appenders>
-	//				<File name="file" fileName="access.log">
-	//					<TextLayout/>
-	//				</File>
-	//			</Appenders>
-	//			<Loggers>
-	//				<Logger name="biz" level="info" tags="a,,b">
-	//					<AppenderRef ref="file"/>
-	//				</Logger>
-	//			</Loggers>
-	//		</Configuration>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches("RefreshReader: found no root logger")
-	//})
-	//
-	//t.Run("Root error - 2", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Configuration>
-	//			<Appenders>
-	//				<File name="file" fileName="access.log">
-	//					<TextLayout/>
-	//				</File>
-	//			</Appenders>
-	//			<Loggers>
-	//				<Root/>
-	//			</Loggers>
-	//		</Configuration>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches("create plugin log.SyncLogger error << found no attribute for struct field Level")
-	//})
-	//
-	//t.Run("Root error - 3", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Configuration>
-	//			<Appenders>
-	//				<File name="file" fileName="access.log">
-	//					<TextLayout/>
-	//				</File>
-	//			</Appenders>
-	//			<Loggers>
-	//				<Root level="info"/>
-	//			</Loggers>
-	//		</Configuration>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches("create plugin log.SyncLogger error << found no plugin elements for struct field AppenderRefs")
-	//})
-	//
-	//t.Run("Root error - 4", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Configuration>
-	//			<Appenders>
-	//				<File name="file" fileName="access.log">
-	//					<TextLayout/>
-	//				</File>
-	//			</Appenders>
-	//			<Loggers>
-	//				<Root level="info" tags="a,b,">
-	//					<AppenderRef ref="file"/>
-	//				</Root>
-	//			</Loggers>
-	//		</Configuration>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches("RefreshReader: root logger can not have attribute 'tags'")
-	//})
-	//
-	//t.Run("Root error - 5", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Configuration>
-	//			<Appenders>
-	//				<File name="file" fileName="access.log">
-	//					<TextLayout/>
-	//				</File>
-	//			</Appenders>
-	//			<Loggers>
-	//				<Root level="info">
-	//					<AppenderRef ref="file"/>
-	//				</Root>
-	//				<AsyncRoot level="info">
-	//					<AppenderRef ref="file"/>
-	//				</AsyncRoot>
-	//			</Loggers>
-	//		</Configuration>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches("RefreshReader: found more than one root loggers")
-	//})
-	//
-	//t.Run("tag error", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Configuration>
-	//			<Appenders>
-	//				<Console name="console">
-	//					<TextLayout/>
-	//				</Console>
-	//				<File name="file" fileName="access.log">
-	//					<TextLayout/>
-	//				</File>
-	//			</Appenders>
-	//			<Loggers>
-	//				<Root level="trace">
-	//					<AppenderRef ref="console"/>
-	//				</Root>
-	//				<Logger name="biz" level="info" tags="a[">
-	//					<AppenderRef ref="file"/>
-	//				</Logger>
-	//			</Loggers>
-	//		</Configuration>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches("RefreshReader: `a\\[` regexp compile error << error parsing regexp: missing closing \\]: `\\[`")
-	//})
-	//
-	//t.Run("appender start error", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Configuration>
-	//			<Appenders>
-	//				<Console name="console">
-	//					<TextLayout/>
-	//				</Console>
-	//				<File name="file" fileName="/not-exist-dir/access.log">
-	//					<TextLayout/>
-	//				</File>
-	//			</Appenders>
-	//			<Loggers>
-	//				<Root level="trace">
-	//					<AppenderRef ref="console"/>
-	//				</Root>
-	//				<AsyncLogger name="biz" level="info" tags="a">
-	//					<AppenderRef ref="file"/>
-	//				</AsyncLogger>
-	//			</Loggers>
-	//		</Configuration>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches("RefreshReader: appender file start error << open /not-exist-dir/access.log: no such file or directory")
-	//})
-	//
-	//t.Run("logger start error", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Configuration>
-	//			<Appenders>
-	//				<Console name="console">
-	//					<TextLayout/>
-	//				</Console>
-	//				<File name="file" fileName="access.log">
-	//					<TextLayout/>
-	//				</File>
-	//			</Appenders>
-	//			<Loggers>
-	//				<AsyncRoot level="trace" bufferSize="10">
-	//					<AppenderRef ref="console"/>
-	//				</AsyncRoot>
-	//			</Loggers>
-	//		</Configuration>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches("RefreshReader: logger ::ROOT:: start error << bufferSize is too small")
-	//})
-	//
-	//t.Run("error Property value", func(t *testing.T) {
-	//	defer func() { global.init.Store(false) }()
-	//	err := RefreshReader(strings.NewReader(`
-	//		<?xml version="1.0" encoding="UTF-8"?>
-	//		<Configuration>
-	//		    <Properties>
-	//		        <Property name="bufferCap">1GB</Property>
-	//		    </Properties>
-	//		    <Appenders>
-	//		        <Console name="console">
-	//		            <TextLayout/>
-	//		        </Console>
-	//		    </Appenders>
-	//		    <Loggers>
-	//		        <Root level="warn">
-	//		            <AppenderRef ref="console"/>
-	//		        </Root>
-	//				<AsyncLogger name="myLogger" level="info" tags="^a$">
-	//					<AppenderRef ref="console"/>
-	//				</AsyncLogger>
-	//		    </Loggers>
-	//		</Configuration>
-	//	`), ".xml")
-	//	assert.ThatError(t, err).Matches(`RefreshReader: inject property bufferCap error << unhandled size name: "GB"`)
-	//})
+	t.Run("unsupported file", func(t *testing.T) {
+		defer func() { global.init.Store(false) }()
+		err := RefreshReader(nil, ".toml")
+		assert.ThatError(t, err).Matches("RefreshReader: unsupported file type .toml")
+	})
+
+	t.Run("rootLogger not found", func(t *testing.T) {
+		defer func() { global.init.Store(false) }()
+		err := RefreshReader(strings.NewReader(""), ".properties")
+		assert.ThatError(t, err).Matches("rootLogger not found")
+	})
+
+	t.Run("appenders section not found", func(t *testing.T) {
+		defer func() { global.init.Store(false) }()
+		content := `
+			rootLogger.type=Root
+		`
+		err := RefreshReader(strings.NewReader(content), ".properties")
+		assert.ThatError(t, err).Matches("appenders section not found")
+	})
+
+	t.Run("read appenders error", func(t *testing.T) {
+		defer func() { global.init.Store(false) }()
+		content := `
+			rootLogger.type=Root
+			appender=ERROR_PROPERTY
+		`
+		err := RefreshReader(strings.NewReader(content), ".properties")
+		assert.ThatError(t, err).Matches("read appenders error property conflict at path appender")
+	})
+
+	t.Run("read loggers error", func(t *testing.T) {
+		defer func() { global.init.Store(false) }()
+		content := `
+			rootLogger.type=Root
+			appender.console.type=Console
+			logger=ERROR_PROPERTY
+		`
+		err := RefreshReader(strings.NewReader(content), ".properties")
+		assert.ThatError(t, err).Matches("read loggers error property conflict at path logger")
+	})
+
+	t.Run("plugin not found - appender", func(t *testing.T) {
+		defer func() { global.init.Store(false) }()
+		content := `
+			rootLogger.type=Root
+			appender.console.type=NonExistentAppender
+			logger.test.type=AsyncLogger
+		`
+		err := RefreshReader(strings.NewReader(content), ".properties")
+		assert.ThatError(t, err).Matches("plugin NonExistentAppender not found")
+	})
+
+	t.Run("plugin not found - rootLogger", func(t *testing.T) {
+		defer func() { global.init.Store(false) }()
+		content := `
+			rootLogger.type=NonExistentRoot
+			appender.console.type=Console
+			appender.console.layout.type=TextLayout
+			logger.test.type=AsyncLogger
+		`
+		err := RefreshReader(strings.NewReader(content), ".properties")
+		assert.ThatError(t, err).Matches("plugin NonExistentRoot not found")
+	})
+
+	t.Run("rootLogger no type", func(t *testing.T) {
+		defer func() { global.init.Store(false) }()
+		content := `
+			rootLogger.level=debug
+			appender.console.type=Console
+			appender.console.layout.type=TextLayout
+			logger.test.type=AsyncLogger
+		`
+		err := RefreshReader(strings.NewReader(content), ".properties")
+		assert.ThatError(t, err).Matches("attribute 'type' not found")
+	})
+
+	t.Run("init AppenderRefs error - rootLogger", func(t *testing.T) {
+		defer func() { global.init.Store(false) }()
+		content := `
+			rootLogger.type=Root
+			rootLogger.level=debug
+			rootLogger.appenderRef.ref=file
+			appender.console.type=Console
+			appender.console.layout.type=TextLayout
+		`
+		err := RefreshReader(strings.NewReader(content), ".properties")
+		assert.ThatError(t, err).Matches("appender file not found")
+	})
+
+	t.Run("plugin not found - loggers", func(t *testing.T) {
+		defer func() { global.init.Store(false) }()
+		content := `
+			rootLogger.type=Root
+			rootLogger.level=debug
+			rootLogger.appenderRef.ref=console
+			appender.console.type=Console
+			appender.console.layout.type=TextLayout
+			logger.myLogger.type=NonExistentLogger
+		`
+		err := RefreshReader(strings.NewReader(content), ".properties")
+		assert.ThatError(t, err).Matches("plugin NonExistentLogger not found")
+	})
+
+	t.Run("loggers no type", func(t *testing.T) {
+		defer func() { global.init.Store(false) }()
+		content := `
+			rootLogger.type=Root
+			rootLogger.level=debug
+			rootLogger.appenderRef.ref=console
+			appender.console.type=Console
+			appender.console.layout.type=TextLayout
+			logger.myLogger.level=info
+		`
+		err := RefreshReader(strings.NewReader(content), ".properties")
+		assert.ThatError(t, err).Matches("attribute 'type' not found")
+	})
+
+	t.Run("plugin not found - loggers", func(t *testing.T) {
+		defer func() { global.init.Store(false) }()
+		content := `
+			rootLogger.type=Root
+			rootLogger.level=debug
+			rootLogger.appenderRef.ref=console
+			appender.console.type=Console
+			appender.console.layout.type=TextLayout
+			logger.myLogger.type=Logger
+			logger.myLogger.level=info
+			logger.myLogger.appenderRef.ref=file
+		`
+		err := RefreshReader(strings.NewReader(content), ".properties")
+		assert.ThatError(t, err).Matches("appender file not found")
+	})
+
+	t.Run("loggers no tags", func(t *testing.T) {
+		defer func() { global.init.Store(false) }()
+		content := `
+			rootLogger.type=Root
+			rootLogger.level=debug
+			rootLogger.appenderRef.ref=console
+			appender.console.type=Console
+			appender.console.layout.type=TextLayout
+			logger.myLogger.type=Logger
+			logger.myLogger.level=info
+			logger.myLogger.appenderRef.ref=console
+		`
+		err := RefreshReader(strings.NewReader(content), ".properties")
+		assert.ThatError(t, err).Matches("logger must have attribute 'tags'")
+	})
+
+	t.Run("loggers tags error", func(t *testing.T) {
+		defer func() { global.init.Store(false) }()
+		content := `
+			rootLogger.type=Root
+			rootLogger.level=debug
+			rootLogger.appenderRef.ref=console
+			appender.console.type=Console
+			appender.console.layout.type=TextLayout
+			logger.myLogger.type=Logger
+			logger.myLogger.level=info
+			logger.myLogger.tags=**
+			logger.myLogger.appenderRef.ref=console
+		`
+		err := RefreshReader(strings.NewReader(content), ".properties")
+		assert.ThatError(t, err).Matches("`\\*\\*` regexp compile error")
+	})
+
+	t.Run("appender start error", func(t *testing.T) {
+		defer func() { global.init.Store(false) }()
+		content := `
+			rootLogger.type=Root
+			rootLogger.level=debug
+			rootLogger.appenderRef.ref=file
+			appender.file.type=File
+			appender.file.fileName=/not-exist-dir/access.log
+			appender.file.layout.type=TextLayout
+			logger.myLogger.type=Logger
+			logger.myLogger.level=info
+			logger.myLogger.tags=.*
+			logger.myLogger.appenderRef.ref=file
+		`
+		err := RefreshReader(strings.NewReader(content), ".properties")
+		assert.ThatError(t, err).Matches("appender file start error << .*: no such file or directory")
+	})
+
+	t.Run("logger start error", func(t *testing.T) {
+		defer func() { global.init.Store(false) }()
+		content := `
+			rootLogger.type=Root
+			rootLogger.level=debug
+			rootLogger.appenderRef.ref=console
+			appender.console.type=Console
+			appender.console.layout.type=TextLayout
+			logger.myLogger.type=AsyncLogger
+			logger.myLogger.level=info
+			logger.myLogger.tags=.*
+			logger.myLogger.bufferSize=10
+			logger.myLogger.appenderRef.ref=console
+		`
+		err := RefreshReader(strings.NewReader(content), ".properties")
+		assert.ThatError(t, err).Matches("logger myLogger start error << bufferSize is too small")
+	})
+
+	t.Run("logger start error", func(t *testing.T) {
+		defer func() { global.init.Store(false) }()
+		content := `
+			bufferCap=1GB
+			rootLogger.type=Root
+			rootLogger.level=debug
+			rootLogger.appenderRef.ref=console
+			appender.console.type=Console
+			appender.console.layout.type=TextLayout
+			logger.myLogger.type=AsyncLogger
+			logger.myLogger.level=info
+			logger.myLogger.tags=.*
+			logger.myLogger.appenderRef.ref=console
+		`
+		err := RefreshReader(strings.NewReader(content), ".properties")
+		assert.ThatError(t, err).Matches(`inject property bufferCap error << unhandled size name: "GB"`)
+	})
+
 }

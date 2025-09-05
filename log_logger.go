@@ -30,8 +30,8 @@ type LoggerWrapper struct {
 }
 
 // Write passes the byte slice to the currently set logger's Write method.
-func (m *LoggerWrapper) Write(b []byte) {
-	m.getLogger().Write(b)
+func (m *LoggerWrapper) Write(b []byte) (n int, err error) {
+	return m.getLogger().Write(b)
 }
 
 // getLogger retrieves the currently stored Logger instance.

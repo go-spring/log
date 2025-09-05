@@ -33,7 +33,7 @@
     "myLogger": {
       "type": "AsyncLogger",
       "level": "trace",
-      "tags": "_com_request_*",
+      "tags": "_com_request_in,_com_request_*",
       "bufferSize": "${bufferSize}",
       "appenderRef": [
         {

@@ -35,23 +35,23 @@ import (
 var readers = map[string]Reader{}
 
 func init() {
-	RegisterReader(ReadXml, ".xml")
+	RegisterReader(ReadXML, ".xml")
 	RegisterReader(ReadJSON, ".json")
-	RegisterReader(ReadYaml, ".yml", ".yaml")
+	RegisterReader(ReadYAML, ".yml", ".yaml")
 	RegisterReader(ReadProperties, ".properties")
 }
 
+// Reader defines a function that converts a byte slice into a map.
 type Reader func([]byte) (map[string]any, error)
 
-// RegisterReader registers a Reader for one or more file extensions.
-// This allows dynamic selection of parsers based on file type.
+// RegisterReader registers a Reader function for one or more file extensions.
 func RegisterReader(r Reader, ext ...string) {
 	for _, s := range ext {
 		readers[s] = r
 	}
 }
 
-// readConfigFromFile reads a file and returns a Storage.
+// readConfigFromFile reads a configuration file and returns a *barky.Storage.
 func readConfigFromFile(fileName string) (*barky.Storage, error) {
 	file, err := os.Open(fileName)
 	if err != nil {
@@ -63,24 +63,28 @@ func readConfigFromFile(fileName string) (*barky.Storage, error) {
 	return readConfigFromReader(file, ext)
 }
 
-// readConfigFromReader reads a file and returns a Storage.
+// readConfigFromReader reads configuration from an io.Reader given a file extension.
 func readConfigFromReader(reader io.Reader, ext string) (*barky.Storage, error) {
 	r, ok := readers[ext]
 	if !ok {
 		return nil, fmt.Errorf("unsupported file type %s", ext)
 	}
+
 	data, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, err
 	}
+
 	m, err := r(data)
 	if err != nil {
 		return nil, err
 	}
+
+	// Flatten nested maps and convert to *barky.Storage
 	return toStorage(barky.FlattenMap(m))
 }
 
-// ReadProperties reads a properties file and returns a Storage.
+// ReadProperties parses a properties file into a map.
 func ReadProperties(b []byte) (map[string]any, error) {
 	p := properties.NewProperties()
 	p.DisableExpansion = true
@@ -94,7 +98,7 @@ func ReadProperties(b []byte) (map[string]any, error) {
 	return r, nil
 }
 
-// ReadJSON reads a json file and returns a Storage.
+// ReadJSON parses a JSON file into a map.
 func ReadJSON(b []byte) (map[string]any, error) {
 	var r map[string]any
 	if err := json.Unmarshal(b, &r); err != nil {
@@ -103,17 +107,17 @@ func ReadJSON(b []byte) (map[string]any, error) {
 	return r, nil
 }
 
-// ReadYaml reads a yaml file and returns a Storage.
-func ReadYaml(b []byte) (map[string]any, error) {
+// ReadYAML parses a YAML file into a map.
+func ReadYAML(b []byte) (map[string]any, error) {
 	var r map[string]any
 	if err := yaml.Unmarshal(b, &r); err != nil {
-		return nil, fmt.Errorf("ReadYaml error: %w", err)
+		return nil, fmt.Errorf("ReadYAML error: %w", err)
 	}
 	return r, nil
 }
 
-// ReadXml reads an xml file and returns a Storage.
-func ReadXml(b []byte) (map[string]any, error) {
+// ReadXML parses an XML configuration file into a map.
+func ReadXML(b []byte) (map[string]any, error) {
 	d := xml.NewDecoder(bytes.NewReader(b))
 	m := make(map[string]any)
 	for {
@@ -122,21 +126,22 @@ func ReadXml(b []byte) (map[string]any, error) {
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("ReadXml error: %w", err)
+			return nil, fmt.Errorf("ReadXML error: %w", err)
 		}
 		switch t := token.(type) {
 		case xml.StartElement:
 			switch t.Name.Local {
 			case "Configuration":
+				// root element, skip
 			case "Properties", "Appenders", "Loggers":
 				s := make(map[string]any)
-				m[t.Name.Local] = s
 				if err = xmlToMap(s, d); err != nil {
-					return nil, fmt.Errorf("ReadXml error: %w", err)
+					return nil, fmt.Errorf("ReadXML error: %w", err)
 				}
+				m[t.Name.Local] = s
 			default:
 				err = fmt.Errorf("unsupported xml tag %s", t.Name.Local)
-				return nil, fmt.Errorf("ReadXml error: %w", err)
+				return nil, fmt.Errorf("ReadXML error: %w", err)
 			}
 		default: // for linter
 		}
@@ -144,42 +149,44 @@ func ReadXml(b []byte) (map[string]any, error) {
 
 	r := make(map[string]any)
 
+	// flatten Properties
 	if p, ok := m["Properties"]; ok {
 		for k, v := range p.(map[string]any) {
-			r[k] = v.(map[string]any)["Text"]
+			r[k], _ = v.(map[string]any)["Text"]
 		}
 	}
 
+	// validate Appenders
 	if a, ok := m["Appenders"]; !ok {
-		err := fmt.Errorf("missing Appenders")
-		return nil, fmt.Errorf("ReadXml error: %w", err)
+		return nil, fmt.Errorf("missing Appenders")
 	} else {
 		r["Appender"] = a
 	}
 
+	// validate Loggers
 	if l, ok := m["Loggers"]; !ok {
-		err := fmt.Errorf("missing Loggers")
-		return nil, fmt.Errorf("ReadXml error: %w", err)
+		return nil, fmt.Errorf("missing Loggers")
 	} else {
 		a := l.(map[string]any)
-		root := a["Root"]
-		asyncRoot := a["AsyncRoot"]
+		root, _ := a["Root"]
+		asyncRoot, _ := a["AsyncRoot"]
 
 		var s map[string]any
 		if root != nil {
 			if asyncRoot != nil {
-				err := errors.New("found multiple root loggers")
-				return nil, fmt.Errorf("ReadXml error: %w", err)
+				return nil, errors.New("found multiple root loggers")
 			}
 			s = root.(map[string]any)
 		} else {
 			if asyncRoot == nil {
-				err := fmt.Errorf("missing Root or AsyncRoot")
-				return nil, fmt.Errorf("ReadXml error: %w", err)
+				return nil, fmt.Errorf("missing Root or AsyncRoot")
 			}
 			s = asyncRoot.(map[string]any)
 		}
+
+		// remove root from Loggers map
 		delete(a, s["Type"].(string))
+
 		r["rootLogger"] = s
 		r["Logger"] = l
 	}
@@ -187,6 +194,7 @@ func ReadXml(b []byte) (map[string]any, error) {
 	return r, nil
 }
 
+// xmlToMap recursively converts XML elements into map[string]any
 func xmlToMap(m map[string]any, d *xml.Decoder) error {
 	for {
 		token, err := d.Token()
@@ -246,19 +254,19 @@ func xmlToMap(m map[string]any, d *xml.Decoder) error {
 	}
 }
 
-// toStorage converts a map to a Storage.
+// toStorage converts a flattened map into a *barky.Storage instance.
 func toStorage(m map[string]string) (*barky.Storage, error) {
 	s := barky.NewStorage()
 	for k, v := range m {
-		if err := s.Set(ToCamelKey(k), v, 0); err != nil {
+		if err := s.Set(toCamelKey(k), v, 0); err != nil {
 			return nil, err
 		}
 	}
 	return s, nil
 }
 
-// ToCamelKey converts a string to camel case.
-func ToCamelKey(key string) string {
+// toCamelKey converts a string like "foo_bar-baz" into "fooBarBaz".
+func toCamelKey(key string) string {
 	if key == "" {
 		return ""
 	}
@@ -293,7 +301,7 @@ func ToCamelKey(key string) string {
 			lowerNext = false
 		} else if upperNext {
 			if c >= 'a' && c <= 'z' {
-				c = c - offset
+				c -= offset
 			}
 			upperNext = false
 		}
