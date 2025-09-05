@@ -270,7 +270,7 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 				return fmt.Errorf("found no plugin element for struct field %s", ft.Name)
 			}
 			index := 0
-			for _, typeClass := range strings.Split(elemDef, ";") {
+			for typeClass := range strings.SplitSeq(elemDef, ";") {
 				typeClass = strings.TrimSpace(typeClass)
 				if typeClass == "" {
 					continue

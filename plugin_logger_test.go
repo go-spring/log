@@ -145,7 +145,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 
 		go func() {
 			for range 100 {
-				l.Write([]byte("hello"))
+				_, _ = l.Write([]byte("hello"))
 			}
 		}()
 
@@ -186,7 +186,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 
 		go func() {
 			for range 100 {
-				l.Write([]byte("hello"))
+				_, _ = l.Write([]byte("hello"))
 			}
 		}()
 
@@ -227,7 +227,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 
 		go func() {
 			for range 100 {
-				l.Write([]byte("hello"))
+				_, _ = l.Write([]byte("hello"))
 			}
 		}()
 

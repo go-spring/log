@@ -57,9 +57,9 @@ func TestReaders(t *testing.T) {
 	for _, fileName := range testFiles {
 		s, err := readConfigFromFile(fileName)
 		require.ThatError(t, err).Nil()
-		s.Set("rootLogger.appenderRef.type", "AppenderRef", 0)
-		s.Set("logger.myLogger.appenderRef[0].type", "AppenderRef", 0)
-		s.Set("logger.myLogger.appenderRef[1].type", "AppenderRef", 0)
+		_ = s.Set("rootLogger.appenderRef.type", "AppenderRef", 0)
+		_ = s.Set("logger.myLogger.appenderRef[0].type", "AppenderRef", 0)
+		_ = s.Set("logger.myLogger.appenderRef[1].type", "AppenderRef", 0)
 		assert.ThatMap(t, s.Data()).Equal(expected, fileName)
 	}
 }

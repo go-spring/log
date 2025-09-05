@@ -152,7 +152,7 @@ func ReadXML(b []byte) (map[string]any, error) {
 	// flatten Properties
 	if p, ok := m["Properties"]; ok {
 		for k, v := range p.(map[string]any) {
-			r[k], _ = v.(map[string]any)["Text"]
+			r[k] = v.(map[string]any)["Text"]
 		}
 	}
 
@@ -168,8 +168,8 @@ func ReadXML(b []byte) (map[string]any, error) {
 		return nil, fmt.Errorf("missing Loggers")
 	} else {
 		a := l.(map[string]any)
-		root, _ := a["Root"]
-		asyncRoot, _ := a["AsyncRoot"]
+		root := a["Root"]
+		asyncRoot := a["AsyncRoot"]
 
 		var s map[string]any
 		if root != nil {
@@ -223,11 +223,10 @@ func xmlToMap(m map[string]any, d *xml.Decoder) error {
 
 			if name == "" {
 				strType := string(p.Type)
-				v, ok := m[strType]
-				if ok {
-					switch v.(type) {
+				if v, ok := m[strType]; ok {
+					switch o := v.(type) {
 					case []any:
-						m[strType] = append(v.([]any), s)
+						m[strType] = append(o, s)
 					default:
 						m[strType] = []any{v, s}
 					}

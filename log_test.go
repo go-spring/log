@@ -162,8 +162,8 @@ func TestLog(t *testing.T) {
 		"key2": "value2",
 	}))
 
-	rootLogger.Write([]byte("this message is written directly\n"))
-	rootLogger.Write([]byte("this message is written directly\n"))
+	_, _ = rootLogger.Write([]byte("this message is written directly\n"))
+	_, _ = rootLogger.Write([]byte("this message is written directly\n"))
 
 	expectLog := `
 [INFO][2025-06-01T00:00:00.000][log_test.go:106] _def||trace_id=||span_id=||msg=hello world
@@ -182,8 +182,8 @@ this message is written directly
 		log.RegisterRPCTag("def", "")
 	}, "log refresh already done")
 
-	myLogger.Write([]byte("this message is written directly\n"))
-	myLoggerV2.Write([]byte("this message is written directly\n"))
+	_, _ = myLogger.Write([]byte("this message is written directly\n"))
+	_, _ = myLoggerV2.Write([]byte("this message is written directly\n"))
 
 	expectLog = `
 {"level":"trace","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:120","tag":"_com_request_out","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
