@@ -1,0 +1,30 @@
+bufferCap: 1KB
+bufferSize: 1000
+appender:
+  file:
+    type: File
+    fileName: log.txt
+    layout:
+      type: JSONLayout
+  console:
+    type: Console
+    layout:
+      type: TextLayout
+  multi:
+    type: MultiAppender
+    layout:
+      type: TextLayout
+rootLogger:
+  type: Root
+  level: warn
+  appenderRef:
+    ref: console
+logger:
+  myLogger:
+    type: AsyncLogger
+    level: trace
+    tags: _com_request_in,_com_request_*
+    bufferSize: '${bufferSize}'
+    appenderRef:
+      - ref: file
+      - ref: multi

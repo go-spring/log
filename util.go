@@ -40,8 +40,20 @@ func Ptr[T any](i T) *T {
 	return &i
 }
 
+// FormatError formats an error message and wraps it around the given error.
+func FormatError(err error, format string, args ...any) error {
+	if err == nil {
+		return fmt.Errorf(format, args...)
+	}
+	msg := fmt.Sprintf(format, args...)
+	return fmt.Errorf("%s: %w", msg, err)
+}
+
 // WrapError wraps an existing error, creating a new error with hierarchical relationships.
 func WrapError(err error, format string, args ...any) error {
+	if err == nil {
+		return fmt.Errorf(format, args...)
+	}
 	msg := fmt.Sprintf(format, args...)
 	return fmt.Errorf("%s << %w", msg, err)
 }

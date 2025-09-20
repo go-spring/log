@@ -17,16 +17,15 @@
 package log
 
 import (
-	"fmt"
 	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
 
-	"github.com/go-spring/barky"
+	"github.com/go-spring/spring-base/barky"
 )
 
-var converters = map[reflect.Type]any{}
+var typeConverters = map[reflect.Type]any{}
 
 // Converter defines a function that converts a string to type T.
 type Converter[T any] func(string) (T, error)
@@ -34,14 +33,14 @@ type Converter[T any] func(string) (T, error)
 // RegisterConverter registers a custom converter for type T.
 func RegisterConverter[T any](fn Converter[T]) {
 	t := reflect.TypeFor[T]()
-	converters[t] = fn
+	typeConverters[t] = fn
 }
 
-var propertyMap = make(map[string]func(string) error)
+var propertyRegistry = make(map[string]func(string) error)
 
 // RegisterProperty registers a property setter function with a given key.
 func RegisterProperty(key string, val func(string) error) {
-	propertyMap[key] = val
+	propertyRegistry[key] = val
 }
 
 // Lifecycle is an optional interface for plugin lifecycle hooks.
@@ -64,7 +63,7 @@ const (
 	PluginTypeAsyncLogger PluginType = "AsyncLogger"
 )
 
-var plugins = map[string]*Plugin{}
+var pluginRegistry = map[string]*Plugin{}
 
 func init() {
 	RegisterPlugin[struct{}]("Property", PluginTypeProperty)
@@ -82,14 +81,16 @@ type Plugin struct {
 // RegisterPlugin registers a plugin type T with a given name and plugin type.
 func RegisterPlugin[T any](name string, typ PluginType) {
 	_, file, line, _ := runtime.Caller(1)
-	if p, ok := plugins[name]; ok {
-		panic(fmt.Errorf("duplicate plugin %s in %s:%d and %s:%d", typ, p.File, p.Line, file, line))
+	if p, ok := pluginRegistry[name]; ok {
+		err := FormatError(nil, "duplicate plugin name %q in %s:%d and %s:%d",
+			name, p.File, p.Line, file, line)
+		panic(err)
 	}
 	t := reflect.TypeFor[T]()
 	if t.Kind() != reflect.Struct {
 		panic("T must be struct")
 	}
-	plugins[name] = &Plugin{
+	pluginRegistry[name] = &Plugin{
 		Name:  name,
 		Type:  typ,
 		Class: t,
@@ -171,7 +172,8 @@ func injectAttribute(tag string, fv reflect.Value, ft reflect.StructField, prefi
 	attrTag := PluginTag(tag)
 	attrName := attrTag.Get("")
 	if attrName == "" {
-		return fmt.Errorf("found no attribute for struct field %s", ft.Name)
+		err := FormatError(nil, "found no attribute")
+		return WrapError(err, "inject struct field %s error", ft.Name)
 	}
 
 	// Special handling for "name" attribute
@@ -188,7 +190,8 @@ func injectAttribute(tag string, fv reflect.Value, ft reflect.StructField, prefi
 	} else {
 		val, ok = attrTag.Lookup("default")
 		if !ok {
-			return fmt.Errorf("found no attribute for struct field %s", ft.Name)
+			err := FormatError(nil, "found no attribute")
+			return WrapError(err, "inject struct field %s error", ft.Name)
 		}
 	}
 
@@ -197,13 +200,14 @@ func injectAttribute(tag string, fv reflect.Value, ft reflect.StructField, prefi
 	if strings.HasPrefix(val, "${") && strings.HasSuffix(val, "}") {
 		v, ok := s.RawData()[toCamelKey(val[2:len(val)-1])]
 		if !ok {
-			return fmt.Errorf("property %s not found", val)
+			err := FormatError(nil, "property %s not found", val)
+			return WrapError(err, "inject struct field %s error", ft.Name)
 		}
 		val = v.Value
 	}
 
 	// Use custom converter if exists
-	if fn := converters[ft.Type]; fn != nil {
+	if fn := typeConverters[ft.Type]; fn != nil {
 		fnValue := reflect.ValueOf(fn)
 		out := fnValue.Call([]reflect.Value{reflect.ValueOf(val)})
 		if !out[1].IsNil() {
@@ -247,7 +251,8 @@ func injectAttribute(tag string, fv reflect.Value, ft reflect.StructField, prefi
 		fv.SetString(val)
 		return nil
 	default:
-		return fmt.Errorf("unsupported inject type %s for struct field %s", ft.Type.String(), ft.Name)
+		err := FormatError(nil, "unsupported inject type %s", ft.Type.String())
+		return WrapError(err, "inject struct field %s error", ft.Name)
 	}
 }
 
@@ -257,7 +262,8 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 	elemTag := PluginTag(tag)
 	elemType := elemTag.Get("")
 	if elemType == "" {
-		return fmt.Errorf("found no plugin element for struct field %s", ft.Name)
+		err := FormatError(nil, "found no plugin element")
+		return WrapError(err, "inject struct field %s error", ft.Name)
 	}
 	elemKey := prefix + "." + toCamelKey(elemType)
 
@@ -267,7 +273,8 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 		if !s.Has(elemKey) && !s.Has(elemKey+"[0]") {
 			elemDef, ok := elemTag.Lookup("default")
 			if !ok {
-				return fmt.Errorf("found no plugin element for struct field %s", ft.Name)
+				err := FormatError(nil, "found no plugin element")
+				return WrapError(err, "inject struct field %s error", ft.Name)
 			}
 			index := 0
 			for typeClass := range strings.SplitSeq(elemDef, ";") {
@@ -282,7 +289,8 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 				index++
 			}
 			if index == 0 {
-				return fmt.Errorf("found no plugin element for struct field %s", ft.Name)
+				err := FormatError(nil, "found no plugin element")
+				return WrapError(err, "inject struct field %s error", ft.Name)
 			}
 		}
 
@@ -300,17 +308,19 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 				const def = ":def:"
 				strType := s.Get(subKey+".type", def)
 				if strType != def {
-					if p, ok = plugins[strType]; !ok {
-						return fmt.Errorf("plugin %s not found for struct field %s", strType, ft.Name)
+					if p, ok = pluginRegistry[strType]; !ok {
+						err := FormatError(nil, "plugin %s not found", strType)
+						return WrapError(err, "inject struct field %s error", ft.Name)
 					}
 				} else {
-					if p, ok = plugins[elemType]; !ok {
-						return fmt.Errorf("plugin %s not found for struct field %s", elemType, ft.Name)
+					if p, ok = pluginRegistry[elemType]; !ok {
+						err := FormatError(nil, "plugin %s not found", elemType)
+						return WrapError(err, "inject struct field %s error", ft.Name)
 					}
 				}
 				v, err := NewPlugin(p.Class, subKey, s)
 				if err != nil {
-					return err
+					return WrapError(err, "inject struct field %s error", ft.Name)
 				}
 				slice = reflect.Append(slice, v)
 			}
@@ -321,17 +331,19 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 			)
 			const def = ":def:"
 			if strType := s.Get(elemKey+".type", def); strType != def {
-				if p, ok = plugins[strType]; !ok {
-					return fmt.Errorf("plugin %s not found for struct field %s", strType, ft.Name)
+				if p, ok = pluginRegistry[strType]; !ok {
+					err := FormatError(nil, "plugin %s not found", strType)
+					return WrapError(err, "inject struct field %s error", ft.Name)
 				}
 			} else {
-				if p, ok = plugins[elemType]; !ok {
-					return fmt.Errorf("plugin %s not found for struct field %s", elemType, ft.Name)
+				if p, ok = pluginRegistry[elemType]; !ok {
+					err := FormatError(nil, "plugin %s not found", elemType)
+					return WrapError(err, "inject struct field %s error", ft.Name)
 				}
 			}
 			v, err := NewPlugin(p.Class, elemKey, s)
 			if err != nil {
-				return err
+				return WrapError(err, "inject struct field %s error", ft.Name)
 			}
 			slice = reflect.Append(slice, v)
 		}
@@ -345,29 +357,33 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 			if v, ok := s.RawData()[typeKey]; ok {
 				strType = v.Value
 			} else {
-				return fmt.Errorf("found no plugin element for struct field %s", ft.Name)
+				err := FormatError(nil, "found no plugin element")
+				return WrapError(err, "inject struct field %s error", ft.Name)
 			}
 		} else {
 			elemLabel, ok := elemTag.Lookup("default")
 			if !ok {
-				return fmt.Errorf("found no plugin element for struct field %s", ft.Name)
+				err := FormatError(nil, "found no plugin element")
+				return WrapError(err, "inject struct field %s error", ft.Name)
 			}
 			strType = elemLabel
 		}
 
-		p, ok := plugins[strType]
+		p, ok := pluginRegistry[strType]
 		if !ok {
-			return fmt.Errorf("plugin %s not found for struct field %s", strType, ft.Name)
+			err := FormatError(nil, "plugin %s not found", strType)
+			return WrapError(err, "inject struct field %s error", ft.Name)
 		}
 
 		v, err := NewPlugin(p.Class, elemKey, s)
 		if err != nil {
-			return err
+			return WrapError(err, "inject struct field %s error", ft.Name)
 		}
 		fv.Set(v)
 		return nil
 
 	default:
-		return fmt.Errorf("unsupported inject type %s for struct field %s", ft.Type.String(), ft.Name)
+		err := FormatError(nil, "unsupported inject type %s", ft.Type.String())
+		return WrapError(err, "inject struct field %s error", ft.Name)
 	}
 }

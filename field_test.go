@@ -20,7 +20,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/go-spring/gs-assert/assert"
+	"github.com/go-spring/spring-base/testing/assert"
 )
 
 var testFields = []Field{
@@ -103,7 +103,7 @@ func TestJSONEncoder(t *testing.T) {
 		buf := bytes.NewBuffer(nil)
 		enc := NewJSONEncoder(buf)
 		enc.AppendEncoderBegin()
-		WriteFields(enc, testFields)
+		EncodeFields(enc, testFields)
 		enc.AppendEncoderEnd()
 		assert.ThatString(t, buf.String()).JSONEqual(`{
 	    "msg": "hello world\n\\\t\"\r",
@@ -230,6 +230,135 @@ func TestJSONEncoder(t *testing.T) {
 	    }
 	}`)
 	})
+
+	t.Run("nested objects and arrays", func(t *testing.T) {
+		buf := bytes.NewBuffer(nil)
+		enc := NewJSONEncoder(buf)
+		enc.AppendEncoderBegin()
+
+		// Nested object with one field
+		enc.AppendKey("nested_obj")
+		enc.AppendObjectBegin()
+		enc.AppendKey("inner_field")
+		enc.AppendString("inner_value")
+		enc.AppendObjectEnd()
+
+		// Nested array with two string items
+		enc.AppendKey("nested_arr")
+		enc.AppendArrayBegin()
+		enc.AppendString("item1")
+		enc.AppendString("item2")
+		enc.AppendArrayEnd()
+
+		// Empty object
+		enc.AppendKey("empty_obj")
+		enc.AppendObjectBegin()
+		enc.AppendObjectEnd()
+
+		// Empty array
+		enc.AppendKey("empty_arr")
+		enc.AppendArrayBegin()
+		enc.AppendArrayEnd()
+
+		enc.AppendEncoderEnd()
+		expected := `{"nested_obj":{"inner_field":"inner_value"},"nested_arr":["item1","item2"],"empty_obj":{},"empty_arr":[]}`
+		assert.ThatString(t, buf.String()).JSONEqual(expected)
+	})
+
+	t.Run("special characters", func(t *testing.T) {
+		buf := bytes.NewBuffer(nil)
+		enc := NewJSONEncoder(buf)
+		enc.AppendEncoderBegin()
+		enc.AppendKey("special")
+		enc.AppendString("line1\nline2\ttabbed\rreturn")
+		enc.AppendKey("quotes")
+		enc.AppendString(`quotation "mark"`)
+		enc.AppendKey("backslash")
+		enc.AppendString(`path\to\file`)
+		enc.AppendEncoderEnd()
+		expected := `{"special":"line1\nline2\ttabbed\rreturn","quotes":"quotation \"mark\"","backslash":"path\\to\\file"}`
+		assert.ThatString(t, buf.String()).JSONEqual(expected)
+	})
+
+	t.Run("numeric types", func(t *testing.T) {
+		buf := bytes.NewBuffer(nil)
+		enc := NewJSONEncoder(buf)
+		enc.AppendEncoderBegin()
+		enc.AppendKey("negative_int")
+		enc.AppendInt64(-42)
+		enc.AppendKey("zero")
+		enc.AppendInt64(0)
+		enc.AppendKey("positive_int")
+		enc.AppendInt64(42)
+		enc.AppendKey("uint_val")
+		enc.AppendUint64(42)
+		enc.AppendKey("float_val")
+		enc.AppendFloat64(3.14159)
+		enc.AppendKey("negative_float")
+		enc.AppendFloat64(-3.14159)
+		enc.AppendKey("zero_float")
+		enc.AppendFloat64(0.0)
+		enc.AppendEncoderEnd()
+		expected := `{"negative_int":-42,"zero":0,"positive_int":42,"uint_val":42,"float_val":3.14159,"negative_float":-3.14159,"zero_float":0}`
+		assert.ThatString(t, buf.String()).JSONEqual(expected)
+	})
+
+	t.Run("boolean types", func(t *testing.T) {
+		buf := bytes.NewBuffer(nil)
+		enc := NewJSONEncoder(buf)
+		enc.AppendEncoderBegin()
+		enc.AppendKey("true_val")
+		enc.AppendBool(true)
+		enc.AppendKey("false_val")
+		enc.AppendBool(false)
+		enc.AppendEncoderEnd()
+		expected := `{"true_val":true,"false_val":false}`
+		assert.ThatString(t, buf.String()).JSONEqual(expected)
+	})
+
+	t.Run("nil values", func(t *testing.T) {
+		buf := bytes.NewBuffer(nil)
+		enc := NewJSONEncoder(buf)
+		enc.AppendEncoderBegin()
+		enc.AppendKey("nil_field")
+		enc.AppendReflect(nil)
+		enc.AppendEncoderEnd()
+		expected := `{"nil_field":null}`
+		assert.ThatString(t, buf.String()).JSONEqual(expected)
+	})
+
+	t.Run("complex nested structure", func(t *testing.T) {
+		buf := bytes.NewBuffer(nil)
+		enc := NewJSONEncoder(buf)
+		enc.AppendEncoderBegin()
+
+		enc.AppendKey("complex")
+		enc.AppendObjectBegin()
+		enc.AppendKey("level1")
+		enc.AppendObjectBegin()
+		enc.AppendKey("level2")
+		enc.AppendArrayBegin()
+
+		// First object in array
+		enc.AppendObjectBegin()
+		enc.AppendKey("id")
+		enc.AppendInt64(1)
+		enc.AppendObjectEnd()
+
+		// Second object in array
+		enc.AppendObjectBegin()
+		enc.AppendKey("id")
+		enc.AppendInt64(2)
+		enc.AppendObjectEnd()
+
+		enc.AppendArrayEnd()  // close level2 array
+		enc.AppendObjectEnd() // close level1 object
+		enc.AppendObjectEnd() // close complex object
+
+		enc.AppendEncoderEnd()
+		expected := `{"complex":{"level1":{"level2":[{"id":1},{"id":2}]}}}`
+		assert.ThatString(t, buf.String()).JSONEqual(expected)
+	})
 }
 
 func TestTextEncoder(t *testing.T) {
@@ -248,21 +377,22 @@ func TestTextEncoder(t *testing.T) {
 		buf := bytes.NewBuffer(nil)
 		enc := NewTextEncoder(buf, "||")
 		enc.AppendEncoderBegin()
-		WriteFields(enc, testFields)
-		{
-			enc.AppendKey("object_2")
-			enc.AppendObjectBegin()
-			enc.AppendKey("map")
-			enc.AppendReflect(map[string]int{"a": 1})
-			enc.AppendObjectEnd()
-		}
-		{
-			enc.AppendKey("array_2")
-			enc.AppendArrayBegin()
-			enc.AppendReflect(map[string]int{"a": 1})
-			enc.AppendReflect(map[string]int{"a": 1})
-			enc.AppendArrayEnd()
-		}
+		EncodeFields(enc, testFields)
+
+		// Nested object with map
+		enc.AppendKey("object_2")
+		enc.AppendObjectBegin()
+		enc.AppendKey("map")
+		enc.AppendReflect(map[string]int{"a": 1})
+		enc.AppendObjectEnd()
+
+		// Array of objects
+		enc.AppendKey("array_2")
+		enc.AppendArrayBegin()
+		enc.AppendReflect(map[string]int{"a": 1})
+		enc.AppendReflect(map[string]int{"a": 1})
+		enc.AppendArrayEnd()
+
 		enc.AppendEncoderEnd()
 		const expect = `msg=hello 中国||msg=hello world\n\\\t\"\r||null=null||` +
 			`bool=false||bool_ptr=true||bool_ptr_nil=null||bools=[true,true,false]||` +
@@ -282,5 +412,106 @@ func TestTextEncoder(t *testing.T) {
 			`object={"int64":1,"uint64":1,"string":"a"}||struct={"Int64":10}||` +
 			`object_2={"map":{"a":1}}||array_2=[{"a":1},{"a":1}]`
 		assert.ThatString(t, buf.String()).Equal(expect)
+	})
+
+	t.Run("nil values", func(t *testing.T) {
+		buf := bytes.NewBuffer(nil)
+		enc := NewTextEncoder(buf, " ")
+		enc.AppendEncoderBegin()
+		enc.AppendKey("nil_field")
+		enc.AppendReflect(nil)
+		enc.AppendEncoderEnd()
+		assert.ThatString(t, buf.String()).Equal("nil_field=null")
+	})
+
+	t.Run("nested objects and arrays", func(t *testing.T) {
+		buf := bytes.NewBuffer(nil)
+		enc := NewTextEncoder(buf, " ")
+		enc.AppendEncoderBegin()
+
+		// Nested object
+		enc.AppendKey("nested_obj")
+		enc.AppendObjectBegin()
+		enc.AppendKey("inner_field")
+		enc.AppendString("inner_value")
+		enc.AppendObjectEnd()
+
+		// Nested array
+		enc.AppendKey("nested_arr")
+		enc.AppendArrayBegin()
+		enc.AppendString("item1")
+		enc.AppendString("item2")
+		enc.AppendArrayEnd()
+
+		enc.AppendEncoderEnd()
+		expected := `nested_obj={"inner_field":"inner_value"} nested_arr=["item1","item2"]`
+		assert.ThatString(t, buf.String()).Equal(expected)
+	})
+
+	t.Run("different separators", func(t *testing.T) {
+		buf := bytes.NewBuffer(nil)
+		enc := NewTextEncoder(buf, ", ")
+		enc.AppendEncoderBegin()
+		enc.AppendKey("field1")
+		enc.AppendString("value1")
+		enc.AppendKey("field2")
+		enc.AppendString("value2")
+		enc.AppendEncoderEnd()
+		assert.ThatString(t, buf.String()).Equal("field1=value1, field2=value2")
+	})
+
+	t.Run("special characters", func(t *testing.T) {
+		buf := bytes.NewBuffer(nil)
+		enc := NewTextEncoder(buf, " ")
+		enc.AppendEncoderBegin()
+		enc.AppendKey("special")
+		enc.AppendString("line1\nline2\ttabbed\rreturn")
+		enc.AppendEncoderEnd()
+		assert.ThatString(t, buf.String()).Equal("special=line1\\nline2\\ttabbed\\rreturn")
+	})
+
+	t.Run("empty fields", func(t *testing.T) {
+		buf := bytes.NewBuffer(nil)
+		enc := NewTextEncoder(buf, " ")
+		enc.AppendEncoderBegin()
+
+		// Empty object
+		enc.AppendKey("empty_obj")
+		enc.AppendObjectBegin()
+		enc.AppendObjectEnd()
+
+		// Empty array
+		enc.AppendKey("empty_arr")
+		enc.AppendArrayBegin()
+		enc.AppendArrayEnd()
+
+		enc.AppendEncoderEnd()
+		assert.ThatString(t, buf.String()).Equal("empty_obj={} empty_arr=[]")
+	})
+
+	t.Run("numeric types", func(t *testing.T) {
+		buf := bytes.NewBuffer(nil)
+		enc := NewTextEncoder(buf, " ")
+		enc.AppendEncoderBegin()
+		enc.AppendKey("int_val")
+		enc.AppendInt64(-42)
+		enc.AppendKey("uint_val")
+		enc.AppendUint64(42)
+		enc.AppendKey("float_val")
+		enc.AppendFloat64(3.14159)
+		enc.AppendEncoderEnd()
+		assert.ThatString(t, buf.String()).Equal("int_val=-42 uint_val=42 float_val=3.14159")
+	})
+
+	t.Run("boolean types", func(t *testing.T) {
+		buf := bytes.NewBuffer(nil)
+		enc := NewTextEncoder(buf, " ")
+		enc.AppendEncoderBegin()
+		enc.AppendKey("true_val")
+		enc.AppendBool(true)
+		enc.AppendKey("false_val")
+		enc.AppendBool(false)
+		enc.AppendEncoderEnd()
+		assert.ThatString(t, buf.String()).Equal("true_val=true false_val=false")
 	})
 }

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration>
+    <Properties>
+        <Property name="bufferCap">1KB</Property>
+        <Property name="bufferSize">1000</Property>
+    </Properties>
+    <Appenders>
+        <File name="file" fileName="log.txt">
+            <JSONLayout/>
+        </File>
+        <Console name="console">
+            <TextLayout/>
+        </Console>
+        <!-- user defined Appender and Layout -->
+        <MultiAppender name="multi">
+            <TextLayout/>
+        </MultiAppender>
+    </Appenders>
+    <Loggers>
+        <Root level="warn">
+            <AppenderRef ref="console"/>
+        </Root>
+        <AsyncLogger name="myLogger" level="trace" tags="_com_request_in,_com_request_*" bufferSize="${bufferSize}">
+            <AppenderRef ref="file"/>
+            <AppenderRef ref="multi"/>
+        </AsyncLogger>
+    </Loggers>
+</Configuration>

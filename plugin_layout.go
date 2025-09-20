@@ -18,7 +18,6 @@ package log
 
 import (
 	"bytes"
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -27,12 +26,13 @@ import (
 )
 
 var (
-	bufferPool sync.Pool
-	bufferCap  atomic.Int32
+	bufferPool sync.Pool    // Pool to reuse byte buffers for layouts
+	bufferCap  atomic.Int32 // Maximum buffer capacity allowed for reuse
 )
 
 func init() {
-	bufferCap.Store(10 * 1024) // 10KB
+	// Default buffer capacity is 10KB
+	bufferCap.Store(10 * 1024)
 	RegisterProperty("bufferCap", func(s string) error {
 		n, err := ParseHumanizeBytes(s)
 		if err != nil {
@@ -43,6 +43,7 @@ func init() {
 	})
 }
 
+// Supported size units for human-readable byte values
 var bytesSizeTable = map[string]int64{
 	"B":  1,
 	"KB": 1024,
@@ -54,9 +55,10 @@ func init() {
 	RegisterPlugin[JSONLayout]("JSONLayout", PluginTypeLayout)
 }
 
+// HumanizeBytes represents a human-readable byte size
 type HumanizeBytes int
 
-// ParseHumanizeBytes converts a human-readable byte string to an integer.
+// ParseHumanizeBytes converts a human-readable byte string (e.g., "10KB") to an integer.
 func ParseHumanizeBytes(s string) (HumanizeBytes, error) {
 	lastDigit := 0
 	for _, r := range s {
@@ -75,20 +77,20 @@ func ParseHumanizeBytes(s string) (HumanizeBytes, error) {
 		f *= m
 		return HumanizeBytes(f), nil
 	}
-	return 0, fmt.Errorf("unhandled size name: %q", extra)
+	return 0, FormatError(nil, "unhandled size name: %q", extra)
 }
 
-// Layout is the interface that defines how a log event is converted to bytes.
+// Layout defines how a log event is formatted into bytes.
 type Layout interface {
 	ToBytes(e *Event) []byte
 }
 
-// BaseLayout is the base class for Layout.
+// BaseLayout provides common functionality for layouts.
 type BaseLayout struct {
 	FileLineLength int `PluginAttribute:"fileLineLength,default=48"`
 }
 
-// GetBuffer returns a buffer that can be used to format the log event.
+// GetBuffer returns a buffer from the pool (or a new one if empty).
 func (c *BaseLayout) GetBuffer() *bytes.Buffer {
 	if v := bufferPool.Get(); v != nil {
 		return v.(*bytes.Buffer)
@@ -96,7 +98,8 @@ func (c *BaseLayout) GetBuffer() *bytes.Buffer {
 	return bytes.NewBuffer(nil)
 }
 
-// PutBuffer puts a buffer back into the pool.
+// PutBuffer resets and returns a buffer to the pool,
+// but only if it does not exceed the configured capacity.
 func (c *BaseLayout) PutBuffer(buf *bytes.Buffer) {
 	if buf.Cap() <= int(bufferCap.Load()) {
 		buf.Reset()
@@ -104,21 +107,22 @@ func (c *BaseLayout) PutBuffer(buf *bytes.Buffer) {
 	}
 }
 
-// GetFileLine returns the file name and line number of the log event.
+// GetFileLine returns "file:line" string for the log event.
+// If the string is too long, it is truncated and prefixed with "...".
 func (c *BaseLayout) GetFileLine(e *Event) string {
 	fileLine := e.File + ":" + strconv.Itoa(e.Line)
-	if n := len(fileLine); n > c.FileLineLength-3 {
-		fileLine = "..." + fileLine[n-c.FileLineLength:]
+	if n := len(fileLine); n > c.FileLineLength {
+		fileLine = "..." + fileLine[n-c.FileLineLength+3:]
 	}
 	return fileLine
 }
 
-// TextLayout formats the log event as a human-readable text string.
+// TextLayout formats a log event as a human-readable text line.
 type TextLayout struct {
 	BaseLayout
 }
 
-// ToBytes converts a log event to a formatted plain-text line.
+// ToBytes converts a log event into a plain-text line with separators.
 func (c *TextLayout) ToBytes(e *Event) []byte {
 	const separator = "||"
 
@@ -142,20 +146,20 @@ func (c *TextLayout) ToBytes(e *Event) []byte {
 
 	enc := NewTextEncoder(buf, separator)
 	enc.AppendEncoderBegin()
-	WriteFields(enc, e.CtxFields)
-	WriteFields(enc, e.Fields)
+	EncodeFields(enc, e.CtxFields)
+	EncodeFields(enc, e.Fields)
 	enc.AppendEncoderEnd()
 
 	buf.WriteByte('\n')
 	return buf.Bytes()
 }
 
-// JSONLayout formats the log event as a structured JSON object.
+// JSONLayout formats a log event as a structured JSON object.
 type JSONLayout struct {
 	BaseLayout
 }
 
-// ToBytes converts a log event to a JSON-formatted byte slice.
+// ToBytes converts a log event to JSON representation.
 func (c *JSONLayout) ToBytes(e *Event) []byte {
 	buf := c.GetBuffer()
 	defer c.PutBuffer(buf)
@@ -172,9 +176,9 @@ func (c *JSONLayout) ToBytes(e *Event) []byte {
 
 	enc := NewJSONEncoder(buf)
 	enc.AppendEncoderBegin()
-	WriteFields(enc, headers)
-	WriteFields(enc, e.CtxFields)
-	WriteFields(enc, e.Fields)
+	EncodeFields(enc, headers)
+	EncodeFields(enc, e.CtxFields)
+	EncodeFields(enc, e.Fields)
 	enc.AppendEncoderEnd()
 
 	buf.WriteByte('\n')

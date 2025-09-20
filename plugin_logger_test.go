@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-spring/gs-assert/assert"
+	"github.com/go-spring/spring-base/testing/assert"
 )
 
 func TestParseBufferFullPolicy(t *testing.T) {
@@ -52,6 +52,29 @@ func (c *CountAppender) Append(e *Event) {
 
 func TestLoggerConfig(t *testing.T) {
 
+	t.Run("write", func(t *testing.T) {
+		a := &CountAppender{
+			Appender: &DiscardAppender{},
+		}
+
+		err := a.Start()
+		assert.ThatError(t, err).Nil()
+
+		l := &SyncLogger{LoggerBase{
+			AppenderRefs: []*AppenderRef{
+				{appender: a},
+			},
+		}}
+
+		n, err := l.Write([]byte("test"))
+		assert.ThatError(t, err).Nil()
+		assert.That(t, n).Equal(4)
+		assert.That(t, a.count).Equal(0)
+
+		l.Stop()
+		a.Stop()
+	})
+
 	t.Run("success", func(t *testing.T) {
 		a := &CountAppender{
 			Appender: &DiscardAppender{},
@@ -60,7 +83,7 @@ func TestLoggerConfig(t *testing.T) {
 		err := a.Start()
 		assert.ThatError(t, err).Nil()
 
-		l := &SyncLogger{BaseLogger{
+		l := &SyncLogger{LoggerBase{
 			Level: InfoLevel,
 			Tags:  "_com_*",
 			AppenderRefs: []*AppenderRef{
@@ -94,7 +117,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 
 	t.Run("enable level", func(t *testing.T) {
 		l := &AsyncLogger{
-			BaseLogger: BaseLogger{
+			LoggerBase: LoggerBase{
 				Level: InfoLevel,
 			},
 		}
@@ -110,7 +133,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 
 	t.Run("error BufferSize", func(t *testing.T) {
 		l := &AsyncLogger{
-			BaseLogger: BaseLogger{
+			LoggerBase: LoggerBase{
 				Name: "file",
 			},
 			BufferSize: 10,
@@ -129,7 +152,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		assert.ThatError(t, err).Nil()
 
 		l := &AsyncLogger{
-			BaseLogger: BaseLogger{
+			LoggerBase: LoggerBase{
 				Level: InfoLevel,
 				Tags:  "_com_*",
 				AppenderRefs: []*AppenderRef{
@@ -170,7 +193,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		assert.ThatError(t, err).Nil()
 
 		l := &AsyncLogger{
-			BaseLogger: BaseLogger{
+			LoggerBase: LoggerBase{
 				Level: InfoLevel,
 				Tags:  "_com_*",
 				AppenderRefs: []*AppenderRef{
@@ -211,7 +234,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		assert.ThatError(t, err).Nil()
 
 		l := &AsyncLogger{
-			BaseLogger: BaseLogger{
+			LoggerBase: LoggerBase{
 				Level: InfoLevel,
 				Tags:  "_com_*",
 				AppenderRefs: []*AppenderRef{
@@ -252,7 +275,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		assert.ThatError(t, err).Nil()
 
 		l := &AsyncLogger{
-			BaseLogger: BaseLogger{
+			LoggerBase: LoggerBase{
 				Level: InfoLevel,
 				Tags:  "_com_*",
 				AppenderRefs: []*AppenderRef{
@@ -274,5 +297,39 @@ func TestAsyncLoggerConfig(t *testing.T) {
 
 		l.Stop()
 		a.Stop()
+	})
+
+	t.Run("write with discard policy", func(t *testing.T) {
+		a := &CountAppender{
+			Appender: &DiscardAppender{},
+		}
+
+		err := a.Start()
+		assert.ThatError(t, err).Nil()
+
+		l := &AsyncLogger{
+			LoggerBase: LoggerBase{
+				AppenderRefs: []*AppenderRef{
+					{appender: a},
+				},
+			},
+			BufferSize:       100,
+			BufferFullPolicy: BufferFullPolicyDiscard,
+		}
+
+		err = l.Start()
+		assert.ThatError(t, err).Nil()
+
+		// Rapidly write large amount of data to fill the buffer
+		for range 500 {
+			_, _ = l.Write([]byte("test data"))
+		}
+
+		time.Sleep(100 * time.Millisecond)
+		l.Stop()
+		a.Stop()
+
+		// Some data should be discarded
+		assert.That(t, l.GetDiscardCounter() > 0).True()
 	})
 }

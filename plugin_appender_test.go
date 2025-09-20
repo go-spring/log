@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-spring/gs-assert/assert"
+	"github.com/go-spring/spring-base/testing/assert"
 )
 
 func TestDiscardAppender(t *testing.T) {
@@ -44,7 +44,7 @@ func TestConsoleAppender(t *testing.T) {
 		}()
 
 		a := &ConsoleAppender{
-			BaseAppender: BaseAppender{
+			AppenderBase: AppenderBase{
 				Layout: &TextLayout{
 					BaseLayout{
 						FileLineLength: 48,
@@ -69,13 +69,33 @@ func TestConsoleAppender(t *testing.T) {
 		assert.ThatError(t, err).Nil()
 		assert.ThatString(t, string(b)).Equal("[INFO][0001-01-01T00:00:00.000][file.go:100] _def||msg=hello world\n")
 	})
+
+	t.Run("write directly", func(t *testing.T) {
+		file, err := os.CreateTemp(os.TempDir(), "")
+		assert.ThatError(t, err).Nil()
+
+		Stdout = file
+		defer func() {
+			Stdout = os.Stdout
+		}()
+
+		a := &ConsoleAppender{}
+		a.Write([]byte("direct write test"))
+
+		err = file.Close()
+		assert.ThatError(t, err).Nil()
+
+		b, err := os.ReadFile(file.Name())
+		assert.ThatError(t, err).Nil()
+		assert.ThatString(t, string(b)).Equal("direct write test")
+	})
 }
 
 func TestFileAppender(t *testing.T) {
 
 	t.Run("Start error", func(t *testing.T) {
 		a := &FileAppender{
-			BaseAppender: BaseAppender{
+			AppenderBase: AppenderBase{
 				Layout: &TextLayout{
 					BaseLayout{
 						FileLineLength: 48,
@@ -95,7 +115,7 @@ func TestFileAppender(t *testing.T) {
 		assert.ThatError(t, err).Nil()
 
 		a := &FileAppender{
-			BaseAppender: BaseAppender{
+			AppenderBase: AppenderBase{
 				Layout: &TextLayout{
 					BaseLayout{
 						FileLineLength: 48,
@@ -122,5 +142,42 @@ func TestFileAppender(t *testing.T) {
 		b, err := os.ReadFile(a.file.Name())
 		assert.ThatError(t, err).Nil()
 		assert.ThatString(t, string(b)).Equal("[INFO][0001-01-01T00:00:00.000][file.go:100] _def||msg=hello world\n")
+	})
+
+	t.Run("write directly", func(t *testing.T) {
+		file, err := os.CreateTemp(os.TempDir(), "")
+		assert.ThatError(t, err).Nil()
+
+		a := &FileAppender{
+			FileName: file.Name(),
+		}
+		err = a.Start()
+		assert.ThatError(t, err).Nil()
+
+		a.Write([]byte("direct write test"))
+		a.Stop()
+
+		err = file.Close()
+		assert.ThatError(t, err).Nil()
+
+		b, err := os.ReadFile(file.Name())
+		assert.ThatError(t, err).Nil()
+		assert.ThatString(t, string(b)).Equal("direct write test")
+	})
+
+	t.Run("stop multiple times", func(t *testing.T) {
+		file, err := os.CreateTemp(os.TempDir(), "")
+		assert.ThatError(t, err).Nil()
+		err = file.Close()
+		assert.ThatError(t, err).Nil()
+
+		a := &FileAppender{
+			FileName: file.Name(),
+		}
+		err = a.Start()
+		assert.ThatError(t, err).Nil()
+
+		a.Stop()
+		a.Stop()
 	})
 }

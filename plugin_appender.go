@@ -35,7 +35,7 @@ type Appender interface {
 	Lifecycle        // Appenders must be startable and stoppable
 	GetName() string // Returns the appender name
 	Append(e *Event) // Handles writing a log event
-	Write(b []byte)  // Directly writes a bytes slice
+	Write(b []byte)  // Directly writes a byte slice
 }
 
 var (
@@ -44,26 +44,26 @@ var (
 	_ Appender = (*FileAppender)(nil)
 )
 
-// BaseAppender provides shared configuration and behavior for appenders.
-type BaseAppender struct {
+// AppenderBase provides common configuration and default behavior for appenders.
+type AppenderBase struct {
 	Name   string `PluginAttribute:"name"` // Appender name from config
 	Layout Layout `PluginElement:"Layout"` // Layout defines how logs are formatted
 }
 
-func (c *BaseAppender) GetName() string { return c.Name }
-func (c *BaseAppender) Start() error    { return nil }
-func (c *BaseAppender) Stop()           {}
-func (c *BaseAppender) Append(e *Event) {}
-func (c *BaseAppender) Write(b []byte)  {}
+func (c *AppenderBase) GetName() string { return c.Name }
+func (c *AppenderBase) Start() error    { return nil }
+func (c *AppenderBase) Stop()           {}
+func (c *AppenderBase) Append(e *Event) {}
+func (c *AppenderBase) Write(b []byte)  {}
 
 // DiscardAppender ignores all log events (no output).
 type DiscardAppender struct {
-	BaseAppender
+	AppenderBase
 }
 
 // ConsoleAppender writes formatted log events to stdout.
 type ConsoleAppender struct {
-	BaseAppender
+	AppenderBase
 }
 
 // Append formats the event and writes it to standard output.
@@ -71,21 +71,21 @@ func (c *ConsoleAppender) Append(e *Event) {
 	c.Write(c.Layout.ToBytes(e))
 }
 
-// Write writes a bytes slice directly to the stdout.
+// Write writes a byte slice directly to the stdout.
+// Errors are deliberately ignored.
 func (c *ConsoleAppender) Write(b []byte) {
-	// ignore error deliberately
 	_, _ = Stdout.Write(b)
 }
 
 // FileAppender writes formatted log events to a specified file.
 type FileAppender struct {
-	BaseAppender
+	AppenderBase
 	FileName string `PluginAttribute:"fileName"`
 
 	file *os.File
 }
 
-// Start opens the file.
+// Start opens the log file for appending.
 func (c *FileAppender) Start() error {
 	f, err := os.OpenFile(c.FileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, os.ModePerm)
 	if err != nil {
@@ -100,16 +100,16 @@ func (c *FileAppender) Append(e *Event) {
 	c.Write(c.Layout.ToBytes(e))
 }
 
-// Write writes a bytes slice directly to the file.
+// Write writes a byte slice directly to the file.
+// Errors are deliberately ignored.
 func (c *FileAppender) Write(b []byte) {
-	// ignore error deliberately
 	_, _ = c.file.Write(b)
 }
 
-// Stop closes the file.
+// Stop flushes and closes the file.
 func (c *FileAppender) Stop() {
 	if c.file != nil {
-		// ignore error deliberately
+		// Errors are deliberately ignored
 		_ = c.file.Sync()
 		_ = c.file.Close()
 	}

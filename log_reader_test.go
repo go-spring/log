@@ -20,8 +20,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-spring/gs-assert/assert"
-	"github.com/go-spring/gs-assert/require"
+	"github.com/go-spring/spring-base/testing/assert"
+	"github.com/go-spring/spring-base/testing/require"
 )
 
 func TestReaders(t *testing.T) {
@@ -51,8 +51,8 @@ func TestReaders(t *testing.T) {
 	testFiles := []string{
 		"testdata/log.properties",
 		"testdata/log.json",
-		"testdata/log.xml",
-		"testdata/log.yaml",
+		"testdata/log.XML",
+		"testdata/log.Yaml",
 	}
 	for _, fileName := range testFiles {
 		s, err := readConfigFromFile(fileName)
@@ -72,10 +72,14 @@ func TestReadJSON(t *testing.T) {
 }
 
 func TestReadYAML(t *testing.T) {
-	_, err := readConfigFromReader(strings.NewReader(`
-		=1
-	`), ".yaml")
-	require.ThatError(t, err).Matches(`ReadYAML error: yaml: line 2: found character that cannot start any token`)
+	_, err := readConfigFromReader(strings.NewReader(`=1`), ".yaml")
+	require.ThatError(t, err).NotNil()
+	require.ThatString(t, err.Error()).Equal(`ReadYAML error: yaml: unmarshal errors:
+  line 1: cannot unmarshal !!str ` + "`=1`" + ` into map[string]interface {}`)
+
+	s, err := readConfigFromReader(strings.NewReader(`123: abc`), ".yaml")
+	require.ThatError(t, err).Nil()
+	require.ThatMap(t, s.Data()).Equal(map[string]string{"123": "abc"})
 }
 
 func TestReadProperties(t *testing.T) {

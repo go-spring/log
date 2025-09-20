@@ -89,138 +89,170 @@ package log
 
 import (
 	"context"
+	"strconv"
+	"sync/atomic"
 	"time"
 )
 
+// fastCaller controls whether to use a faster but less accurate
+// implementation of caller lookup (file/line).
+var fastCaller atomic.Bool
+
+func init() {
+	fastCaller.Store(true)
+	RegisterProperty("fastCaller", func(s string) error {
+		b, err := strconv.ParseBool(s)
+		if err != nil {
+			return err
+		}
+		fastCaller.Store(b)
+		return nil
+	})
+}
+
 var (
-	// TagAppDef is the default tag used for application logs.
+	// TagAppDef is the default tag for application-related logs.
 	TagAppDef = RegisterAppTag("def", "")
 
-	// TagBizDef is the default tag used for business-related logs.
+	// TagBizDef is the default tag for business-related logs.
 	TagBizDef = RegisterBizTag("def", "")
 )
 
 var (
-	// TimeNow is a function that can be overridden to provide custom
-	// timestamp behavior, e.g., for testing or mocking.
+	// TimeNow is an overrideable function to provide custom timestamps.
+	// For example, this can be replaced during testing to return a fixed time.
 	TimeNow func(ctx context.Context) time.Time
 
-	// StringFromContext allows extraction of a string (e.g., trace ID) from the context.
+	// StringFromContext is an optional hook to extract a string (e.g., trace ID)
+	// from the context. This string will be attached to the log event.
 	StringFromContext func(ctx context.Context) string
 
-	// FieldsFromContext allows extraction of structured fields (e.g., trace ID, span ID) from the context.
+	// FieldsFromContext is an optional hook to extract structured fields
+	// (e.g., trace ID, span ID, or request metadata) from the context.
 	FieldsFromContext func(ctx context.Context) []Field
 )
 
-// Trace logs a message at TraceLevel using a tag and a lazy field-generating function.
+// Trace logs at TraceLevel using a tag and a lazy field generator function.
+// The function fn() is only executed if TraceLevel logging is enabled.
 func Trace(ctx context.Context, tag *Tag, fn func() []Field) {
 	if tag.getLogger().EnableLevel(TraceLevel) {
 		Record(ctx, TraceLevel, tag, 2, fn()...)
 	}
 }
 
-// Tracef logs a message at TraceLevel using a tag and a formatted message.
+// Tracef logs at TraceLevel using a tag and a formatted message.
+// Message formatting is only performed if TraceLevel logging is enabled.
 func Tracef(ctx context.Context, tag *Tag, format string, args ...any) {
 	if tag.getLogger().EnableLevel(TraceLevel) {
 		Record(ctx, TraceLevel, tag, 2, Msgf(format, args...))
 	}
 }
 
-// Debug logs a message at DebugLevel using a tag and a lazy field-generating function.
+// Debug logs at DebugLevel using a tag and a lazy field generator function.
+// The function fn() is only executed if DebugLevel logging is enabled.
 func Debug(ctx context.Context, tag *Tag, fn func() []Field) {
 	if tag.getLogger().EnableLevel(DebugLevel) {
 		Record(ctx, DebugLevel, tag, 2, fn()...)
 	}
 }
 
-// Debugf logs a message at DebugLevel using a tag and a formatted message.
+// Debugf logs at DebugLevel using a tag and a formatted message.
+// Message formatting is only performed if DebugLevel logging is enabled.
 func Debugf(ctx context.Context, tag *Tag, format string, args ...any) {
 	if tag.getLogger().EnableLevel(DebugLevel) {
 		Record(ctx, DebugLevel, tag, 2, Msgf(format, args...))
 	}
 }
 
-// Info logs a message at InfoLevel using structured fields.
+// Info logs at InfoLevel with structured fields.
 func Info(ctx context.Context, tag *Tag, fields ...Field) {
 	Record(ctx, InfoLevel, tag, 2, fields...)
 }
 
-// Infof logs a message at InfoLevel using a formatted message.
+// Infof logs at InfoLevel using a formatted message.
 func Infof(ctx context.Context, tag *Tag, format string, args ...any) {
 	Record(ctx, InfoLevel, tag, 2, Msgf(format, args...))
 }
 
-// Warn logs a message at WarnLevel using structured fields.
+// Warn logs at WarnLevel with structured fields.
 func Warn(ctx context.Context, tag *Tag, fields ...Field) {
 	Record(ctx, WarnLevel, tag, 2, fields...)
 }
 
-// Warnf logs a message at WarnLevel using a formatted message.
+// Warnf logs at WarnLevel using a formatted message.
 func Warnf(ctx context.Context, tag *Tag, format string, args ...any) {
 	Record(ctx, WarnLevel, tag, 2, Msgf(format, args...))
 }
 
-// Error logs a message at ErrorLevel using structured fields.
+// Error logs at ErrorLevel with structured fields.
 func Error(ctx context.Context, tag *Tag, fields ...Field) {
 	Record(ctx, ErrorLevel, tag, 2, fields...)
 }
 
-// Errorf logs a message at ErrorLevel using a formatted message.
+// Errorf logs at ErrorLevel using a formatted message.
 func Errorf(ctx context.Context, tag *Tag, format string, args ...any) {
 	Record(ctx, ErrorLevel, tag, 2, Msgf(format, args...))
 }
 
-// Panic logs a message at PanicLevel using structured fields.
+// Panic logs at PanicLevel with structured fields.
 func Panic(ctx context.Context, tag *Tag, fields ...Field) {
 	Record(ctx, PanicLevel, tag, 2, fields...)
 }
 
-// Panicf logs a message at PanicLevel using a formatted message.
+// Panicf logs at PanicLevel using a formatted message.
 func Panicf(ctx context.Context, tag *Tag, format string, args ...any) {
 	Record(ctx, PanicLevel, tag, 2, Msgf(format, args...))
 }
 
-// Fatal logs a message at FatalLevel using structured fields.
+// Fatal logs at FatalLevel with structured fields.
 func Fatal(ctx context.Context, tag *Tag, fields ...Field) {
 	Record(ctx, FatalLevel, tag, 2, fields...)
 }
 
-// Fatalf logs a message at FatalLevel using a formatted message.
+// Fatalf logs at FatalLevel using a formatted message.
 func Fatalf(ctx context.Context, tag *Tag, format string, args ...any) {
 	Record(ctx, FatalLevel, tag, 2, Msgf(format, args...))
 }
 
-// Record is the core function that handles publishing log events.
-// It checks the logger level, captures caller information, gathers context fields,
-// and sends the log event to the logger.
+// Record is the core logging function.
+//
+// Responsibilities:
+//  1. Check whether the logger is enabled for the given level.
+//  2. Capture caller information (file, line). When fastCaller is enabled,
+//     a faster but less precise lookup is used.
+//  3. Determine the log timestamp, either via TimeNow (if set) or time.Now().
+//  4. Extract context-based metadata via StringFromContext and FieldsFromContext.
+//  5. Populate a pooled Event object with all gathered data.
+//  6. Publish the Event to the logger.
 func Record(ctx context.Context, level Level, tag *Tag, skip int, fields ...Field) {
 	l := tag.getLogger()
 
-	// Check if the logger is enabled for the given level
+	// Step 1: check if logging is enabled for this level.
 	if !l.EnableLevel(level) {
 		return
 	}
 
-	file, line := Caller(skip, true)
+	// Step 2: resolve caller information.
+	file, line := Caller(skip, fastCaller.Load())
 
-	// Determine the log timestamp
+	// Step 3: determine log timestamp.
 	now := time.Now()
 	if TimeNow != nil {
 		now = TimeNow(ctx)
 	}
 
-	// Extract a string from the context
+	// Step 4: extract metadata from context.
 	var ctxString string
 	if StringFromContext != nil {
 		ctxString = StringFromContext(ctx)
 	}
 
-	// Extract contextual fields from the context
 	var ctxFields []Field
 	if FieldsFromContext != nil {
 		ctxFields = FieldsFromContext(ctx)
 	}
 
+	// Step 5: populate event.
 	e := GetEvent()
 	e.Level = level
 	e.Time = now
@@ -231,5 +263,6 @@ func Record(ctx context.Context, level Level, tag *Tag, skip int, fields ...Fiel
 	e.CtxString = ctxString
 	e.CtxFields = ctxFields
 
+	// Step 6: publish the event.
 	l.Publish(e)
 }

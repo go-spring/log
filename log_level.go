@@ -17,7 +17,6 @@
 package log
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -27,49 +26,50 @@ func init() {
 
 var (
 	NoneLevel  = RegisterLevel(0, "NONE")    // No logging
-	TraceLevel = RegisterLevel(100, "TRACE") // Very detailed logging, typically for debugging at a granular level
-	DebugLevel = RegisterLevel(200, "DEBUG") // Debugging information
-	InfoLevel  = RegisterLevel(300, "INFO")  // General informational messages
-	WarnLevel  = RegisterLevel(400, "WARN")  // Warnings that may indicate a potential problem
+	TraceLevel = RegisterLevel(100, "TRACE") // Very detailed logging, typically used for debugging at a granular level
+	DebugLevel = RegisterLevel(200, "DEBUG") // Debugging information useful during development
+	InfoLevel  = RegisterLevel(300, "INFO")  // General informational messages about application progress
+	WarnLevel  = RegisterLevel(400, "WARN")  // Warnings about potential issues or unusual situations
 	ErrorLevel = RegisterLevel(500, "ERROR") // Errors that allow the application to continue running
-	PanicLevel = RegisterLevel(600, "PANIC") // Severe issues that may lead to a panic
-	FatalLevel = RegisterLevel(700, "FATAL") // Critical issues that will cause application termination
+	PanicLevel = RegisterLevel(600, "PANIC") // Severe issues that may cause a panic in the application
+	FatalLevel = RegisterLevel(700, "FATAL") // Critical issues that will terminate the application
 )
 
-var levels = map[string]Level{}
+var levelRegistry = map[string]Level{}
 
-// Level represents a logging severity level.
-// Each level has a numeric code (for ordering/comparison)
-// and a string name (for readability).
+// Level represents a logging severity level. Each level
+// has a numeric code (for comparison) and a string name (for display).
 type Level struct {
 	code int32
 	name string
 }
 
-// Code returns the numeric value of the Level.
+// Code returns the numeric code of the Level.
+// Levels with higher codes represent higher severity.
 func (l Level) Code() int32 {
 	return l.code
 }
 
-// String returns the string representation of the Level.
+// String returns the string representation of the Level (e.g., "INFO").
 func (l Level) String() string {
 	return l.name
 }
 
-// RegisterLevel creates a new logging Level with the given code and name.
-// It also stores the level in the global levels map for later lookup.
+// RegisterLevel defines a new logging Level with the given code and name.
+// The Level is also stored in the global levels map for string lookups.
+// Name is normalized to uppercase for consistency.
 func RegisterLevel(code int32, name string) Level {
 	l := Level{code: code, name: strings.ToUpper(name)}
-	levels[l.name] = l
+	levelRegistry[l.name] = l
 	return l
 }
 
-// ParseLevel converts a string into a Level object (case-insensitive).
+// ParseLevel converts a string into a Level (case-insensitive).
 // Returns an error if the string does not match any registered Level.
 func ParseLevel(s string) (Level, error) {
-	l, ok := levels[strings.ToUpper(s)]
+	l, ok := levelRegistry[strings.ToUpper(s)]
 	if !ok {
-		return NoneLevel, fmt.Errorf("invalid level %s", s)
+		return NoneLevel, FormatError(nil, "invalid log level: %q", s)
 	}
 	return l, nil
 }

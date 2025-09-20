@@ -21,12 +21,13 @@ import (
 	"math"
 	"unsafe"
 
-	"github.com/go-spring/barky"
+	"github.com/go-spring/spring-base/barky"
 )
 
 const MsgKey = "msg"
 
-// ValueType represents the type of value stored in a Field.
+// ValueType represents the underlying type stored in a Field.
+// The Type determines how Num and Any should be interpreted.
 type ValueType int
 
 const (
@@ -41,25 +42,25 @@ const (
 	ValueTypeFromMap
 )
 
-// Field represents a structured log field with a key and a value.
+// Field represents a structured log field with a key and a typed value.
 type Field struct {
-	Key  string
-	Type ValueType
-	Num  uint64
-	Any  any
+	Key  string    // The field key
+	Type ValueType // The type of the value
+	Num  uint64    // Holds numeric values or length/bit-representation
+	Any  any       // Holds pointers, references, or arbitrary values
 }
 
-// Msg creates a string Field with the "msg" key.
+// Msg creates a string Field with the fixed key "msg".
 func Msg(msg string) Field {
 	return String(MsgKey, msg)
 }
 
-// Msgf formats a message using fmt.Sprintf and creates a string Field with "msg" key.
+// Msgf formats a message and creates a Field with the fixed key "msg".
 func Msgf(format string, args ...any) Field {
 	return String(MsgKey, fmt.Sprintf(format, args...))
 }
 
-// Nil creates a Field with a nil value.
+// Nil creates a Field whose value is nil (Type = ValueTypeReflect).
 func Nil(key string) Field {
 	return Reflect(key, nil)
 }
@@ -67,20 +68,12 @@ func Nil(key string) Field {
 // Bool creates a Field for a boolean value.
 func Bool(key string, val bool) Field {
 	if val {
-		return Field{
-			Key:  key,
-			Type: ValueTypeBool,
-			Num:  1,
-		}
+		return Field{Key: key, Type: ValueTypeBool, Num: 1}
 	}
-	return Field{
-		Key:  key,
-		Type: ValueTypeBool,
-		Num:  0,
-	}
+	return Field{Key: key, Type: ValueTypeBool, Num: 0}
 }
 
-// BoolPtr creates a Field from a *bool, or a nil Field if the pointer is nil.
+// BoolPtr creates a Field from a *bool, or Nil if pointer is nil.
 func BoolPtr(key string, val *bool) Field {
 	if val == nil {
 		return Nil(key)
@@ -88,16 +81,12 @@ func BoolPtr(key string, val *bool) Field {
 	return Bool(key, *val)
 }
 
-// Int creates a Field for an int value.
+// Int creates a Field for an integer value.
 func Int[T IntType](key string, val T) Field {
-	return Field{
-		Key:  key,
-		Type: ValueTypeInt64,
-		Num:  uint64(val),
-	}
+	return Field{Key: key, Type: ValueTypeInt64, Num: uint64(val)}
 }
 
-// IntPtr creates a Field from a *int, or returns Nil if pointer is nil.
+// IntPtr creates a Field from a *int, or Nil if pointer is nil.
 func IntPtr[T IntType](key string, val *T) Field {
 	if val == nil {
 		return Nil(key)
@@ -105,16 +94,12 @@ func IntPtr[T IntType](key string, val *T) Field {
 	return Int(key, *val)
 }
 
-// Uint creates a Field for an uint value.
+// Uint creates a Field for an unsigned integer value.
 func Uint[T UintType](key string, val T) Field {
-	return Field{
-		Key:  key,
-		Type: ValueTypeUint64,
-		Num:  uint64(val),
-	}
+	return Field{Key: key, Type: ValueTypeUint64, Num: uint64(val)}
 }
 
-// UintPtr creates a Field from a *uint, or returns Nil if pointer is nil.
+// UintPtr creates a Field from a *uint, or Nil if pointer is nil.
 func UintPtr[T UintType](key string, val *T) Field {
 	if val == nil {
 		return Nil(key)
@@ -122,16 +107,12 @@ func UintPtr[T UintType](key string, val *T) Field {
 	return Uint(key, *val)
 }
 
-// Float creates a Field for a float32 value.
+// Float creates a Field for a float value.
 func Float[T FloatType](key string, val T) Field {
-	return Field{
-		Key:  key,
-		Type: ValueTypeFloat64,
-		Num:  math.Float64bits(float64(val)),
-	}
+	return Field{Key: key, Type: ValueTypeFloat64, Num: math.Float64bits(float64(val))}
 }
 
-// FloatPtr creates a Field from a *float32, or returns Nil if pointer is nil.
+// FloatPtr creates a Field from a *float, or Nil if pointer is nil.
 func FloatPtr[T FloatType](key string, val *T) Field {
 	if val == nil {
 		return Nil(key)
@@ -149,7 +130,7 @@ func String(key string, val string) Field {
 	}
 }
 
-// StringPtr creates a Field from a *string, or returns Nil if pointer is nil.
+// StringPtr creates a Field from a *string, or Nil if pointer is nil.
 func StringPtr(key string, val *string) Field {
 	if val == nil {
 		return Nil(key)
@@ -159,16 +140,12 @@ func StringPtr(key string, val *string) Field {
 
 // Reflect wraps any value into a Field using reflection.
 func Reflect(key string, val any) Field {
-	return Field{
-		Key:  key,
-		Type: ValueTypeReflect,
-		Any:  val,
-	}
+	return Field{Key: key, Type: ValueTypeReflect, Any: val}
 }
 
 type bools []bool
 
-// EncodeArray encodes a slice of bools using the Encoder interface.
+// EncodeArray encodes a slice of bools into the encoder.
 func (arr bools) EncodeArray(enc Encoder) {
 	for _, v := range arr {
 		enc.AppendBool(v)
@@ -243,20 +220,12 @@ type ArrayValue interface {
 
 // Array creates a Field with array type, using the ArrayValue interface.
 func Array(key string, val ArrayValue) Field {
-	return Field{
-		Key:  key,
-		Type: ValueTypeArray,
-		Any:  val,
-	}
+	return Field{Key: key, Type: ValueTypeArray, Any: val}
 }
 
 // Object creates a Field containing a variadic slice of Fields, treated as a nested object.
 func Object(key string, fields ...Field) Field {
-	return Field{
-		Key:  key,
-		Type: ValueTypeObject,
-		Any:  fields,
-	}
+	return Field{Key: key, Type: ValueTypeObject, Any: fields}
 }
 
 // FieldsFromMap creates a special Field that wraps a map[string]any.
@@ -264,11 +233,7 @@ func Object(key string, fields ...Field) Field {
 // This allows existing map structures to be easily converted into log fields
 // without manually iterating through the map and adding each field individually.
 func FieldsFromMap(m map[string]any) Field {
-	return Field{
-		Key:  "",
-		Type: ValueTypeFromMap,
-		Any:  m,
-	}
+	return Field{Key: "", Type: ValueTypeFromMap, Any: m}
 }
 
 // Any creates a Field from a value of any type by inspecting its dynamic type.
@@ -411,7 +376,7 @@ func (f Field) Encode(enc Encoder) {
 	case ValueTypeObject:
 		enc.AppendKey(f.Key)
 		enc.AppendObjectBegin()
-		WriteFields(enc, f.Any.([]Field))
+		EncodeFields(enc, f.Any.([]Field))
 		enc.AppendObjectEnd()
 	case ValueTypeFromMap:
 		m := f.Any.(map[string]any)
@@ -422,8 +387,8 @@ func (f Field) Encode(enc Encoder) {
 	}
 }
 
-// WriteFields writes a slice of Field objects to the encoder.
-func WriteFields(enc Encoder, fields []Field) {
+// EncodeFields encodes a slice of Fields into the Encoder.
+func EncodeFields(enc Encoder, fields []Field) {
 	for _, f := range fields {
 		f.Encode(enc)
 	}

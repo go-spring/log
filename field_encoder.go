@@ -23,7 +23,8 @@ import (
 	"unicode/utf8"
 )
 
-// Encoder is an interface that defines methods for appending structured data elements.
+// Encoder defines the interface for structured logging encoders.
+// Implementations control how log fields are serialized (e.g. JSON, text).
 type Encoder interface {
 	AppendEncoderBegin()
 	AppendEncoderEnd()
@@ -45,36 +46,34 @@ var (
 	_ Encoder = (*TextEncoder)(nil)
 )
 
-// jsonToken represents the current state of the encoder while building a JSON structure.
-type jsonToken int
+// JSONTokenType represents the type of the last token written to JSONEncoder.
+// It is used to determine when separators (commas) are required.
+type JSONTokenType int
 
 const (
-	jsonTokenUnknown jsonToken = iota
-	jsonTokenObjectBegin
-	jsonTokenObjectEnd
-	jsonTokenArrayBegin
-	jsonTokenArrayEnd
-	jsonTokenKey
-	jsonTokenValue
+	JSONTokenUnknown JSONTokenType = iota
+	JSONTokenObjectBegin
+	JSONTokenObjectEnd
+	JSONTokenArrayBegin
+	JSONTokenArrayEnd
+	JSONTokenKey
+	JSONTokenValue
 )
 
-// JSONEncoder is a simple JSON encoder.
+// JSONEncoder encodes log fields into standard JSON format.
 type JSONEncoder struct {
 	buf  *bytes.Buffer // Buffer to write JSON output.
-	last jsonToken     // The last token type written.
+	last JSONTokenType // The last token type written.
 }
 
 // NewJSONEncoder creates a new JSONEncoder.
 func NewJSONEncoder(buf *bytes.Buffer) *JSONEncoder {
-	return &JSONEncoder{
-		buf:  buf,
-		last: jsonTokenUnknown,
-	}
+	return &JSONEncoder{buf: buf, last: JSONTokenUnknown}
 }
 
 // Reset resets the encoder's state.
 func (enc *JSONEncoder) Reset() {
-	enc.last = jsonTokenUnknown
+	enc.last = JSONTokenUnknown
 }
 
 // AppendEncoderBegin writes the start of an encoder section.
@@ -89,31 +88,34 @@ func (enc *JSONEncoder) AppendEncoderEnd() {
 
 // AppendObjectBegin writes the beginning of a JSON object.
 func (enc *JSONEncoder) AppendObjectBegin() {
-	enc.last = jsonTokenObjectBegin
+	enc.appendSeparator()
+	enc.last = JSONTokenObjectBegin
 	enc.buf.WriteByte('{')
 }
 
 // AppendObjectEnd writes the end of a JSON object.
 func (enc *JSONEncoder) AppendObjectEnd() {
-	enc.last = jsonTokenObjectEnd
+	enc.last = JSONTokenObjectEnd
 	enc.buf.WriteByte('}')
 }
 
 // AppendArrayBegin writes the beginning of a JSON array.
 func (enc *JSONEncoder) AppendArrayBegin() {
-	enc.last = jsonTokenArrayBegin
+	enc.appendSeparator()
+	enc.last = JSONTokenArrayBegin
 	enc.buf.WriteByte('[')
 }
 
 // AppendArrayEnd writes the end of a JSON array.
 func (enc *JSONEncoder) AppendArrayEnd() {
-	enc.last = jsonTokenArrayEnd
+	enc.last = JSONTokenArrayEnd
 	enc.buf.WriteByte(']')
 }
 
-// appendSeparator writes a comma if the previous token requires separation (e.g., between values).
+// appendSeparator writes a comma if the previous token
+// requires separation (e.g., between values).
 func (enc *JSONEncoder) appendSeparator() {
-	if enc.last == jsonTokenObjectEnd || enc.last == jsonTokenArrayEnd || enc.last == jsonTokenValue {
+	if enc.last == JSONTokenObjectEnd || enc.last == JSONTokenArrayEnd || enc.last == JSONTokenValue {
 		enc.buf.WriteByte(',')
 	}
 }
@@ -121,7 +123,7 @@ func (enc *JSONEncoder) appendSeparator() {
 // AppendKey writes a JSON key.
 func (enc *JSONEncoder) AppendKey(key string) {
 	enc.appendSeparator()
-	enc.last = jsonTokenKey
+	enc.last = JSONTokenKey
 	enc.buf.WriteByte('"')
 	WriteLogString(enc.buf, key)
 	enc.buf.WriteByte('"')
@@ -131,44 +133,45 @@ func (enc *JSONEncoder) AppendKey(key string) {
 // AppendBool writes a boolean value.
 func (enc *JSONEncoder) AppendBool(v bool) {
 	enc.appendSeparator()
-	enc.last = jsonTokenValue
+	enc.last = JSONTokenValue
 	enc.buf.WriteString(strconv.FormatBool(v))
 }
 
 // AppendInt64 writes an int64 value.
 func (enc *JSONEncoder) AppendInt64(v int64) {
 	enc.appendSeparator()
-	enc.last = jsonTokenValue
+	enc.last = JSONTokenValue
 	enc.buf.WriteString(strconv.FormatInt(v, 10))
 }
 
 // AppendUint64 writes an uint64 value.
 func (enc *JSONEncoder) AppendUint64(u uint64) {
 	enc.appendSeparator()
-	enc.last = jsonTokenValue
+	enc.last = JSONTokenValue
 	enc.buf.WriteString(strconv.FormatUint(u, 10))
 }
 
 // AppendFloat64 writes a float64 value.
 func (enc *JSONEncoder) AppendFloat64(v float64) {
 	enc.appendSeparator()
-	enc.last = jsonTokenValue
+	enc.last = JSONTokenValue
 	enc.buf.WriteString(strconv.FormatFloat(v, 'f', -1, 64))
 }
 
 // AppendString writes a string value with proper escaping.
 func (enc *JSONEncoder) AppendString(v string) {
 	enc.appendSeparator()
-	enc.last = jsonTokenValue
+	enc.last = JSONTokenValue
 	enc.buf.WriteByte('"')
 	WriteLogString(enc.buf, v)
 	enc.buf.WriteByte('"')
 }
 
-// AppendReflect marshals any Go value into JSON and appends it.
+// AppendReflect marshals any Go value to JSON and writes it.
+// If marshalling fails, the error message is written as a string.
 func (enc *JSONEncoder) AppendReflect(v any) {
 	enc.appendSeparator()
-	enc.last = jsonTokenValue
+	enc.last = JSONTokenValue
 	b, err := json.Marshal(v)
 	if err != nil {
 		enc.buf.WriteByte('"')
@@ -179,14 +182,14 @@ func (enc *JSONEncoder) AppendReflect(v any) {
 	enc.buf.Write(b)
 }
 
-// TextEncoder encodes key-value pairs in a plain text format,
-// optionally using JSON when inside objects/arrays.
+// TextEncoder encodes fields as "key=value" pairs separated by a delimiter.
+// Nested arrays/objects are serialized as JSON using an internal JSONEncoder.
 type TextEncoder struct {
 	buf         *bytes.Buffer // Buffer to write the encoded output
 	separator   string        // Separator used between top-level key-value pairs
 	jsonEncoder *JSONEncoder  // Embedded JSON encoder for nested objects/arrays
 	jsonDepth   int8          // Tracks depth of nested JSON structures
-	wroteField  bool          // Tracks if the first key-value has been written
+	hasWritten  bool          // Tracks if the first key-value has been written
 }
 
 // NewTextEncoder creates a new TextEncoder, using the specified separator.
@@ -246,10 +249,10 @@ func (enc *TextEncoder) AppendKey(key string) {
 		enc.jsonEncoder.AppendKey(key)
 		return
 	}
-	if enc.wroteField {
+	if enc.hasWritten {
 		enc.buf.WriteString(enc.separator)
 	} else {
-		enc.wroteField = true
+		enc.hasWritten = true
 	}
 	WriteLogString(enc.buf, key)
 	enc.buf.WriteByte('=')

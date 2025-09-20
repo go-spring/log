@@ -27,7 +27,9 @@ var eventPool = sync.Pool{
 	},
 }
 
-// Event provides contextual information about a log message.
+// Event represents a single log entry. It contains both the
+// log message context (e.g., time, file, line, tag) and
+// structured metadata (fields and context values).
 type Event struct {
 	Level     Level     // The severity level of the log (e.g., INFO, ERROR, DEBUG)
 	Time      time.Time // The timestamp when the event occurred
@@ -35,8 +37,8 @@ type Event struct {
 	Line      int       // The line number in the source file
 	Tag       string    // A tag used to categorize the log (e.g., subsystem name)
 	Fields    []Field   // Custom fields provided specifically for this log event
-	CtxString string    // The string representation of the context
-	CtxFields []Field   // Additional fields derived from the context (e.g., request ID, user ID)
+	CtxString string    // String representation extracted from the context (e.g., trace ID)
+	CtxFields []Field   // Additional structured fields extracted from the context (e.g., request ID, user ID)
 }
 
 // Reset clears the Event's fields so the instance can be reused.
@@ -52,7 +54,7 @@ func (e *Event) Reset() {
 }
 
 // GetEvent retrieves an *Event from the pool.
-// If the pool is empty, a new Event will be created by the New function.
+// If the pool is empty, a new Event will be created.
 func GetEvent() *Event {
 	return eventPool.Get().(*Event)
 }

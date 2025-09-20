@@ -20,7 +20,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-spring/gs-assert/assert"
+	"github.com/go-spring/spring-base/testing/assert"
 )
 
 func TestIsValidTag(t *testing.T) {
@@ -73,4 +73,90 @@ func TestGetAllTags(t *testing.T) {
 		"_com_request_out",
 		"_def",
 	})
+}
+
+func TestBuildTag(t *testing.T) {
+	tests := []struct {
+		name     string
+		mainType string
+		subType  string
+		action   string
+		want     string
+		panicMsg string
+	}{
+		{
+			name:     "empty subtype panic",
+			mainType: "app",
+			subType:  "",
+			action:   "",
+			panicMsg: "subType cannot be empty",
+		},
+		{
+			name:     "with action",
+			mainType: "app",
+			subType:  "startup",
+			action:   "init",
+			want:     "_app_startup_init",
+		},
+		{
+			name:     "without action",
+			mainType: "biz",
+			subType:  "payment",
+			action:   "",
+			want:     "_biz_payment",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.panicMsg != "" {
+				assert.Panic(t, func() {
+					BuildTag(tt.mainType, tt.subType, tt.action)
+				}, tt.panicMsg)
+			} else {
+				got := BuildTag(tt.mainType, tt.subType, tt.action)
+				assert.ThatString(t, got).Equal(tt.want)
+			}
+		})
+	}
+}
+
+func TestRegisterTagValid(t *testing.T) {
+
+	tag := RegisterTag("_test_tag")
+	assert.That(t, tag).NotNil()
+	assert.ThatString(t, tag.name).Equal("_test_tag")
+
+	tag2 := RegisterTag("_test_tag")
+	assert.That(t, tag).Equal(tag2)
+}
+
+func TestRegisterTags(t *testing.T) {
+
+	// Test RegisterAppTag
+	tag := RegisterAppTag("web", "start")
+	assert.That(t, tag).NotNil()
+	assert.ThatString(t, tag.name).Equal("_app_web_start")
+
+	tag2 := RegisterAppTag("database", "")
+	assert.That(t, tag2).NotNil()
+	assert.ThatString(t, tag2.name).Equal("_app_database")
+
+	// Test RegisterBizTag
+	tag = RegisterBizTag("payment", "process")
+	assert.That(t, tag).NotNil()
+	assert.ThatString(t, tag.name).Equal("_biz_payment_process")
+
+	tag2 = RegisterBizTag("user", "")
+	assert.That(t, tag2).NotNil()
+	assert.ThatString(t, tag2.name).Equal("_biz_user")
+
+	// Test RegisterRPCTag
+	tag = RegisterRPCTag("grpc", "call")
+	assert.That(t, tag).NotNil()
+	assert.ThatString(t, tag.name).Equal("_rpc_grpc_call")
+
+	tag2 = RegisterRPCTag("http", "")
+	assert.That(t, tag2).NotNil()
+	assert.ThatString(t, tag2.name).Equal("_rpc_http")
 }

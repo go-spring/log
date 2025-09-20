@@ -17,8 +17,6 @@
 package log
 
 import (
-	"errors"
-	"fmt"
 	"sync/atomic"
 )
 
@@ -43,66 +41,66 @@ type Logger interface {
 	Write(b []byte) (n int, err error) // Write raw bytes to appenders
 }
 
-// AppenderRef represents a reference to an appender by name,
-// which will be resolved and bound later.
+// AppenderRef represents a reference to an appender by name.
+// The actual appender is resolved and injected later during configuration.
 type AppenderRef struct {
-	Ref      string `PluginAttribute:"ref"`
-	appender Appender
+	Ref      string   `PluginAttribute:"ref"`
+	appender Appender // Resolved appender instance
 }
 
-// BaseLogger contains shared fields for all logger configurations.
-type BaseLogger struct {
-	Name         string         `PluginAttribute:"name"`
-	Level        Level          `PluginAttribute:"level"`
-	Tags         string         `PluginAttribute:"tags,default="`
-	AppenderRefs []*AppenderRef `PluginElement:"AppenderRef"`
+// LoggerBase contains fields shared by all logger configurations.
+type LoggerBase struct {
+	Name         string         `PluginAttribute:"name"`          // Logger name
+	Level        Level          `PluginAttribute:"level"`         // Log level
+	Tags         string         `PluginAttribute:"tags,default="` // Optional tags
+	AppenderRefs []*AppenderRef `PluginElement:"AppenderRef"`     // Attached appenders
 }
 
 // GetName returns the name of the logger.
-func (c *BaseLogger) GetName() string {
+func (c *LoggerBase) GetName() string {
 	return c.Name
 }
 
-// callAppenders sends the event to all configured appenders.
-func (c *BaseLogger) callAppenders(e *Event) {
+// callAppenders sends a log event to all configured appenders.
+func (c *LoggerBase) callAppenders(e *Event) {
 	for _, r := range c.AppenderRefs {
 		r.appender.Append(e)
 	}
 }
 
-// writeAppenders writes the raw bytes directly to the appenders.
-func (c *BaseLogger) writeAppenders(b []byte) {
+// writeAppenders writes raw bytes directly to all appenders.
+func (c *LoggerBase) writeAppenders(b []byte) {
 	for _, r := range c.AppenderRefs {
 		r.appender.Write(b)
 	}
 }
 
-// EnableLevel returns true if the specified log level is enabled.
-func (c *BaseLogger) EnableLevel(level Level) bool {
+// EnableLevel checks if the given log level is enabled for this logger.
+func (c *LoggerBase) EnableLevel(level Level) bool {
 	return level.code >= c.Level.code
 }
 
-// SyncLogger is a synchronous logger configuration.
+// SyncLogger is a synchronous logger that immediately forwards events to appenders.
 type SyncLogger struct {
-	BaseLogger
+	LoggerBase
 }
 
 func (c *SyncLogger) Start() error { return nil }
 func (c *SyncLogger) Stop()        {}
 
-// Publish sends the event directly to the appenders.
+// Publish sends the event directly to appenders (blocking).
 func (c *SyncLogger) Publish(e *Event) {
 	c.callAppenders(e)
-	PutEvent(e)
+	PutEvent(e) // Return event to the pool
 }
 
-// Write writes the raw bytes directly to the appenders.
+// Write writes raw bytes directly to appenders.
 func (c *SyncLogger) Write(b []byte) (n int, err error) {
 	c.writeAppenders(b)
 	return len(b), nil
 }
 
-// BufferFullPolicy specifies the behavior when the buffer is full.
+// BufferFullPolicy specifies what to do when an async buffer is full.
 type BufferFullPolicy int
 
 const (
@@ -121,39 +119,39 @@ func ParseBufferFullPolicy(s string) (BufferFullPolicy, error) {
 	case "DiscardOldest":
 		return BufferFullPolicyDiscardOldest, nil
 	default:
-		return -1, fmt.Errorf("invalid BufferFullPolicy %s", s)
+		return -1, FormatError(nil, "invalid BufferFullPolicy %s", s)
 	}
 }
 
-// AsyncLogger is an asynchronous logger configuration.
-// It buffers log events and processes them in a separate goroutine.
+// AsyncLogger is an asynchronous logger that buffers events
+// and processes them in a dedicated background goroutine.
 type AsyncLogger struct {
-	BaseLogger
+	LoggerBase
 	BufferSize       int              `PluginAttribute:"bufferSize,default=10000"`
 	BufferFullPolicy BufferFullPolicy `PluginAttribute:"bufferFullPolicy,default=Discard"`
 
-	buf  chan any      // Channel buffer for log events
-	wait chan struct{} // Channel for waiting for the worker goroutine to finish
-	stop *Event        // Event for stopping the worker goroutine
+	buf  chan any      // Buffered channel for events and raw data
+	wait chan struct{} // Channel closed when worker goroutine exits
+	stop *Event        // Special marker event to signal shutdown
 
 	discardCounter int64 // Counter for discarded events
 }
 
-// GetDiscardCounter returns the count of discarded events.
+// GetDiscardCounter returns the total number of discarded events and data.
 func (c *AsyncLogger) GetDiscardCounter() int64 {
 	return atomic.LoadInt64(&c.discardCounter)
 }
 
-// Start initializes the asynchronous logger and starts its worker goroutine.
+// Start initializes channels and launches the worker goroutine.
 func (c *AsyncLogger) Start() error {
 	if c.BufferSize < 100 {
-		return errors.New("bufferSize is too small")
+		return FormatError(nil, "bufferSize is too small")
 	}
 	c.buf = make(chan any, c.BufferSize)
 	c.wait = make(chan struct{})
 	c.stop = &Event{}
 
-	// Launch a background goroutine to process events
+	// Worker goroutine to process buffered items
 	go func() {
 		for v := range c.buf {
 			if v == c.stop {
@@ -173,7 +171,8 @@ func (c *AsyncLogger) Start() error {
 	return nil
 }
 
-// Publish places the event in the buffer if there's space; drops it otherwise.
+// Publish enqueues a log event into the buffer.
+// Behavior on full buffer depends on BufferFullPolicy.
 func (c *AsyncLogger) Publish(e *Event) {
 	select {
 	case c.buf <- e:
@@ -182,7 +181,8 @@ func (c *AsyncLogger) Publish(e *Event) {
 	}
 }
 
-// Write writes the raw bytes directly to the appenders.
+// Write enqueues raw bytes into the buffer.
+// Behavior on full buffer depends on BufferFullPolicy.
 func (c *AsyncLogger) Write(b []byte) (n int, err error) {
 	select {
 	case c.buf <- b:
@@ -192,7 +192,7 @@ func (c *AsyncLogger) Write(b []byte) (n int, err error) {
 	return len(b), nil
 }
 
-// onBufferFull is called when the buffer is full.
+// onBufferFull handles the case when the async buffer is full.
 func (c *AsyncLogger) onBufferFull(v any) {
 	switch c.BufferFullPolicy {
 	case BufferFullPolicyDiscardOldest:
@@ -202,6 +202,7 @@ func (c *AsyncLogger) onBufferFull(v any) {
 			case c.buf <- v:
 				exit = true
 			default:
+				// Remove one element to make space
 				select {
 				case x := <-c.buf:
 					atomic.AddInt64(&c.discardCounter, 1)
@@ -216,8 +217,10 @@ func (c *AsyncLogger) onBufferFull(v any) {
 			}
 		}
 	case BufferFullPolicyBlock:
+		// Block until space is available
 		c.buf <- v
 	case BufferFullPolicyDiscard:
+		// Discard new item
 		atomic.AddInt64(&c.discardCounter, 1)
 		if e, ok := v.(*Event); ok {
 			PutEvent(e)
@@ -227,7 +230,9 @@ func (c *AsyncLogger) onBufferFull(v any) {
 	}
 }
 
-// Stop shuts down the asynchronous logger and waits for the worker goroutine to finish.
+// Stop gracefully shuts down the async logger.
+// It signals the worker goroutine to exit and waits for it.
+// NOTE: Stop must be called only once, otherwise panic may occur.
 func (c *AsyncLogger) Stop() {
 	c.buf <- c.stop
 	<-c.wait

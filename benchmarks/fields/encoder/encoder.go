@@ -22,7 +22,8 @@ import (
 	"strconv"
 )
 
-// Encoder is an interface that defines methods for appending structured data elements.
+// Encoder is an interface that defines methods for appending
+// structured data elements.
 type Encoder interface {
 	AppendEncoderBegin()
 	AppendEncoderEnd()
@@ -38,7 +39,9 @@ type Encoder interface {
 	AppendReflect(v interface{})
 }
 
-// jsonToken represents the current state of the encoder while building a JSON structure.
+// jsonToken represents the last written token type during
+// the encoding process. It helps determine when separators
+// (e.g., commas) should be added.
 type jsonToken int
 
 const (
@@ -51,13 +54,14 @@ const (
 	jsonTokenValue
 )
 
-// JSONEncoder is a simple JSON encoder.
+// JSONEncoder encodes data into JSON format.
 type JSONEncoder struct {
 	buf  *bytes.Buffer // Buffer to write JSON output.
 	last jsonToken     // The last token type written.
 }
 
-// NewJSONEncoder creates a new JSONEncoder.
+// NewJSONEncoder creates and initializes a new JSONEncoder
+// with the provided buffer.
 func NewJSONEncoder(buf *bytes.Buffer) *JSONEncoder {
 	return &JSONEncoder{
 		buf:  buf,
@@ -75,38 +79,39 @@ func (enc *JSONEncoder) AppendEncoderEnd() {
 	enc.AppendObjectEnd()
 }
 
-// AppendObjectBegin writes the beginning of a JSON object.
+// AppendObjectBegin writes the opening brace of a JSON object.
 func (enc *JSONEncoder) AppendObjectBegin() {
 	enc.last = jsonTokenObjectBegin
 	enc.buf.WriteByte('{')
 }
 
-// AppendObjectEnd writes the end of a JSON object.
+// AppendObjectEnd writes the closing brace of a JSON object.
 func (enc *JSONEncoder) AppendObjectEnd() {
 	enc.last = jsonTokenObjectEnd
 	enc.buf.WriteByte('}')
 }
 
-// AppendArrayBegin writes the beginning of a JSON array.
+// AppendArrayBegin writes the opening bracket of a JSON array.
 func (enc *JSONEncoder) AppendArrayBegin() {
 	enc.last = jsonTokenArrayBegin
 	enc.buf.WriteByte('[')
 }
 
-// AppendArrayEnd writes the end of a JSON array.
+// AppendArrayEnd writes the closing bracket of a JSON array.
 func (enc *JSONEncoder) AppendArrayEnd() {
 	enc.last = jsonTokenArrayEnd
 	enc.buf.WriteByte(']')
 }
 
-// appendSeparator writes a comma if the previous token requires separation (e.g., between values).
+// appendSeparator writes a comma if needed to separate
+// JSON values, array elements, or object fields.
 func (enc *JSONEncoder) appendSeparator() {
 	if enc.last == jsonTokenObjectEnd || enc.last == jsonTokenArrayEnd || enc.last == jsonTokenValue {
 		enc.buf.WriteByte(',')
 	}
 }
 
-// AppendKey writes a JSON key.
+// AppendKey writes a JSON object key followed by a colon.
 func (enc *JSONEncoder) AppendKey(key string) {
 	enc.appendSeparator()
 	enc.last = jsonTokenKey
@@ -116,28 +121,29 @@ func (enc *JSONEncoder) AppendKey(key string) {
 	enc.buf.WriteByte(':')
 }
 
-// AppendBool writes a boolean value.
+// AppendBool writes a boolean value in JSON format.
 func (enc *JSONEncoder) AppendBool(v bool) {
 	enc.appendSeparator()
 	enc.last = jsonTokenValue
 	enc.buf.WriteString(strconv.FormatBool(v))
 }
 
-// AppendInt64 writes an int64 value.
+// AppendInt64 writes an int64 value in JSON format.
 func (enc *JSONEncoder) AppendInt64(v int64) {
 	enc.appendSeparator()
 	enc.last = jsonTokenValue
 	enc.buf.WriteString(strconv.FormatInt(v, 10))
 }
 
-// AppendFloat64 writes a float64 value.
+// AppendFloat64 writes a float64 value in JSON format.
 func (enc *JSONEncoder) AppendFloat64(v float64) {
 	enc.appendSeparator()
 	enc.last = jsonTokenValue
 	enc.buf.WriteString(strconv.FormatFloat(v, 'f', -1, 64))
 }
 
-// AppendString writes a string value with proper escaping.
+// AppendString writes a string value in JSON format
+// with proper quotation marks.
 func (enc *JSONEncoder) AppendString(v string) {
 	enc.appendSeparator()
 	enc.last = jsonTokenValue
@@ -146,7 +152,9 @@ func (enc *JSONEncoder) AppendString(v string) {
 	enc.buf.WriteByte('"')
 }
 
-// AppendReflect marshals any Go value into JSON and appends it.
+// AppendReflect marshals an arbitrary Go value into JSON
+// and appends it. If marshalling fails, the error message
+// is written as a JSON string instead.
 func (enc *JSONEncoder) AppendReflect(v interface{}) {
 	enc.appendSeparator()
 	enc.last = jsonTokenValue

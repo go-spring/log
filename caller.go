@@ -21,9 +21,9 @@ import (
 	"sync"
 )
 
-// frameMap is used to cache call site information.
+// frameCache is used to cache call site information.
 // Benchmarking shows that using this cache improves performance by about 50%.
-var frameMap sync.Map
+var frameCache sync.Map
 
 // Caller returns the file name and line number of the calling function.
 // If 'fast' is true, it uses a cache to speed up the lookup.
@@ -40,11 +40,11 @@ var Caller = func(skip int, fast bool) (file string, line int) {
 		return
 	}
 	pc := rpc[0]
-	if v, ok := frameMap.Load(pc); ok {
+	if v, ok := frameCache.Load(pc); ok {
 		e := v.(*runtime.Frame)
 		return e.File, e.Line
 	}
 	frame, _ := runtime.CallersFrames(rpc).Next()
-	frameMap.Store(pc, &frame)
+	frameCache.Store(pc, &frame)
 	return frame.File, frame.Line
 }

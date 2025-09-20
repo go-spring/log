@@ -19,7 +19,7 @@ package log
 import (
 	"testing"
 
-	"github.com/go-spring/gs-assert/assert"
+	"github.com/go-spring/spring-base/testing/assert"
 )
 
 func TestCaller(t *testing.T) {
@@ -43,22 +43,59 @@ func TestCaller(t *testing.T) {
 			assert.That(t, line).Equal(41)
 		}
 	})
+
+	t.Run("cache behavior", func(t *testing.T) {
+		file1, line1 := Caller(0, true)
+		file2, line2 := Caller(0, true)
+		assert.ThatString(t, file1).Equal(file2)
+		assert.ThatNumber(t, line1).Equal(line2 - 1)
+	})
+
+	t.Run("fast vs slow consistency", func(t *testing.T) {
+		fileFast, lineFast := Caller(0, true)
+		fileSlow, lineSlow := Caller(0, false)
+		assert.ThatString(t, fileFast).Equal(fileSlow)
+		assert.ThatNumber(t, lineFast).Equal(lineSlow - 1)
+	})
 }
 
 func BenchmarkCaller(b *testing.B) {
 
-	// BenchmarkCaller/fast-8  12433761  95.05 ns/op
-	// BenchmarkCaller/slow-8   6314623  190.3 ns/op
+	// BenchmarkCaller/fast_skip_0-8     12433761  95.05 ns/op
+	// BenchmarkCaller/slow_skip_0-8      6314623  190.3 ns/op
+	// BenchmarkCaller/fast_skip_1-8      9837133  122.2 ns/op
+	// BenchmarkCaller/slow_skip_1-8      3601213  332.6 ns/op
+	// BenchmarkCaller/fast_cache_hit-8  12281832  97.70 ns/op
 
-	b.Run("fast", func(b *testing.B) {
+	b.Run("fast skip 0", func(b *testing.B) {
 		for b.Loop() {
 			Caller(0, true)
 		}
 	})
 
-	b.Run("slow", func(b *testing.B) {
+	b.Run("slow skip 0", func(b *testing.B) {
 		for b.Loop() {
 			Caller(0, false)
+		}
+	})
+
+	b.Run("fast skip 1", func(b *testing.B) {
+		for b.Loop() {
+			Caller(1, true)
+		}
+	})
+
+	b.Run("slow skip 1", func(b *testing.B) {
+		for b.Loop() {
+			Caller(1, false)
+		}
+	})
+
+	b.Run("fast cache hit", func(b *testing.B) {
+		Caller(0, true)
+		b.ResetTimer()
+		for b.Loop() {
+			Caller(0, true)
 		}
 	})
 }

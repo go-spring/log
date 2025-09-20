@@ -19,12 +19,12 @@ package log
 import (
 	"testing"
 
-	"github.com/go-spring/gs-assert/assert"
+	"github.com/go-spring/spring-base/testing/assert"
 )
 
 func TestGetLogger(t *testing.T) {
 	l := GetLogger("logger-not-exist")
-	err := RefreshFile("testdata/log.xml")
+	err := RefreshFile("testdata/log.XML")
 	assert.ThatError(t, err).Matches(`logger logger-not-exist not found`)
 	delete(loggerMap, l.name)
 	Destroy()

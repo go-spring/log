@@ -17,10 +17,9 @@
 package log
 
 import (
-	"fmt"
 	"testing"
 
-	"github.com/go-spring/gs-assert/assert"
+	"github.com/go-spring/spring-base/testing/assert"
 )
 
 func TestParseLevel(t *testing.T) {
@@ -64,7 +63,7 @@ func TestParseLevel(t *testing.T) {
 		{
 			str:     "unknown",
 			want:    NoneLevel,
-			wantErr: fmt.Errorf("invalid level unknown"),
+			wantErr: FormatError(nil, "invalid log level: %q", "unknown"),
 		},
 	}
 	for _, tt := range tests {
@@ -73,4 +72,32 @@ func TestParseLevel(t *testing.T) {
 		assert.That(t, err).Equal(tt.wantErr)
 		assert.ThatNumber(t, got.Code()).Equal(tt.want.Code())
 	}
+
+	// Test that levels are properly ordered by code
+	assert.ThatNumber(t, NoneLevel.Code()).LessThan(TraceLevel.Code())
+	assert.ThatNumber(t, TraceLevel.Code()).LessThan(DebugLevel.Code())
+	assert.ThatNumber(t, DebugLevel.Code()).LessThan(InfoLevel.Code())
+	assert.ThatNumber(t, InfoLevel.Code()).LessThan(WarnLevel.Code())
+	assert.ThatNumber(t, WarnLevel.Code()).LessThan(ErrorLevel.Code())
+	assert.ThatNumber(t, ErrorLevel.Code()).LessThan(PanicLevel.Code())
+	assert.ThatNumber(t, PanicLevel.Code()).LessThan(FatalLevel.Code())
+}
+
+func TestRegisterLevel(t *testing.T) {
+
+	customLevel := RegisterLevel(800, "custom")
+	assert.ThatNumber(t, customLevel.Code()).Equal(int32(800))
+	assert.ThatString(t, customLevel.String()).Equal("CUSTOM")
+
+	parsed, err := ParseLevel("custom")
+	assert.ThatError(t, err).Nil()
+	assert.That(t, parsed).Equal(customLevel)
+
+	parsed, err = ParseLevel("Custom")
+	assert.ThatError(t, err).Nil()
+	assert.That(t, parsed).Equal(customLevel)
+
+	parsed, err = ParseLevel("CUSTOM")
+	assert.ThatError(t, err).Nil()
+	assert.That(t, parsed).Equal(customLevel)
 }
