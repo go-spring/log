@@ -1,7 +1,7 @@
 github.com/frankban/quicktest v1.14.6 h1:7Xjx+VpznH+oBnejlPUj8oUpdxnVs4f8XU8WnHkI4W8=
 github.com/frankban/quicktest v1.14.6/go.mod h1:4ptaffx2x8+WTWXmUCuVU6aPUX1/Mz7zb5vbUoiM6w0=
-github.com/go-spring/spring-base v1.2.3 h1:r+JvnmOenS0+9eNZctFm5XmYj6dHXLjf2X6OLoK2Rl4=
-github.com/go-spring/spring-base v1.2.3/go.mod h1:IZDihx2XI4IpAdY3mkKOOHhU3nQbg5xLpi/06EqTvHU=
+github.com/go-spring/spring-base v1.2.4 h1:z113Werjmcvoo/78Wp8/QEmxpfga+UpBrVcp9xffShU=
+github.com/go-spring/spring-base v1.2.4/go.mod h1:IZDihx2XI4IpAdY3mkKOOHhU3nQbg5xLpi/06EqTvHU=
 github.com/google/go-cmp v0.5.9 h1:O2Tfq5qg4qc4AmwVlvv0oLiVAGB7enBSJ2x2DqQFi38=
 github.com/google/go-cmp v0.5.9/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
