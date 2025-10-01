@@ -56,11 +56,11 @@ func TestReaders(t *testing.T) {
 	}
 	for _, fileName := range testFiles {
 		s, err := readConfigFromFile(fileName)
-		require.ThatError(t, err).Nil()
+		require.Error(t, err).Nil()
 		_ = s.Set("rootLogger.appenderRef.type", "AppenderRef", 0)
 		_ = s.Set("logger.myLogger.appenderRef[0].type", "AppenderRef", 0)
 		_ = s.Set("logger.myLogger.appenderRef[1].type", "AppenderRef", 0)
-		assert.ThatMap(t, s.Data()).Equal(expected, fileName)
+		assert.Map(t, s.Data()).Equal(expected, fileName)
 	}
 }
 
@@ -68,18 +68,18 @@ func TestReadJSON(t *testing.T) {
 	_, err := readConfigFromReader(strings.NewReader(`
 		=1
 	`), ".json")
-	require.ThatError(t, err).Matches(`ReadJSON error: invalid character '=' looking for beginning of value`)
+	require.Error(t, err).Matches(`ReadJSON error: invalid character '=' looking for beginning of value`)
 }
 
 func TestReadYAML(t *testing.T) {
 	_, err := readConfigFromReader(strings.NewReader(`=1`), ".yaml")
-	require.ThatError(t, err).NotNil()
-	require.ThatString(t, err.Error()).Equal(`ReadYAML error: yaml: unmarshal errors:
+	require.Error(t, err).NotNil()
+	require.Error(t, err).String(`ReadYAML error: yaml: unmarshal errors:
   line 1: cannot unmarshal !!str ` + "`=1`" + ` into map[string]interface {}`)
 
 	s, err := readConfigFromReader(strings.NewReader(`123: abc`), ".yaml")
-	require.ThatError(t, err).Nil()
-	require.ThatMap(t, s.Data()).Equal(map[string]string{"123": "abc"})
+	require.Error(t, err).Nil()
+	require.Map(t, s.Data()).Equal(map[string]string{"123": "abc"})
 }
 
 func TestReadProperties(t *testing.T) {
@@ -88,7 +88,7 @@ func TestReadProperties(t *testing.T) {
 		_, err := readConfigFromReader(strings.NewReader(`
 			=1
 		`), ".properties")
-		require.ThatError(t, err).Matches(`ReadProperties error: properties: Line 2: \"1\"`)
+		require.Error(t, err).Matches(`ReadProperties error: properties: Line 2: \"1\"`)
 	})
 
 	t.Run("key error", func(t *testing.T) {
@@ -96,7 +96,7 @@ func TestReadProperties(t *testing.T) {
 			a=b
 			a.b=c
 		`), ".properties")
-		require.ThatError(t, err).Matches(`property conflict at path a`)
+		require.Error(t, err).Matches(`property conflict at path a`)
 	})
 }
 
@@ -107,7 +107,7 @@ func TestReadXML(t *testing.T) {
 			<Configuration>
 			</Configuration
 		`), ".xml")
-		require.ThatError(t, err).Matches(`ReadXML error: XML syntax error on line 4: .*`)
+		require.Error(t, err).Matches(`ReadXML error: XML syntax error on line 4: .*`)
 	})
 
 	t.Run("syntax error - 2", func(t *testing.T) {
@@ -117,7 +117,7 @@ func TestReadXML(t *testing.T) {
 				</Properties
 			</Configuration>
 		`), ".xml")
-		require.ThatError(t, err).Matches(`ReadXML error: XML syntax error on line 5: .*`)
+		require.Error(t, err).Matches(`ReadXML error: XML syntax error on line 5: .*`)
 	})
 
 	t.Run("syntax error - 3", func(t *testing.T) {
@@ -128,7 +128,7 @@ func TestReadXML(t *testing.T) {
 				</Properties>
 			</Configuration>
 		`), ".xml")
-		require.ThatError(t, err).Matches(`ReadXML error: XML syntax error on line 5: .*`)
+		require.Error(t, err).Matches(`ReadXML error: XML syntax error on line 5: .*`)
 	})
 
 	t.Run("missing Appenders", func(t *testing.T) {
@@ -144,7 +144,7 @@ func TestReadXML(t *testing.T) {
 				</Loggers>
 			</Configuration>
 		`), ".xml")
-		require.ThatError(t, err).Matches(`missing Appenders`)
+		require.Error(t, err).Matches(`missing Appenders`)
 	})
 
 	t.Run("missing Loggers", func(t *testing.T) {
@@ -160,7 +160,7 @@ func TestReadXML(t *testing.T) {
 				</Appenders>
 			</Configuration>
 		`), ".xml")
-		require.ThatError(t, err).Matches(`missing Loggers`)
+		require.Error(t, err).Matches(`missing Loggers`)
 	})
 
 	t.Run("unsupported xml tag - 1", func(t *testing.T) {
@@ -170,7 +170,7 @@ func TestReadXML(t *testing.T) {
 				</UnsupportedTag>
 			</Configuration>
 		`), ".xml")
-		require.ThatError(t, err).Matches(`ReadXML error: unsupported xml tag UnsupportedTag`)
+		require.Error(t, err).Matches(`ReadXML error: unsupported xml tag UnsupportedTag`)
 	})
 
 	t.Run("unsupported xml tag - 2", func(t *testing.T) {
@@ -191,7 +191,7 @@ func TestReadXML(t *testing.T) {
 				</Loggers>
 			</Configuration>
 		`), ".xml")
-		require.ThatError(t, err).Matches(`unsupported xml tag UnsupportedProperty`)
+		require.Error(t, err).Matches(`unsupported xml tag UnsupportedProperty`)
 	})
 
 	t.Run("multiple root", func(t *testing.T) {
@@ -212,7 +212,7 @@ func TestReadXML(t *testing.T) {
 				</Loggers>
 			</Configuration>
 		`), ".xml")
-		require.ThatError(t, err).Matches(`found multiple root loggers`)
+		require.Error(t, err).Matches(`found multiple root loggers`)
 	})
 
 	t.Run("missing root", func(t *testing.T) {
@@ -230,7 +230,7 @@ func TestReadXML(t *testing.T) {
 				</Loggers>
 			</Configuration>
 		`), ".xml")
-		require.ThatError(t, err).Matches(`missing Root or AsyncRoot`)
+		require.Error(t, err).Matches(`missing Root or AsyncRoot`)
 	})
 
 	t.Run("success - Root", func(t *testing.T) {
@@ -251,7 +251,7 @@ func TestReadXML(t *testing.T) {
 				</Loggers>
 			</Configuration>
 		`), ".xml")
-		require.ThatError(t, err).Nil()
+		require.Error(t, err).Nil()
 	})
 
 	t.Run("success - AsyncRoot", func(t *testing.T) {
@@ -274,7 +274,7 @@ func TestReadXML(t *testing.T) {
 				</Loggers>
 			</Configuration>
 		`), ".xml")
-		require.ThatError(t, err).Nil()
+		require.Error(t, err).Nil()
 	})
 }
 
@@ -302,6 +302,6 @@ func TestToCamelKey(t *testing.T) {
 	}
 	for _, test := range tests {
 		result := toCamelKey(test.input)
-		assert.ThatString(t, result).Equal(test.expected)
+		assert.String(t, result).Equal(test.expected)
 	}
 }

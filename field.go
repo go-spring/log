@@ -21,7 +21,7 @@ import (
 	"math"
 	"unsafe"
 
-	"github.com/go-spring/spring-base/barky"
+	"github.com/go-spring/spring-base/util"
 )
 
 const MsgKey = "msg"
@@ -81,6 +81,11 @@ func BoolPtr(key string, val *bool) Field {
 	return Bool(key, *val)
 }
 
+// IntType is the type of int, int8, int16, int32, int64.
+type IntType interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64
+}
+
 // Int creates a Field for an integer value.
 func Int[T IntType](key string, val T) Field {
 	return Field{Key: key, Type: ValueTypeInt64, Num: uint64(val)}
@@ -94,6 +99,11 @@ func IntPtr[T IntType](key string, val *T) Field {
 	return Int(key, *val)
 }
 
+// UintType is the type of uint, uint8, uint16, uint32, uint64.
+type UintType interface {
+	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64
+}
+
 // Uint creates a Field for an unsigned integer value.
 func Uint[T UintType](key string, val T) Field {
 	return Field{Key: key, Type: ValueTypeUint64, Num: uint64(val)}
@@ -105,6 +115,11 @@ func UintPtr[T UintType](key string, val *T) Field {
 		return Nil(key)
 	}
 	return Uint(key, *val)
+}
+
+// FloatType is the type of float32, float64.
+type FloatType interface {
+	~float32 | ~float64
 }
 
 // Float creates a Field for a float value.
@@ -380,7 +395,7 @@ func (f Field) Encode(enc Encoder) {
 		enc.AppendObjectEnd()
 	case ValueTypeFromMap:
 		m := f.Any.(map[string]any)
-		for _, k := range barky.OrderedMapKeys(m) {
+		for _, k := range util.OrderedMapKeys(m) {
 			Any(k, m[k]).Encode(enc)
 		}
 	default: // for linter

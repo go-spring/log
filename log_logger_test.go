@@ -25,7 +25,7 @@ import (
 func TestGetLogger(t *testing.T) {
 	l := GetLogger("logger-not-exist")
 	err := RefreshFile("testdata/log.XML")
-	assert.ThatError(t, err).Matches(`logger logger-not-exist not found`)
+	assert.Error(t, err).Matches(`logger logger-not-exist not found`)
 	delete(loggerMap, l.name)
 	Destroy()
 }

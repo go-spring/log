@@ -25,18 +25,18 @@ import (
 
 func TestParseBufferFullPolicy(t *testing.T) {
 	_, err := ParseBufferFullPolicy("block")
-	assert.ThatError(t, err).Matches("invalid BufferFullPolicy block")
+	assert.Error(t, err).Matches("invalid BufferFullPolicy block")
 
 	p, err := ParseBufferFullPolicy("Block")
-	assert.ThatError(t, err).Nil()
+	assert.Error(t, err).Nil()
 	assert.That(t, p).Equal(BufferFullPolicyBlock)
 
 	p, err = ParseBufferFullPolicy("Discard")
-	assert.ThatError(t, err).Nil()
+	assert.Error(t, err).Nil()
 	assert.That(t, p).Equal(BufferFullPolicyDiscard)
 
 	p, err = ParseBufferFullPolicy("DiscardOldest")
-	assert.ThatError(t, err).Nil()
+	assert.Error(t, err).Nil()
 	assert.That(t, p).Equal(BufferFullPolicyDiscardOldest)
 }
 
@@ -58,7 +58,7 @@ func TestLoggerConfig(t *testing.T) {
 		}
 
 		err := a.Start()
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 
 		l := &SyncLogger{LoggerBase{
 			AppenderRefs: []*AppenderRef{
@@ -67,7 +67,7 @@ func TestLoggerConfig(t *testing.T) {
 		}}
 
 		n, err := l.Write([]byte("test"))
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 		assert.That(t, n).Equal(4)
 		assert.That(t, a.count).Equal(0)
 
@@ -81,7 +81,7 @@ func TestLoggerConfig(t *testing.T) {
 		}
 
 		err := a.Start()
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 
 		l := &SyncLogger{LoggerBase{
 			Level: InfoLevel,
@@ -92,7 +92,7 @@ func TestLoggerConfig(t *testing.T) {
 		}}
 
 		err = l.Start()
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 
 		assert.That(t, l.EnableLevel(TraceLevel)).False()
 		assert.That(t, l.EnableLevel(DebugLevel)).False()
@@ -140,7 +140,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		}
 
 		err := l.Start()
-		assert.ThatError(t, err).Matches("bufferSize is too small")
+		assert.Error(t, err).Matches("bufferSize is too small")
 	})
 
 	t.Run("buffer full - discard", func(t *testing.T) {
@@ -149,7 +149,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		}
 
 		err := a.Start()
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 
 		l := &AsyncLogger{
 			LoggerBase: LoggerBase{
@@ -164,7 +164,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		}
 
 		err = l.Start()
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 
 		go func() {
 			for range 100 {
@@ -190,7 +190,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		}
 
 		err := a.Start()
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 
 		l := &AsyncLogger{
 			LoggerBase: LoggerBase{
@@ -205,7 +205,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		}
 
 		err = l.Start()
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 
 		go func() {
 			for range 100 {
@@ -231,7 +231,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		}
 
 		err := a.Start()
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 
 		l := &AsyncLogger{
 			LoggerBase: LoggerBase{
@@ -246,7 +246,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		}
 
 		err = l.Start()
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 
 		go func() {
 			for range 100 {
@@ -272,7 +272,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		}
 
 		err := a.Start()
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 
 		l := &AsyncLogger{
 			LoggerBase: LoggerBase{
@@ -286,7 +286,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		}
 
 		err = l.Start()
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 
 		for range 5 {
 			l.Publish(GetEvent())
@@ -305,7 +305,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		}
 
 		err := a.Start()
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 
 		l := &AsyncLogger{
 			LoggerBase: LoggerBase{
@@ -318,7 +318,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		}
 
 		err = l.Start()
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 
 		// Rapidly write large amount of data to fill the buffer
 		for range 500 {

@@ -18,6 +18,8 @@ package log
 
 import (
 	"strings"
+
+	"github.com/go-spring/spring-base/util"
 )
 
 func init() {
@@ -69,7 +71,7 @@ func RegisterLevel(code int32, name string) Level {
 func ParseLevel(s string) (Level, error) {
 	l, ok := levelRegistry[strings.ToUpper(s)]
 	if !ok {
-		return NoneLevel, FormatError(nil, "invalid log level: %q", s)
+		return NoneLevel, util.FormatError(nil, "invalid log level: %q", s)
 	}
 	return l, nil
 }

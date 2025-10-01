@@ -23,6 +23,11 @@ import (
 	"github.com/go-spring/spring-base/testing/assert"
 )
 
+// Ptr returns a pointer to the given value.
+func Ptr[T any](i T) *T {
+	return &i
+}
+
 var testFields = []Field{
 	Msgf("hello %s", "中国"),
 	Msg("hello world\n\\\t\"\r"),
@@ -96,7 +101,7 @@ func TestJSONEncoder(t *testing.T) {
 		enc.AppendKey("chan")
 		enc.AppendReflect(make(chan error))
 		enc.AppendEncoderEnd()
-		assert.ThatString(t, buf.String()).Equal(`{"chan":"json: unsupported type: chan error"}`)
+		assert.String(t, buf.String()).Equal(`{"chan":"json: unsupported type: chan error"}`)
 	})
 
 	t.Run("success", func(t *testing.T) {
@@ -105,7 +110,7 @@ func TestJSONEncoder(t *testing.T) {
 		enc.AppendEncoderBegin()
 		EncodeFields(enc, testFields)
 		enc.AppendEncoderEnd()
-		assert.ThatString(t, buf.String()).JSONEqual(`{
+		assert.String(t, buf.String()).JSONEqual(`{
 	    "msg": "hello world\n\\\t\"\r",
 	    "null": null,
 	    "bool": false,
@@ -262,7 +267,7 @@ func TestJSONEncoder(t *testing.T) {
 
 		enc.AppendEncoderEnd()
 		expected := `{"nested_obj":{"inner_field":"inner_value"},"nested_arr":["item1","item2"],"empty_obj":{},"empty_arr":[]}`
-		assert.ThatString(t, buf.String()).JSONEqual(expected)
+		assert.String(t, buf.String()).JSONEqual(expected)
 	})
 
 	t.Run("special characters", func(t *testing.T) {
@@ -277,7 +282,7 @@ func TestJSONEncoder(t *testing.T) {
 		enc.AppendString(`path\to\file`)
 		enc.AppendEncoderEnd()
 		expected := `{"special":"line1\nline2\ttabbed\rreturn","quotes":"quotation \"mark\"","backslash":"path\\to\\file"}`
-		assert.ThatString(t, buf.String()).JSONEqual(expected)
+		assert.String(t, buf.String()).JSONEqual(expected)
 	})
 
 	t.Run("numeric types", func(t *testing.T) {
@@ -300,7 +305,7 @@ func TestJSONEncoder(t *testing.T) {
 		enc.AppendFloat64(0.0)
 		enc.AppendEncoderEnd()
 		expected := `{"negative_int":-42,"zero":0,"positive_int":42,"uint_val":42,"float_val":3.14159,"negative_float":-3.14159,"zero_float":0}`
-		assert.ThatString(t, buf.String()).JSONEqual(expected)
+		assert.String(t, buf.String()).JSONEqual(expected)
 	})
 
 	t.Run("boolean types", func(t *testing.T) {
@@ -313,7 +318,7 @@ func TestJSONEncoder(t *testing.T) {
 		enc.AppendBool(false)
 		enc.AppendEncoderEnd()
 		expected := `{"true_val":true,"false_val":false}`
-		assert.ThatString(t, buf.String()).JSONEqual(expected)
+		assert.String(t, buf.String()).JSONEqual(expected)
 	})
 
 	t.Run("nil values", func(t *testing.T) {
@@ -324,7 +329,7 @@ func TestJSONEncoder(t *testing.T) {
 		enc.AppendReflect(nil)
 		enc.AppendEncoderEnd()
 		expected := `{"nil_field":null}`
-		assert.ThatString(t, buf.String()).JSONEqual(expected)
+		assert.String(t, buf.String()).JSONEqual(expected)
 	})
 
 	t.Run("complex nested structure", func(t *testing.T) {
@@ -357,7 +362,7 @@ func TestJSONEncoder(t *testing.T) {
 
 		enc.AppendEncoderEnd()
 		expected := `{"complex":{"level1":{"level2":[{"id":1},{"id":2}]}}}`
-		assert.ThatString(t, buf.String()).JSONEqual(expected)
+		assert.String(t, buf.String()).JSONEqual(expected)
 	})
 }
 
@@ -370,7 +375,7 @@ func TestTextEncoder(t *testing.T) {
 		enc.AppendKey("chan")
 		enc.AppendReflect(make(chan error))
 		enc.AppendEncoderEnd()
-		assert.ThatString(t, buf.String()).Equal("chan=json: unsupported type: chan error")
+		assert.String(t, buf.String()).Equal("chan=json: unsupported type: chan error")
 	})
 
 	t.Run("success", func(t *testing.T) {
@@ -411,7 +416,7 @@ func TestTextEncoder(t *testing.T) {
 			`string=\ufffd\ufffd\ufffd\ufffd\u0008||string_ptr=a||string_ptr_nil=null||string_slice=["a","b","c"]||` +
 			`object={"int64":1,"uint64":1,"string":"a"}||struct={"Int64":10}||` +
 			`object_2={"map":{"a":1}}||array_2=[{"a":1},{"a":1}]`
-		assert.ThatString(t, buf.String()).Equal(expect)
+		assert.String(t, buf.String()).Equal(expect)
 	})
 
 	t.Run("nil values", func(t *testing.T) {
@@ -421,7 +426,7 @@ func TestTextEncoder(t *testing.T) {
 		enc.AppendKey("nil_field")
 		enc.AppendReflect(nil)
 		enc.AppendEncoderEnd()
-		assert.ThatString(t, buf.String()).Equal("nil_field=null")
+		assert.String(t, buf.String()).Equal("nil_field=null")
 	})
 
 	t.Run("nested objects and arrays", func(t *testing.T) {
@@ -445,7 +450,7 @@ func TestTextEncoder(t *testing.T) {
 
 		enc.AppendEncoderEnd()
 		expected := `nested_obj={"inner_field":"inner_value"} nested_arr=["item1","item2"]`
-		assert.ThatString(t, buf.String()).Equal(expected)
+		assert.String(t, buf.String()).Equal(expected)
 	})
 
 	t.Run("different separators", func(t *testing.T) {
@@ -457,7 +462,7 @@ func TestTextEncoder(t *testing.T) {
 		enc.AppendKey("field2")
 		enc.AppendString("value2")
 		enc.AppendEncoderEnd()
-		assert.ThatString(t, buf.String()).Equal("field1=value1, field2=value2")
+		assert.String(t, buf.String()).Equal("field1=value1, field2=value2")
 	})
 
 	t.Run("special characters", func(t *testing.T) {
@@ -467,7 +472,7 @@ func TestTextEncoder(t *testing.T) {
 		enc.AppendKey("special")
 		enc.AppendString("line1\nline2\ttabbed\rreturn")
 		enc.AppendEncoderEnd()
-		assert.ThatString(t, buf.String()).Equal("special=line1\\nline2\\ttabbed\\rreturn")
+		assert.String(t, buf.String()).Equal("special=line1\\nline2\\ttabbed\\rreturn")
 	})
 
 	t.Run("empty fields", func(t *testing.T) {
@@ -486,7 +491,7 @@ func TestTextEncoder(t *testing.T) {
 		enc.AppendArrayEnd()
 
 		enc.AppendEncoderEnd()
-		assert.ThatString(t, buf.String()).Equal("empty_obj={} empty_arr=[]")
+		assert.String(t, buf.String()).Equal("empty_obj={} empty_arr=[]")
 	})
 
 	t.Run("numeric types", func(t *testing.T) {
@@ -500,7 +505,7 @@ func TestTextEncoder(t *testing.T) {
 		enc.AppendKey("float_val")
 		enc.AppendFloat64(3.14159)
 		enc.AppendEncoderEnd()
-		assert.ThatString(t, buf.String()).Equal("int_val=-42 uint_val=42 float_val=3.14159")
+		assert.String(t, buf.String()).Equal("int_val=-42 uint_val=42 float_val=3.14159")
 	})
 
 	t.Run("boolean types", func(t *testing.T) {
@@ -512,6 +517,6 @@ func TestTextEncoder(t *testing.T) {
 		enc.AppendKey("false_val")
 		enc.AppendBool(false)
 		enc.AppendEncoderEnd()
-		assert.ThatString(t, buf.String()).Equal("true_val=true false_val=false")
+		assert.String(t, buf.String()).Equal("true_val=true false_val=false")
 	})
 }

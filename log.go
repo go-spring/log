@@ -92,6 +92,8 @@ import (
 	"strconv"
 	"sync/atomic"
 	"time"
+
+	"github.com/go-spring/spring-base/util"
 )
 
 // fastCaller controls whether to use a faster but less accurate
@@ -103,11 +105,32 @@ func init() {
 	RegisterProperty("fastCaller", func(s string) error {
 		b, err := strconv.ParseBool(s)
 		if err != nil {
-			return err
+			return util.WrapError(err, "invalid fastCaller: %q", s)
 		}
 		fastCaller.Store(b)
 		return nil
 	})
+}
+
+// defaultLogger is the default logger associated with tags created
+// before custom loggers are fully configured.
+var defaultLogger Logger = &SyncLogger{
+	LoggerBase: LoggerBase{
+		Level: InfoLevel,
+		AppenderRefs: []*AppenderRef{
+			{
+				appender: &ConsoleAppender{
+					AppenderBase: AppenderBase{
+						Layout: &TextLayout{
+							BaseLayout: BaseLayout{
+								FileLineLength: 48,
+							},
+						},
+					},
+				},
+			},
+		},
+	},
 }
 
 var (

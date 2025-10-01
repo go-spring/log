@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/go-spring/spring-base/barky"
+	"github.com/go-spring/spring-base/util"
 	"github.com/magiconair/properties"
 	"gopkg.in/yaml.v2"
 )
@@ -64,7 +65,7 @@ func readConfigFromFile(fileName string) (*barky.Storage, error) {
 func readConfigFromReader(reader io.Reader, ext string) (*barky.Storage, error) {
 	r, ok := fileReaders[ext]
 	if !ok {
-		return nil, FormatError(nil, "unsupported file type %s", ext)
+		return nil, util.FormatError(nil, "unsupported file type %s", ext)
 	}
 
 	data, err := io.ReadAll(reader)
@@ -86,7 +87,7 @@ func ReadProperties(b []byte) (map[string]any, error) {
 	p := properties.NewProperties()
 	p.DisableExpansion = true
 	if err := p.Load(b, properties.UTF8); err != nil {
-		return nil, FormatError(err, "ReadProperties error")
+		return nil, util.FormatError(err, "ReadProperties error")
 	}
 	r := make(map[string]any)
 	for k, v := range p.Map() {
@@ -99,7 +100,7 @@ func ReadProperties(b []byte) (map[string]any, error) {
 func ReadJSON(b []byte) (map[string]any, error) {
 	var r map[string]any
 	if err := json.Unmarshal(b, &r); err != nil {
-		return nil, FormatError(err, "ReadJSON error")
+		return nil, util.FormatError(err, "ReadJSON error")
 	}
 	return r, nil
 }
@@ -108,7 +109,7 @@ func ReadJSON(b []byte) (map[string]any, error) {
 func ReadYAML(b []byte) (map[string]any, error) {
 	var r map[string]any
 	if err := yaml.Unmarshal(b, &r); err != nil {
-		return nil, FormatError(err, "ReadYAML error")
+		return nil, util.FormatError(err, "ReadYAML error")
 	}
 	return r, nil
 }
@@ -123,7 +124,7 @@ func ReadXML(b []byte) (map[string]any, error) {
 			break
 		}
 		if err != nil {
-			return nil, FormatError(err, "ReadXML error")
+			return nil, util.FormatError(err, "ReadXML error")
 		}
 		switch t := token.(type) {
 		case xml.StartElement:
@@ -133,12 +134,12 @@ func ReadXML(b []byte) (map[string]any, error) {
 			case "Properties", "Appenders", "Loggers":
 				s := make(map[string]any)
 				if err = xmlToMap(s, d); err != nil {
-					return nil, FormatError(err, "ReadXML error")
+					return nil, util.FormatError(err, "ReadXML error")
 				}
 				m[t.Name.Local] = s
 			default:
-				err = FormatError(nil, "unsupported xml tag %s", t.Name.Local)
-				return nil, FormatError(err, "ReadXML error")
+				err = util.FormatError(nil, "unsupported xml tag %s", t.Name.Local)
+				return nil, util.FormatError(err, "ReadXML error")
 			}
 		default: // for linter
 		}
@@ -155,14 +156,14 @@ func ReadXML(b []byte) (map[string]any, error) {
 
 	// validate Appenders
 	if a, ok := m["Appenders"]; !ok {
-		return nil, FormatError(nil, "missing Appenders")
+		return nil, util.FormatError(nil, "missing Appenders")
 	} else {
 		r["Appender"] = a
 	}
 
 	// validate Loggers
 	if l, ok := m["Loggers"]; !ok {
-		return nil, FormatError(nil, "missing Loggers")
+		return nil, util.FormatError(nil, "missing Loggers")
 	} else {
 		a := l.(map[string]any)
 		root := a["Root"]
@@ -171,20 +172,21 @@ func ReadXML(b []byte) (map[string]any, error) {
 		var s map[string]any
 		if root != nil {
 			if asyncRoot != nil {
-				return nil, FormatError(nil, "found multiple root loggers")
+				return nil, util.FormatError(nil, "found multiple root loggers")
 			}
 			s = root.(map[string]any)
 		} else {
 			if asyncRoot == nil {
-				return nil, FormatError(nil, "missing Root or AsyncRoot")
+				return nil, util.FormatError(nil, "missing Root or AsyncRoot")
 			}
 			s = asyncRoot.(map[string]any)
 		}
 
 		// remove root from Loggers map
-		delete(a, s["Type"].(string))
-
-		r["rootLogger"] = s
+		if len(s) > 0 {
+			delete(a, s["Type"].(string))
+			r["rootLogger"] = s
+		}
 		r["Logger"] = l
 	}
 
@@ -202,7 +204,7 @@ func xmlToMap(m map[string]any, d *xml.Decoder) error {
 		case xml.StartElement:
 			p, ok := pluginRegistry[t.Name.Local]
 			if !ok {
-				return FormatError(nil, "unsupported xml tag %s", t.Name.Local)
+				return util.FormatError(nil, "unsupported xml tag %s", t.Name.Local)
 			}
 
 			s := map[string]any{
@@ -255,7 +257,7 @@ func toStorage(m map[string]string) (*barky.Storage, error) {
 	s := barky.NewStorage()
 	for k, v := range m {
 		if err := s.Set(toCamelKey(k), v, 0); err != nil {
-			return nil, FormatError(err, "toStorage error")
+			return nil, util.FormatError(err, "toStorage error")
 		}
 	}
 	return s, nil

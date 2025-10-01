@@ -18,6 +18,8 @@ package log
 
 import (
 	"sync/atomic"
+
+	"github.com/go-spring/spring-base/util"
 )
 
 func init() {
@@ -119,7 +121,7 @@ func ParseBufferFullPolicy(s string) (BufferFullPolicy, error) {
 	case "DiscardOldest":
 		return BufferFullPolicyDiscardOldest, nil
 	default:
-		return -1, FormatError(nil, "invalid BufferFullPolicy %s", s)
+		return -1, util.FormatError(nil, "invalid BufferFullPolicy %s", s)
 	}
 }
 
@@ -145,7 +147,7 @@ func (c *AsyncLogger) GetDiscardCounter() int64 {
 // Start initializes channels and launches the worker goroutine.
 func (c *AsyncLogger) Start() error {
 	if c.BufferSize < 100 {
-		return FormatError(nil, "bufferSize is too small")
+		return util.FormatError(nil, "bufferSize is too small")
 	}
 	c.buf = make(chan any, c.BufferSize)
 	c.wait = make(chan struct{})

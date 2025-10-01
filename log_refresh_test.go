@@ -33,15 +33,15 @@ func TestRefreshFile(t *testing.T) {
 	t.Run("file not exist", func(t *testing.T) {
 		defer func() { Destroy() }()
 		err := RefreshFile("testdata/file-not-exist.xml")
-		assert.ThatError(t, err).Matches("open testdata/file-not-exist.xml")
+		assert.Error(t, err).Matches("open testdata/file-not-exist.xml")
 	})
 
 	t.Run("already refresh", func(t *testing.T) {
 		defer func() { Destroy() }()
 		err := RefreshFile("testdata/log.XML")
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 		err = RefreshFile("testdata/log.XML")
-		assert.ThatError(t, err).Matches("log refresh already done")
+		assert.Error(t, err).Matches("log refresh already done")
 	})
 }
 
@@ -55,13 +55,7 @@ func TestRefreshConfig(t *testing.T) {
 	t.Run("unsupported file", func(t *testing.T) {
 		defer func() { global.init.Store(false) }()
 		err := RefreshReader(nil, ".toml")
-		assert.ThatError(t, err).Matches("RefreshReader error: unsupported file type .toml")
-	})
-
-	t.Run("rootLogger not found", func(t *testing.T) {
-		defer func() { global.init.Store(false) }()
-		err := RefreshReader(strings.NewReader(""), ".properties")
-		assert.ThatError(t, err).Matches("rootLogger not found")
+		assert.Error(t, err).Matches("RefreshReader error: unsupported file type .toml")
 	})
 
 	t.Run("appenders section not found", func(t *testing.T) {
@@ -70,7 +64,7 @@ func TestRefreshConfig(t *testing.T) {
 			rootLogger.type=Root
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
-		assert.ThatError(t, err).Matches("appenders section not found")
+		assert.Error(t, err).Matches("appenders section not found")
 	})
 
 	t.Run("read appenders error", func(t *testing.T) {
@@ -80,7 +74,7 @@ func TestRefreshConfig(t *testing.T) {
 			appender=ERROR_PROPERTY
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
-		assert.ThatString(t, err.Error()).Equal("read appenders section error: property conflict at path appender")
+		assert.Error(t, err).String("read appenders section error << property conflict at path appender")
 	})
 
 	t.Run("read loggers error", func(t *testing.T) {
@@ -91,7 +85,7 @@ func TestRefreshConfig(t *testing.T) {
 			logger=ERROR_PROPERTY
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
-		assert.ThatString(t, err.Error()).Equal("read loggers section error: property conflict at path logger")
+		assert.Error(t, err).String("read loggers section error << property conflict at path logger")
 	})
 
 	t.Run("plugin not found - appender", func(t *testing.T) {
@@ -102,7 +96,7 @@ func TestRefreshConfig(t *testing.T) {
 			logger.test.type=AsyncLogger
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
-		assert.ThatError(t, err).Matches("plugin NonExistentAppender not found")
+		assert.Error(t, err).Matches("plugin NonExistentAppender not found")
 	})
 
 	t.Run("plugin not found - rootLogger", func(t *testing.T) {
@@ -114,7 +108,7 @@ func TestRefreshConfig(t *testing.T) {
 			logger.test.type=AsyncLogger
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
-		assert.ThatError(t, err).Matches("plugin NonExistentRoot not found")
+		assert.Error(t, err).Matches("plugin NonExistentRoot not found")
 	})
 
 	t.Run("rootLogger no type", func(t *testing.T) {
@@ -126,7 +120,7 @@ func TestRefreshConfig(t *testing.T) {
 			logger.test.type=AsyncLogger
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
-		assert.ThatError(t, err).Matches("attribute 'type' not found")
+		assert.Error(t, err).Matches("attribute 'type' not found")
 	})
 
 	t.Run("init AppenderRefs error - rootLogger", func(t *testing.T) {
@@ -139,7 +133,7 @@ func TestRefreshConfig(t *testing.T) {
 			appender.console.layout.type=TextLayout
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
-		assert.ThatError(t, err).Matches("appender file not found")
+		assert.Error(t, err).Matches("appender file not found")
 	})
 
 	t.Run("plugin not found - loggers", func(t *testing.T) {
@@ -153,7 +147,7 @@ func TestRefreshConfig(t *testing.T) {
 			logger.myLogger.type=NonExistentLogger
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
-		assert.ThatError(t, err).Matches("plugin NonExistentLogger not found")
+		assert.Error(t, err).Matches("plugin NonExistentLogger not found")
 	})
 
 	t.Run("loggers no type", func(t *testing.T) {
@@ -167,7 +161,7 @@ func TestRefreshConfig(t *testing.T) {
 			logger.myLogger.level=info
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
-		assert.ThatError(t, err).Matches("attribute 'type' not found")
+		assert.Error(t, err).Matches("attribute 'type' not found")
 	})
 
 	t.Run("plugin not found - loggers", func(t *testing.T) {
@@ -183,7 +177,7 @@ func TestRefreshConfig(t *testing.T) {
 			logger.myLogger.appenderRef.ref=file
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
-		assert.ThatError(t, err).Matches("appender file not found")
+		assert.Error(t, err).Matches("appender file not found")
 	})
 
 	t.Run("loggers no tags", func(t *testing.T) {
@@ -199,7 +193,7 @@ func TestRefreshConfig(t *testing.T) {
 			logger.myLogger.appenderRef.ref=console
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
-		assert.ThatError(t, err).Matches("logger must have attribute 'tags'")
+		assert.Error(t, err).Matches("logger must have attribute 'tags'")
 	})
 
 	t.Run("loggers tags error", func(t *testing.T) {
@@ -216,7 +210,7 @@ func TestRefreshConfig(t *testing.T) {
 			logger.myLogger.appenderRef.ref=console
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
-		assert.ThatError(t, err).Matches("`\\*\\*` regexp compile error")
+		assert.Error(t, err).Matches("`\\*\\*` regexp compile error")
 	})
 
 	t.Run("appender start error", func(t *testing.T) {
@@ -234,7 +228,7 @@ func TestRefreshConfig(t *testing.T) {
 			logger.myLogger.appenderRef.ref=file
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
-		assert.ThatString(t, err.Error()).Equal("appender file start error: open /not-exist-dir/access.log: no such file or directory")
+		assert.Error(t, err).String("appender file start error << open /not-exist-dir/access.log: no such file or directory")
 	})
 
 	t.Run("logger start error", func(t *testing.T) {
@@ -252,7 +246,7 @@ func TestRefreshConfig(t *testing.T) {
 			logger.myLogger.appenderRef.ref=console
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
-		assert.ThatString(t, err.Error()).Equal("logger myLogger start error: bufferSize is too small")
+		assert.Error(t, err).String("logger myLogger start error << bufferSize is too small")
 	})
 
 	t.Run("logger start error", func(t *testing.T) {
@@ -270,7 +264,7 @@ func TestRefreshConfig(t *testing.T) {
 			logger.myLogger.appenderRef.ref=console
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
-		assert.ThatString(t, err.Error()).Equal(`inject property bufferCap error: unhandled size name: "GB"`)
+		assert.Error(t, err).String(`inject property bufferCap error << invalid bufferCap: "1GB" << unhandled size name: "GB"`)
 	})
 
 }

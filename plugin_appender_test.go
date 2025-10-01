@@ -27,7 +27,7 @@ import (
 func TestDiscardAppender(t *testing.T) {
 	a := &DiscardAppender{}
 	err := a.Start()
-	assert.ThatError(t, err).Nil()
+	assert.Error(t, err).Nil()
 	a.Append(&Event{})
 	a.Stop()
 }
@@ -36,7 +36,7 @@ func TestConsoleAppender(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		file, err := os.CreateTemp(os.TempDir(), "")
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 
 		Stdout = file
 		defer func() {
@@ -63,16 +63,16 @@ func TestConsoleAppender(t *testing.T) {
 		})
 
 		err = file.Close()
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 
 		b, err := os.ReadFile(file.Name())
-		assert.ThatError(t, err).Nil()
-		assert.ThatString(t, string(b)).Equal("[INFO][0001-01-01T00:00:00.000][file.go:100] _def||msg=hello world\n")
+		assert.Error(t, err).Nil()
+		assert.String(t, string(b)).Equal("[INFO][0001-01-01T00:00:00.000][file.go:100] _def||msg=hello world\n")
 	})
 
 	t.Run("write directly", func(t *testing.T) {
 		file, err := os.CreateTemp(os.TempDir(), "")
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 
 		Stdout = file
 		defer func() {
@@ -83,11 +83,11 @@ func TestConsoleAppender(t *testing.T) {
 		a.Write([]byte("direct write test"))
 
 		err = file.Close()
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 
 		b, err := os.ReadFile(file.Name())
-		assert.ThatError(t, err).Nil()
-		assert.ThatString(t, string(b)).Equal("direct write test")
+		assert.Error(t, err).Nil()
+		assert.String(t, string(b)).Equal("direct write test")
 	})
 }
 
@@ -105,14 +105,14 @@ func TestFileAppender(t *testing.T) {
 			FileName: "/not-exist-dir/file.log",
 		}
 		err := a.Start()
-		assert.ThatError(t, err).Matches("open /not-exist-dir/file.log: no such file or directory")
+		assert.Error(t, err).Matches("open /not-exist-dir/file.log: no such file or directory")
 	})
 
 	t.Run("success", func(t *testing.T) {
 		file, err := os.CreateTemp(os.TempDir(), "")
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 		err = file.Close()
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 
 		a := &FileAppender{
 			AppenderBase: AppenderBase{
@@ -125,7 +125,7 @@ func TestFileAppender(t *testing.T) {
 			FileName: file.Name(),
 		}
 		err = a.Start()
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 
 		a.Append(&Event{
 			Level:     InfoLevel,
@@ -140,42 +140,42 @@ func TestFileAppender(t *testing.T) {
 		a.Stop()
 
 		b, err := os.ReadFile(a.file.Name())
-		assert.ThatError(t, err).Nil()
-		assert.ThatString(t, string(b)).Equal("[INFO][0001-01-01T00:00:00.000][file.go:100] _def||msg=hello world\n")
+		assert.Error(t, err).Nil()
+		assert.String(t, string(b)).Equal("[INFO][0001-01-01T00:00:00.000][file.go:100] _def||msg=hello world\n")
 	})
 
 	t.Run("write directly", func(t *testing.T) {
 		file, err := os.CreateTemp(os.TempDir(), "")
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 
 		a := &FileAppender{
 			FileName: file.Name(),
 		}
 		err = a.Start()
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 
 		a.Write([]byte("direct write test"))
 		a.Stop()
 
 		err = file.Close()
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 
 		b, err := os.ReadFile(file.Name())
-		assert.ThatError(t, err).Nil()
-		assert.ThatString(t, string(b)).Equal("direct write test")
+		assert.Error(t, err).Nil()
+		assert.String(t, string(b)).Equal("direct write test")
 	})
 
 	t.Run("stop multiple times", func(t *testing.T) {
 		file, err := os.CreateTemp(os.TempDir(), "")
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 		err = file.Close()
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 
 		a := &FileAppender{
 			FileName: file.Name(),
 		}
 		err = a.Start()
-		assert.ThatError(t, err).Nil()
+		assert.Error(t, err).Nil()
 
 		a.Stop()
 		a.Stop()

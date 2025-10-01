@@ -107,7 +107,7 @@ func TestLog(t *testing.T) {
 	log.Info(ctx, TagRequestIn, log.Msgf("hello %s", "world"))
 
 	err := log.RefreshFile("testdata/log.properties")
-	assert.ThatError(t, err).Nil()
+	assert.Error(t, err).Nil()
 
 	// should panic after init.
 	assert.Panic(t, func() {
@@ -177,7 +177,7 @@ this message is written directly
 this message is written directly
 `
 
-	assert.ThatString(t, logBuf.String()).Equal(strings.TrimLeft(expectLog, "\n"))
+	assert.String(t, logBuf.String()).Equal(strings.TrimLeft(expectLog, "\n"))
 
 	assert.Panic(t, func() {
 		log.RegisterRPCTag("def", "")
@@ -211,6 +211,6 @@ this message is written directly
 	log.Destroy()
 
 	b, err := os.ReadFile("log.txt")
-	assert.ThatError(t, err).Nil()
-	assert.ThatString(t, string(b)).Equal(strings.TrimLeft(expectLog, "\n"))
+	assert.Error(t, err).Nil()
+	assert.String(t, string(b)).Equal(strings.TrimLeft(expectLog, "\n"))
 }

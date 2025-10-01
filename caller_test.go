@@ -26,20 +26,20 @@ func TestCaller(t *testing.T) {
 
 	t.Run("error skip", func(t *testing.T) {
 		file, line := Caller(100, true)
-		assert.ThatString(t, file).Equal("")
+		assert.String(t, file).Equal("")
 		assert.That(t, line).Equal(0)
 	})
 
 	t.Run("fast false", func(t *testing.T) {
 		file, line := Caller(0, false)
-		assert.ThatString(t, file).Matches(".*/caller_test.go")
+		assert.String(t, file).Matches(".*/caller_test.go")
 		assert.That(t, line).Equal(34)
 	})
 
 	t.Run("fast true", func(t *testing.T) {
 		for range 2 {
 			file, line := Caller(0, true)
-			assert.ThatString(t, file).Matches(".*/caller_test.go")
+			assert.String(t, file).Matches(".*/caller_test.go")
 			assert.That(t, line).Equal(41)
 		}
 	})
@@ -47,15 +47,15 @@ func TestCaller(t *testing.T) {
 	t.Run("cache behavior", func(t *testing.T) {
 		file1, line1 := Caller(0, true)
 		file2, line2 := Caller(0, true)
-		assert.ThatString(t, file1).Equal(file2)
-		assert.ThatNumber(t, line1).Equal(line2 - 1)
+		assert.String(t, file1).Equal(file2)
+		assert.Number(t, line1).Equal(line2 - 1)
 	})
 
 	t.Run("fast vs slow consistency", func(t *testing.T) {
 		fileFast, lineFast := Caller(0, true)
 		fileSlow, lineSlow := Caller(0, false)
-		assert.ThatString(t, fileFast).Equal(fileSlow)
-		assert.ThatNumber(t, lineFast).Equal(lineSlow - 1)
+		assert.String(t, fileFast).Equal(fileSlow)
+		assert.Number(t, lineFast).Equal(lineSlow - 1)
 	})
 }
 

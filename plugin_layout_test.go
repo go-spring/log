@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/go-spring/spring-base/testing/assert"
+	"github.com/go-spring/spring-base/util"
 )
 
 func TestParseHumanizeBytes(t *testing.T) {
@@ -63,17 +64,17 @@ func TestParseHumanizeBytes(t *testing.T) {
 		{
 			name:    "invalid number",
 			input:   "abcKB",
-			wantErr: FormatError(nil, `strconv.ParseInt: parsing "": invalid syntax`),
+			wantErr: util.FormatError(nil, `strconv.ParseInt: parsing "": invalid syntax`),
 		},
 		{
 			name:    "missing unit",
 			input:   "1024",
-			wantErr: FormatError(nil, `unhandled size name: ""`),
+			wantErr: util.FormatError(nil, `unhandled size name: ""`),
 		},
 		{
 			name:    "unknown unit",
 			input:   "1GB",
-			wantErr: FormatError(nil, `unhandled size name: "GB"`),
+			wantErr: util.FormatError(nil, `unhandled size name: "GB"`),
 		},
 	}
 
@@ -154,7 +155,7 @@ func TestTextLayout(t *testing.T) {
 			Tag:    "_def",
 			Fields: []Field{Msg("hello world")},
 		})
-		assert.ThatString(t, string(b)).Equal("[INFO][0001-01-01T00:00:00.000][file.go:100] _def||msg=hello world\n")
+		assert.String(t, string(b)).Equal("[INFO][0001-01-01T00:00:00.000][file.go:100] _def||msg=hello world\n")
 	})
 
 	t.Run("with ctx string", func(t *testing.T) {
@@ -173,7 +174,7 @@ func TestTextLayout(t *testing.T) {
 			CtxString: "trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66",
 			CtxFields: nil,
 		})
-		assert.ThatString(t, string(b)).Equal("[INFO][0001-01-01T00:00:00.000][...service/book_service/book_service_test.go:100] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||msg=hello world\n")
+		assert.String(t, string(b)).Equal("[INFO][0001-01-01T00:00:00.000][...service/book_service/book_service_test.go:100] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||msg=hello world\n")
 	})
 
 	t.Run("with ctx fields", func(t *testing.T) {
@@ -191,7 +192,7 @@ func TestTextLayout(t *testing.T) {
 			Fields:    []Field{Msg("hello world")},
 			CtxFields: []Field{String("key", "value")},
 		})
-		assert.ThatString(t, string(b)).Equal("[INFO][0001-01-01T00:00:00.000][file.go:100] _def||key=value||msg=hello world\n")
+		assert.String(t, string(b)).Equal("[INFO][0001-01-01T00:00:00.000][file.go:100] _def||key=value||msg=hello world\n")
 	})
 }
 
@@ -211,7 +212,7 @@ func TestJSONLayout(t *testing.T) {
 			Tag:    "_def",
 			Fields: []Field{Msg("hello world")},
 		})
-		assert.ThatString(t, string(b)).Equal(`{"level":"info","time":"0001-01-01T00:00:00.000","fileLine":"file.go:100","tag":"_def","msg":"hello world"}` + "\n")
+		assert.String(t, string(b)).Equal(`{"level":"info","time":"0001-01-01T00:00:00.000","fileLine":"file.go:100","tag":"_def","msg":"hello world"}` + "\n")
 	})
 
 	t.Run("with ctx string", func(t *testing.T) {
@@ -230,7 +231,7 @@ func TestJSONLayout(t *testing.T) {
 			CtxString: "trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66",
 			CtxFields: nil,
 		})
-		assert.ThatString(t, string(b)).Equal(`{"level":"info","time":"0001-01-01T00:00:00.000","fileLine":"...service/book_service/book_service_test.go:100","tag":"_def","ctxString":"trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66","msg":"hello world"}` + "\n")
+		assert.String(t, string(b)).Equal(`{"level":"info","time":"0001-01-01T00:00:00.000","fileLine":"...service/book_service/book_service_test.go:100","tag":"_def","ctxString":"trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66","msg":"hello world"}` + "\n")
 	})
 
 	t.Run("with ctx fields", func(t *testing.T) {
@@ -248,6 +249,6 @@ func TestJSONLayout(t *testing.T) {
 			Fields:    []Field{Msg("hello world")},
 			CtxFields: []Field{String("key", "value")},
 		})
-		assert.ThatString(t, string(b)).Equal(`{"level":"info","time":"0001-01-01T00:00:00.000","fileLine":"file.go:100","tag":"_def","key":"value","msg":"hello world"}` + "\n")
+		assert.String(t, string(b)).Equal(`{"level":"info","time":"0001-01-01T00:00:00.000","fileLine":"file.go:100","tag":"_def","key":"value","msg":"hello world"}` + "\n")
 	})
 }

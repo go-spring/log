@@ -21,33 +21,12 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/go-spring/spring-base/barky"
+	"github.com/go-spring/spring-base/util"
 )
 
 // tagRegistry stores Tag instances keyed by their string names.
 // Note: Not concurrency-safe; intended for use during initialization.
 var tagRegistry = map[string]*Tag{}
-
-// defaultLogger is the default logger associated with tags created
-// before custom loggers are fully configured.
-var defaultLogger Logger = &SyncLogger{
-	LoggerBase: LoggerBase{
-		Level: InfoLevel,
-		AppenderRefs: []*AppenderRef{
-			{
-				appender: &ConsoleAppender{
-					AppenderBase: AppenderBase{
-						Layout: &TextLayout{
-							BaseLayout: BaseLayout{
-								FileLineLength: 48,
-							},
-						},
-					},
-				},
-			},
-		},
-	},
-}
 
 // LoggerHolder wraps a Logger in order to store it in atomic.Value.
 // This ensures type safety while using atomic operations.
@@ -75,7 +54,7 @@ func (m *Tag) setLogger(logger Logger) {
 
 // GetAllTags returns the names of all registered tags.
 func GetAllTags() []string {
-	return barky.OrderedMapKeys(tagRegistry)
+	return util.OrderedMapKeys(tagRegistry)
 }
 
 // isValidTag validates a tag string according to the following rules:

@@ -115,7 +115,7 @@ func TestBuildTag(t *testing.T) {
 				}, tt.panicMsg)
 			} else {
 				got := BuildTag(tt.mainType, tt.subType, tt.action)
-				assert.ThatString(t, got).Equal(tt.want)
+				assert.String(t, got).Equal(tt.want)
 			}
 		})
 	}
@@ -125,7 +125,7 @@ func TestRegisterTagValid(t *testing.T) {
 
 	tag := RegisterTag("_test_tag")
 	assert.That(t, tag).NotNil()
-	assert.ThatString(t, tag.name).Equal("_test_tag")
+	assert.String(t, tag.name).Equal("_test_tag")
 
 	tag2 := RegisterTag("_test_tag")
 	assert.That(t, tag).Equal(tag2)
@@ -136,27 +136,27 @@ func TestRegisterTags(t *testing.T) {
 	// Test RegisterAppTag
 	tag := RegisterAppTag("web", "start")
 	assert.That(t, tag).NotNil()
-	assert.ThatString(t, tag.name).Equal("_app_web_start")
+	assert.String(t, tag.name).Equal("_app_web_start")
 
 	tag2 := RegisterAppTag("database", "")
 	assert.That(t, tag2).NotNil()
-	assert.ThatString(t, tag2.name).Equal("_app_database")
+	assert.String(t, tag2.name).Equal("_app_database")
 
 	// Test RegisterBizTag
 	tag = RegisterBizTag("payment", "process")
 	assert.That(t, tag).NotNil()
-	assert.ThatString(t, tag.name).Equal("_biz_payment_process")
+	assert.String(t, tag.name).Equal("_biz_payment_process")
 
 	tag2 = RegisterBizTag("user", "")
 	assert.That(t, tag2).NotNil()
-	assert.ThatString(t, tag2.name).Equal("_biz_user")
+	assert.String(t, tag2.name).Equal("_biz_user")
 
 	// Test RegisterRPCTag
 	tag = RegisterRPCTag("grpc", "call")
 	assert.That(t, tag).NotNil()
-	assert.ThatString(t, tag.name).Equal("_rpc_grpc_call")
+	assert.String(t, tag.name).Equal("_rpc_grpc_call")
 
 	tag2 = RegisterRPCTag("http", "")
 	assert.That(t, tag2).NotNil()
-	assert.ThatString(t, tag2.name).Equal("_rpc_http")
+	assert.String(t, tag2.name).Equal("_rpc_http")
 }
