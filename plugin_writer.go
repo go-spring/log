@@ -152,6 +152,11 @@ type AsyncRotateFileWriter struct {
 	currTime int64
 }
 
+// NewAsyncRotateFileWriter creates a new AsyncRotateFileWriter instance.
+func NewAsyncRotateFileWriter(base RotateFileWriterBase) *AsyncRotateFileWriter {
+	return &AsyncRotateFileWriter{RotateFileWriterBase: base}
+}
+
 // Start opens the initial log file.
 func (c *AsyncRotateFileWriter) Start() error {
 	now := time.Now()
@@ -231,6 +236,11 @@ type SyncRotateFileWriter struct {
 	file     atomic.Pointer[os.File]
 	mutex    sync.Mutex
 	currTime atomic.Int64
+}
+
+// NewSyncRotateFileWriter creates a new instance of SyncRotateFileWriter.
+func NewSyncRotateFileWriter(base RotateFileWriterBase) *SyncRotateFileWriter {
+	return &SyncRotateFileWriter{RotateFileWriterBase: base}
 }
 
 // Start opens the initial log file.

@@ -72,8 +72,7 @@ func RegisterPlugin[T any](name string) {
 		panic("T must be struct")
 	}
 	pluginRegistry[name] = &Plugin{
-		Name: name,
-		//Type:  typ,
+		Name:  name,
 		Class: t,
 		File:  file,
 		Line:  line,

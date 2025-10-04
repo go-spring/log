@@ -38,9 +38,9 @@ func TestRefreshFile(t *testing.T) {
 
 	t.Run("already refresh", func(t *testing.T) {
 		defer func() { Destroy() }()
-		err := RefreshFile("testdata/log.Yaml")
+		err := RefreshFile("testdata/log.YAML")
 		assert.Error(t, err).Nil()
-		err = RefreshFile("testdata/log.Yaml")
+		err = RefreshFile("testdata/log.YAML")
 		assert.Error(t, err).Matches("log refresh already done")
 	})
 }

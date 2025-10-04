@@ -45,8 +45,8 @@ var (
 
 // AppenderBase provides common configuration and default behavior for appenders.
 type AppenderBase struct {
-	Name   string `PluginAttribute:"name"` // Appender name from config
-	Layout Layout `PluginElement:"Layout"` // Layout defines how logs are formatted
+	Name   string `PluginAttribute:"name"`
+	Layout Layout `PluginElement:"Layout,default=TextLayout"`
 }
 
 func (c *AppenderBase) String() string  { return c.Name }
@@ -131,7 +131,7 @@ func (c *LayoutAppender) Append(e *Event) {
 }
 
 // LevelFilterAppender filters log events based on their severity level.
-// Only events with levels between MinLevel and MaxLevel (inclusive)
+// Only events with levels between MinLevel and MaxLevel (exclusive)
 // will be passed to the underlying Appender.
 type LevelFilterAppender struct {
 	Appender
@@ -143,10 +143,9 @@ type LevelFilterAppender struct {
 // If the event's level is outside the range [MinLevel, MaxLevel),
 // the event will be ignored. Otherwise, it is forwarded to the underlying Appender.
 func (c *LevelFilterAppender) Append(e *Event) {
-	if e.Level.code < c.MinLevel.code || e.Level.code >= c.MaxLevel.code {
-		return
+	if e.Level.code >= c.MinLevel.code && e.Level.code < c.MaxLevel.code {
+		c.Appender.Append(e)
 	}
-	c.Appender.Append(e)
 }
 
 // MultiAppender delegates log events to multiple underlying appenders.

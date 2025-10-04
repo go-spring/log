@@ -309,7 +309,7 @@ func TestInjectElement(t *testing.T) {
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
 		_, err := NewPlugin(typ, "test", barky.NewStorage())
-		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error << inject struct field Appenders error << create plugin log.FileAppender error << inject struct field Layout error << found no plugin element`)
+		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error << inject struct field Appenders error << create plugin log.FileAppender error << inject struct field FileName error << found no attribute`)
 	})
 
 	t.Run("NewPlugin error - slice - 2", func(t *testing.T) {
@@ -320,7 +320,7 @@ func TestInjectElement(t *testing.T) {
 		s := barky.NewStorage()
 		_ = s.Set("test.appender.type", "File", 0)
 		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error << inject struct field Appenders error << create plugin log.FileAppender error << inject struct field Layout error << found no plugin element`)
+		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error << inject struct field Appenders error << create plugin log.FileAppender error << inject struct field FileName error << found no attribute`)
 	})
 
 	t.Run("NewPlugin error - single", func(t *testing.T) {
@@ -329,7 +329,7 @@ func TestInjectElement(t *testing.T) {
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
 		_, err := NewPlugin(typ, "test", barky.NewStorage())
-		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error << inject struct field Appender error << create plugin log.FileAppender error << inject struct field Layout error << found no plugin element`)
+		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error << inject struct field Appender error << create plugin log.FileAppender error << inject struct field FileName error << found no attribute`)
 	})
 
 	t.Run("success - slice - 1", func(t *testing.T) {
