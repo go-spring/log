@@ -50,37 +50,18 @@ type Lifecycle interface {
 	Stop()
 }
 
-// PluginType represents different types of plugins.
-type PluginType string
-
-const (
-	PluginTypeProperty    PluginType = "Property"
-	PluginTypeAppender    PluginType = "Appender"
-	PluginTypeLayout      PluginType = "Layout"
-	PluginTypeAppenderRef PluginType = "AppenderRef"
-	PluginTypeRoot        PluginType = "Root"
-	PluginTypeAsyncRoot   PluginType = "AsyncRoot"
-	PluginTypeLogger      PluginType = "Logger"
-	PluginTypeAsyncLogger PluginType = "AsyncLogger"
-)
-
 var pluginRegistry = map[string]*Plugin{}
-
-func init() {
-	RegisterPlugin[struct{}]("Property", PluginTypeProperty)
-}
 
 // Plugin represents metadata about a plugin type.
 type Plugin struct {
-	Name string // Name of the plugin
-	//Type  PluginType   // Type of the plugin
+	Name  string       // Name of the plugin
 	Class reflect.Type // Underlying struct type
 	File  string       // File where plugin was registered
 	Line  int          // Line number where plugin was registered
 }
 
 // RegisterPlugin registers a plugin type T with a given name and plugin type.
-func RegisterPlugin[T any](name string, typ PluginType) {
+func RegisterPlugin[T any](name string) {
 	_, file, line, _ := runtime.Caller(1)
 	if p, ok := pluginRegistry[name]; ok {
 		err := util.FormatError(nil, "duplicate plugin name %q in %s:%d and %s:%d", name, p.File, p.Line, file, line)

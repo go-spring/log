@@ -138,7 +138,7 @@ func (c *RotateFileWriterBase) clearExpiredFiles() {
 	}
 }
 
-// SerialRotateFileWriter is intended for **single-writer usage**,
+// AsyncRotateFileWriter is intended for **single-writer usage**,
 // typically in asynchronous logging pipelines where one goroutine
 // is responsible for writing logs to disk.
 //
@@ -146,14 +146,14 @@ func (c *RotateFileWriterBase) clearExpiredFiles() {
 // - Only one goroutine should call Write concurrently.
 // - Stop() must not be called concurrently with Write().
 // - Best used with an async queue where a single worker flushes logs to disk.
-type SerialRotateFileWriter struct {
+type AsyncRotateFileWriter struct {
 	RotateFileWriterBase
 	file     *os.File
 	currTime int64
 }
 
 // Start opens the initial log file.
-func (c *SerialRotateFileWriter) Start() error {
+func (c *AsyncRotateFileWriter) Start() error {
 	now := time.Now()
 	filePath, file, err := c.createFile(now)
 	if err != nil {
@@ -165,7 +165,7 @@ func (c *SerialRotateFileWriter) Start() error {
 }
 
 // Write writes bytes directly to the current log file.
-func (c *SerialRotateFileWriter) Write(b []byte) {
+func (c *AsyncRotateFileWriter) Write(b []byte) {
 	c.rotate()
 	if c.file != nil {
 		_, _ = c.file.Write(b)
@@ -174,7 +174,7 @@ func (c *SerialRotateFileWriter) Write(b []byte) {
 
 // Stop flushes and closes the current log file.
 // Must not be called concurrently with Write().
-func (c *SerialRotateFileWriter) Stop() {
+func (c *AsyncRotateFileWriter) Stop() {
 	if c.file != nil {
 		_ = c.file.Sync()
 		_ = c.file.Close()
@@ -185,7 +185,7 @@ func (c *SerialRotateFileWriter) Stop() {
 // If so, it closes the old file, opens a new one, and triggers cleanup.
 // Risk: If file creation fails during rotation, new logs will be lost
 // until the issue is resolved.
-func (c *SerialRotateFileWriter) rotate() {
+func (c *AsyncRotateFileWriter) rotate() {
 	now := time.Now()
 	nowTime := c.RotateStrategy.Time(now)
 	if nowTime <= c.currTime {
@@ -212,7 +212,7 @@ func (c *SerialRotateFileWriter) rotate() {
 	go c.clearExpiredFiles()
 }
 
-// ConcurrentRotateFileWriter allows **multiple goroutines** to call Write()
+// SyncRotateFileWriter allows **multiple goroutines** to call Write()
 // safely, at the cost of slightly higher overhead and potential
 // (acceptable) log loss during rotation.
 //
@@ -224,9 +224,9 @@ func (c *SerialRotateFileWriter) rotate() {
 //   - During rotation, a small number of writes may fail if they
 //     occur after the old file is closed but before the new file is ready.
 //   - During Stop(), concurrent writes may also be lost.
-//   - If zero log loss is required, use SerialRotateFileWriter
+//   - If zero log loss is required, use AsyncRotateFileWriter
 //     with a dedicated logging goroutine instead.
-type ConcurrentRotateFileWriter struct {
+type SyncRotateFileWriter struct {
 	RotateFileWriterBase
 	file     atomic.Pointer[os.File]
 	mutex    sync.Mutex
@@ -234,7 +234,7 @@ type ConcurrentRotateFileWriter struct {
 }
 
 // Start opens the initial log file.
-func (c *ConcurrentRotateFileWriter) Start() error {
+func (c *SyncRotateFileWriter) Start() error {
 	now := time.Now()
 	filePath, file, err := c.createFile(now)
 	if err != nil {
@@ -247,7 +247,7 @@ func (c *ConcurrentRotateFileWriter) Start() error {
 
 // Write writes bytes to the current log file.
 // May lose a few writes during rotation or Stop().
-func (c *ConcurrentRotateFileWriter) Write(b []byte) {
+func (c *SyncRotateFileWriter) Write(b []byte) {
 	c.rotate()
 	if file := c.file.Load(); file != nil {
 		_, _ = file.Write(b)
@@ -255,7 +255,7 @@ func (c *ConcurrentRotateFileWriter) Write(b []byte) {
 }
 
 // Stop flushes and closes the current file.
-func (c *ConcurrentRotateFileWriter) Stop() {
+func (c *SyncRotateFileWriter) Stop() {
 	c.rotate()
 	if file := c.file.Swap(nil); file != nil {
 		_ = file.Sync()
@@ -267,7 +267,7 @@ func (c *ConcurrentRotateFileWriter) Stop() {
 // If so, it closes the old file, opens a new one, and triggers cleanup.
 // Risk: If file creation fails during rotation, new logs will be lost
 // until the issue is resolved.
-func (c *ConcurrentRotateFileWriter) rotate() {
+func (c *SyncRotateFileWriter) rotate() {
 	now := time.Now()
 	nowTime := c.RotateStrategy.Time(now)
 	if nowTime <= c.currTime.Load() {

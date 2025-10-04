@@ -27,12 +27,12 @@ func init() {
 }
 
 func init() {
-	RegisterPlugin[AppenderRef]("AppenderRef", PluginTypeAppenderRef)
-	RegisterPlugin[SyncLogger]("Root", PluginTypeRoot)
-	RegisterPlugin[AsyncLogger]("AsyncRoot", PluginTypeAsyncRoot)
-	RegisterPlugin[SyncLogger]("Logger", PluginTypeLogger)
-	RegisterPlugin[AsyncLogger]("AsyncLogger", PluginTypeAsyncLogger)
-	RegisterPlugin[FileLogger]("FileLogger", PluginTypeLogger)
+	RegisterPlugin[AppenderRef]("AppenderRef")
+	RegisterPlugin[SyncLogger]("Root")
+	RegisterPlugin[AsyncLogger]("AsyncRoot")
+	RegisterPlugin[SyncLogger]("Logger")
+	RegisterPlugin[AsyncLogger]("AsyncLogger")
+	RegisterPlugin[FileLogger]("FileLogger")
 }
 
 // Logger is the interface implemented by all loggers.
@@ -63,8 +63,13 @@ func (c *LoggerBase) String() string {
 	return c.Name
 }
 
-// callAppenders sends a log event to all configured appenders.
-func (c *LoggerBase) callAppenders(e *Event) {
+// EnableLevel checks if the given log level is enabled for this logger.
+func (c *LoggerBase) EnableLevel(level Level) bool {
+	return level.code >= c.Level.code
+}
+
+// publishAppenders sends a log event to all configured appenders.
+func (c *LoggerBase) publishAppenders(e *Event) {
 	for _, r := range c.AppenderRefs {
 		r.appender.Append(e)
 	}
@@ -77,9 +82,21 @@ func (c *LoggerBase) writeAppenders(b []byte) {
 	}
 }
 
-// EnableLevel checks if the given log level is enabled for this logger.
-func (c *LoggerBase) EnableLevel(level Level) bool {
-	return level.code >= c.Level.code
+// Start initializes all underlying appenders.
+func (c *LoggerBase) Start() error {
+	for _, r := range c.AppenderRefs {
+		if err := r.appender.Start(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Stop stops all underlying appenders.
+func (c *LoggerBase) Stop() {
+	for _, r := range c.AppenderRefs {
+		r.appender.Stop()
+	}
 }
 
 // ----------------------------------------------------------------------------
@@ -91,12 +108,9 @@ type SyncLogger struct {
 	LoggerBase
 }
 
-func (c *SyncLogger) Start() error { return nil }
-func (c *SyncLogger) Stop()        {}
-
 // Publish sends the event directly to appenders (blocking).
 func (c *SyncLogger) Publish(e *Event) {
-	c.callAppenders(e)
+	c.publishAppenders(e)
 	PutEvent(e) // Return event to the pool
 }
 
@@ -150,6 +164,12 @@ func (c *AsyncLogger) GetDiscardCounter() int64 {
 
 // Start initializes channels and launches the worker goroutine.
 func (c *AsyncLogger) Start() error {
+
+	// Start underlying appenders
+	if err := c.LoggerBase.Start(); err != nil {
+		return err
+	}
+
 	if c.BufferSize < 100 {
 		return util.FormatError(nil, "bufferSize is too small")
 	}
@@ -165,7 +185,7 @@ func (c *AsyncLogger) Start() error {
 			}
 			switch x := v.(type) {
 			case *Event:
-				c.callAppenders(x)
+				c.publishAppenders(x)
 				PutEvent(x)
 			case []byte:
 				c.writeAppenders(x)
@@ -243,6 +263,9 @@ func (c *AsyncLogger) Stop() {
 	c.buf <- c.stop
 	<-c.wait
 	close(c.buf)
+
+	// Stop underlying appenders
+	c.LoggerBase.Stop()
 }
 
 // ----------------------------------------------------------------------------
@@ -288,7 +311,7 @@ func (f *FileLogger) initSyncLogger() {
 	appenders := []Appender{
 		&LevelFilterAppender{
 			Appender: &FileWriterAsAppender{
-				FileWriter: &ConcurrentRotateFileWriter{
+				FileWriter: &SyncRotateFileWriter{
 					RotateFileWriterBase: RotateFileWriterBase{
 						FileDir:        f.FileDir,
 						FileName:       f.FileName,
@@ -306,7 +329,7 @@ func (f *FileLogger) initSyncLogger() {
 	if f.Separate {
 		appenders = append(appenders, &LevelFilterAppender{
 			Appender: FileWriterAsAppender{
-				FileWriter: &ConcurrentRotateFileWriter{
+				FileWriter: &SyncRotateFileWriter{
 					RotateFileWriterBase: RotateFileWriterBase{
 						FileDir:        f.FileDir,
 						FileName:       f.FileName + ".wf",
@@ -320,10 +343,8 @@ func (f *FileLogger) initSyncLogger() {
 		})
 	}
 
-	l := &AsyncLogger{
-		LoggerBase:       f.LoggerBase,
-		BufferSize:       f.BufferSize,
-		BufferFullPolicy: f.BufferFullPolicy,
+	l := &SyncLogger{
+		LoggerBase: f.LoggerBase,
 	}
 	l.AppenderRefs = append(l.AppenderRefs, &AppenderRef{
 		appender: &LayoutAppender{
@@ -347,7 +368,7 @@ func (f *FileLogger) initAsyncLogger() {
 	appenders := []Appender{
 		&LevelFilterAppender{
 			Appender: &FileWriterAsAppender{
-				FileWriter: &SerialRotateFileWriter{
+				FileWriter: &AsyncRotateFileWriter{
 					RotateFileWriterBase: RotateFileWriterBase{
 						FileDir:        f.FileDir,
 						FileName:       f.FileName,
@@ -365,7 +386,7 @@ func (f *FileLogger) initAsyncLogger() {
 	if f.Separate {
 		appenders = append(appenders, &LevelFilterAppender{
 			Appender: FileWriterAsAppender{
-				FileWriter: &SerialRotateFileWriter{
+				FileWriter: &AsyncRotateFileWriter{
 					RotateFileWriterBase: RotateFileWriterBase{
 						FileDir:        f.FileDir,
 						FileName:       f.FileName + ".wf",

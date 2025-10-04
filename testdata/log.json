@@ -15,8 +15,8 @@
         "type": "TextLayout"
       }
     },
-    "multi": {
-      "type": "MultiAppender",
+    "sample": {
+      "type": "Sample",
       "layout": {
         "type": "TextLayout"
       }
@@ -40,7 +40,7 @@
           "ref": "file"
         },
         {
-          "ref": "multi"
+          "ref": "sample"
         }
       ]
     }

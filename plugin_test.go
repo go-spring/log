@@ -26,10 +26,10 @@ import (
 
 func TestRegisterPlugin(t *testing.T) {
 	assert.Panic(t, func() {
-		RegisterPlugin[int]("DummyLayout", PluginTypeLayout)
+		RegisterPlugin[int]("DummyLayout")
 	}, "T must be struct")
 	assert.Panic(t, func() {
-		RegisterPlugin[FileAppender]("File", PluginTypeAppender)
+		RegisterPlugin[FileAppender]("File")
 	}, "duplicate plugin name \"File\" in .*/plugin_appender.go:30 and .*/plugin_test.go:32")
 }
 

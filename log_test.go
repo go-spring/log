@@ -46,18 +46,18 @@ var myLoggerV2 = log.GetLogger("myLogger")
 
 ///////////////////////////////////////////////////////////////////////////////
 
-type MultiAppender struct {
+type SampleAppender struct {
 	log.AppenderBase
 }
 
-func (a *MultiAppender) Append(e *log.Event) {
+func (a *SampleAppender) Append(e *log.Event) {
 	data := a.Layout.ToBytes(e)
-	_, _ = os.Stdout.Write(data) // To share a layout, you need a multi-appender
-	_, _ = os.Stderr.Write(data) // You can integrate with other logging systems
+	_, _ = os.Stdout.Write(data)
+	_, _ = os.Stderr.Write(data)
 }
 
 func init() {
-	log.RegisterPlugin[MultiAppender]("MultiAppender", log.PluginTypeAppender)
+	log.RegisterPlugin[SampleAppender]("Sample")
 }
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -25,9 +25,9 @@ import (
 var Stdout io.Writer = os.Stdout
 
 func init() {
-	RegisterPlugin[DiscardAppender]("Discard", PluginTypeAppender)
-	RegisterPlugin[ConsoleAppender]("Console", PluginTypeAppender)
-	RegisterPlugin[FileAppender]("File", PluginTypeAppender)
+	RegisterPlugin[DiscardAppender]("Discard")
+	RegisterPlugin[ConsoleAppender]("Console")
+	RegisterPlugin[FileAppender]("File")
 }
 
 // Appender is an interface that defines components that handle log output.

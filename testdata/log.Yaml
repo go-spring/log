@@ -10,8 +10,8 @@ appender:
     type: Console
     layout:
       type: TextLayout
-  multi:
-    type: MultiAppender
+  sample:
+    type: Sample
     layout:
       type: TextLayout
 rootLogger:
@@ -27,4 +27,4 @@ logger:
     bufferSize: '${bufferSize}'
     appenderRef:
       - ref: file
-      - ref: multi
+      - ref: sample

@@ -213,24 +213,6 @@ func TestRefreshConfig(t *testing.T) {
 		assert.Error(t, err).Matches("`\\*\\*` regexp compile error")
 	})
 
-	t.Run("appender start error", func(t *testing.T) {
-		defer func() { global.init.Store(false) }()
-		content := `
-			rootLogger.type=Root
-			rootLogger.level=debug
-			rootLogger.appenderRef.ref=file
-			appender.file.type=File
-			appender.file.fileName=/not-exist-dir/access.log
-			appender.file.layout.type=TextLayout
-			logger.myLogger.type=Logger
-			logger.myLogger.level=info
-			logger.myLogger.tags=.*
-			logger.myLogger.appenderRef.ref=file
-		`
-		err := RefreshReader(strings.NewReader(content), ".properties")
-		assert.Error(t, err).String("appender file start error << open /not-exist-dir/access.log: no such file or directory")
-	})
-
 	t.Run("logger start error", func(t *testing.T) {
 		defer func() { global.init.Store(false) }()
 		content := `

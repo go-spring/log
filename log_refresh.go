@@ -188,14 +188,7 @@ func RefreshConfig(s *barky.Storage) error {
 		tagRegexpMap[tag] = r
 	}
 
-	// Start all appenders
-	for _, a := range cAppenders {
-		if err := a.Start(); err != nil {
-			return util.WrapError(err, "appender %s start error", a)
-		}
-	}
-
-	// Start all loggers
+	// Start all loggers and their appenders
 	for _, l := range cLoggers {
 		if err := l.Start(); err != nil {
 			return util.WrapError(err, "logger %s start error", l)

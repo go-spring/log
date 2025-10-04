@@ -122,9 +122,6 @@ appender.file.layout.type=JSONLayout
 appender.console.type=Console
 appender.console.layout.type=TextLayout
 
-appender.multi.type=MultiAppender
-appender.multi.layout.type=TextLayout
-
 rootLogger.type=Root
 rootLogger.level=warn
 rootLogger.appenderRef.ref=console
@@ -134,7 +131,6 @@ logger.myLogger.level=trace
 logger.myLogger.tags=_com_request_in,_com_request_*
 logger.myLogger.bufferSize=${bufferSize}
 logger.myLogger.appenderRef[0].ref=file
-logger.myLogger.appenderRef[1].ref=multi
 ```
 
 ## Plugin Development
