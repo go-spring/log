@@ -32,12 +32,12 @@ func init() {
 	RegisterPlugin[AsyncLogger]("AsyncRoot", PluginTypeAsyncRoot)
 	RegisterPlugin[SyncLogger]("Logger", PluginTypeLogger)
 	RegisterPlugin[AsyncLogger]("AsyncLogger", PluginTypeAsyncLogger)
+	RegisterPlugin[FileLogger]("FileLogger", PluginTypeLogger)
 }
 
 // Logger is the interface implemented by all loggers.
 type Logger interface {
 	Lifecycle                          // Start/Stop methods
-	GetName() string                   // Get the name of the logger
 	Publish(e *Event)                  // Send events to appenders
 	EnableLevel(level Level) bool      // Whether a log level is enabled
 	Write(b []byte) (n int, err error) // Write raw bytes to appenders
@@ -58,8 +58,8 @@ type LoggerBase struct {
 	AppenderRefs []*AppenderRef `PluginElement:"AppenderRef"`     // Attached appenders
 }
 
-// GetName returns the name of the logger.
-func (c *LoggerBase) GetName() string {
+// String returns the name of the logger.
+func (c *LoggerBase) String() string {
 	return c.Name
 }
 
@@ -81,6 +81,10 @@ func (c *LoggerBase) writeAppenders(b []byte) {
 func (c *LoggerBase) EnableLevel(level Level) bool {
 	return level.code >= c.Level.code
 }
+
+// ----------------------------------------------------------------------------
+// log4j2 logger
+// ----------------------------------------------------------------------------
 
 // SyncLogger is a synchronous logger that immediately forwards events to appenders.
 type SyncLogger struct {
@@ -239,4 +243,154 @@ func (c *AsyncLogger) Stop() {
 	c.buf <- c.stop
 	<-c.wait
 	close(c.buf)
+}
+
+// ----------------------------------------------------------------------------
+// file logger
+// ----------------------------------------------------------------------------
+
+type FileLogger struct {
+	LoggerBase
+	Logger
+
+	Layout Layout `PluginElement:"Layout"`
+
+	FileDir  string `PluginAttribute:"dir,default=./log"`
+	FileName string `PluginAttribute:"file,default=app.log"`
+
+	Separate       bool           `PluginAttribute:"separate,default=false"`
+	ClearHours     int32          `PluginAttribute:"clearHours,default=168"`
+	RotateStrategy RotateStrategy `PluginAttribute:"rotateStrategy,default=1h"`
+
+	AsyncWrite       bool             `PluginAttribute:"async,default=false"`
+	BufferSize       int              `PluginAttribute:"bufferSize,default=10000"`
+	BufferFullPolicy BufferFullPolicy `PluginAttribute:"bufferFullPolicy,default=Discard"`
+}
+
+// Start initializes the logger and starts the appenders.
+func (f *FileLogger) Start() error {
+	if f.AsyncWrite {
+		f.initAsyncLogger()
+	} else {
+		f.initSyncLogger()
+	}
+	return f.Logger.Start()
+}
+
+// initSyncLogger initializes a synchronous logger.
+func (f *FileLogger) initSyncLogger() {
+	normalMaxLevel := MaxLevel
+	if f.Separate {
+		normalMaxLevel = WarnLevel
+	}
+
+	// normal
+	appenders := []Appender{
+		&LevelFilterAppender{
+			Appender: &FileWriterAsAppender{
+				FileWriter: &ConcurrentRotateFileWriter{
+					RotateFileWriterBase: RotateFileWriterBase{
+						FileDir:        f.FileDir,
+						FileName:       f.FileName,
+						ClearHours:     f.ClearHours,
+						RotateStrategy: f.RotateStrategy,
+					},
+				},
+			},
+			MinLevel: f.Level,
+			MaxLevel: normalMaxLevel,
+		},
+	}
+
+	// warn & error
+	if f.Separate {
+		appenders = append(appenders, &LevelFilterAppender{
+			Appender: FileWriterAsAppender{
+				FileWriter: &ConcurrentRotateFileWriter{
+					RotateFileWriterBase: RotateFileWriterBase{
+						FileDir:        f.FileDir,
+						FileName:       f.FileName + ".wf",
+						ClearHours:     f.ClearHours,
+						RotateStrategy: f.RotateStrategy,
+					},
+				},
+			},
+			MinLevel: WarnLevel,
+			MaxLevel: MaxLevel,
+		})
+	}
+
+	l := &AsyncLogger{
+		LoggerBase:       f.LoggerBase,
+		BufferSize:       f.BufferSize,
+		BufferFullPolicy: f.BufferFullPolicy,
+	}
+	l.AppenderRefs = append(l.AppenderRefs, &AppenderRef{
+		appender: &LayoutAppender{
+			Layout: f.Layout,
+			Appender: &MultiAppender{
+				appenders: appenders,
+			},
+		},
+	})
+	f.Logger = l
+}
+
+// initAsyncLogger initializes an asynchronous logger.
+func (f *FileLogger) initAsyncLogger() {
+	normalMaxLevel := MaxLevel
+	if f.Separate {
+		normalMaxLevel = WarnLevel
+	}
+
+	// normal
+	appenders := []Appender{
+		&LevelFilterAppender{
+			Appender: &FileWriterAsAppender{
+				FileWriter: &SerialRotateFileWriter{
+					RotateFileWriterBase: RotateFileWriterBase{
+						FileDir:        f.FileDir,
+						FileName:       f.FileName,
+						ClearHours:     f.ClearHours,
+						RotateStrategy: f.RotateStrategy,
+					},
+				},
+			},
+			MinLevel: f.Level,
+			MaxLevel: normalMaxLevel,
+		},
+	}
+
+	// warn & error
+	if f.Separate {
+		appenders = append(appenders, &LevelFilterAppender{
+			Appender: FileWriterAsAppender{
+				FileWriter: &SerialRotateFileWriter{
+					RotateFileWriterBase: RotateFileWriterBase{
+						FileDir:        f.FileDir,
+						FileName:       f.FileName + ".wf",
+						ClearHours:     f.ClearHours,
+						RotateStrategy: f.RotateStrategy,
+					},
+				},
+			},
+			MinLevel: WarnLevel,
+			MaxLevel: MaxLevel,
+		})
+	}
+
+	l := &AsyncLogger{
+		LoggerBase:       f.LoggerBase,
+		BufferSize:       f.BufferSize,
+		BufferFullPolicy: f.BufferFullPolicy,
+	}
+	l.AppenderRefs = append(l.AppenderRefs, &AppenderRef{
+		appender: &LayoutAppender{
+			Layout: f.Layout,
+			Appender: &MultiAppender{
+				appenders: appenders,
+			},
+		},
+	})
+	f.Logger = l
 }

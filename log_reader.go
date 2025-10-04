@@ -17,9 +17,7 @@
 package log
 
 import (
-	"bytes"
 	"encoding/json"
-	"encoding/xml"
 	"io"
 	"os"
 	"path/filepath"
@@ -34,7 +32,6 @@ import (
 var fileReaders = map[string]Reader{}
 
 func init() {
-	RegisterReader(ReadXML, ".xml")
 	RegisterReader(ReadJSON, ".json")
 	RegisterReader(ReadYAML, ".yml", ".yaml")
 	RegisterReader(ReadProperties, ".properties")
@@ -112,144 +109,6 @@ func ReadYAML(b []byte) (map[string]any, error) {
 		return nil, util.FormatError(err, "ReadYAML error")
 	}
 	return r, nil
-}
-
-// ReadXML parses an XML configuration file into a map.
-func ReadXML(b []byte) (map[string]any, error) {
-	d := xml.NewDecoder(bytes.NewReader(b))
-	m := make(map[string]any)
-	for {
-		token, err := d.Token()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, util.FormatError(err, "ReadXML error")
-		}
-		switch t := token.(type) {
-		case xml.StartElement:
-			switch t.Name.Local {
-			case "Configuration":
-				// root element, skip
-			case "Properties", "Appenders", "Loggers":
-				s := make(map[string]any)
-				if err = xmlToMap(s, d); err != nil {
-					return nil, util.FormatError(err, "ReadXML error")
-				}
-				m[t.Name.Local] = s
-			default:
-				err = util.FormatError(nil, "unsupported xml tag %s", t.Name.Local)
-				return nil, util.FormatError(err, "ReadXML error")
-			}
-		default: // for linter
-		}
-	}
-
-	r := make(map[string]any)
-
-	// flatten Properties
-	if p, ok := m["Properties"]; ok {
-		for k, v := range p.(map[string]any) {
-			r[k] = v.(map[string]any)["Text"]
-		}
-	}
-
-	// validate Appenders
-	if a, ok := m["Appenders"]; !ok {
-		return nil, util.FormatError(nil, "missing Appenders")
-	} else {
-		r["Appender"] = a
-	}
-
-	// validate Loggers
-	if l, ok := m["Loggers"]; !ok {
-		return nil, util.FormatError(nil, "missing Loggers")
-	} else {
-		a := l.(map[string]any)
-		root := a["Root"]
-		asyncRoot := a["AsyncRoot"]
-
-		var s map[string]any
-		if root != nil {
-			if asyncRoot != nil {
-				return nil, util.FormatError(nil, "found multiple root loggers")
-			}
-			s = root.(map[string]any)
-		} else {
-			if asyncRoot == nil {
-				return nil, util.FormatError(nil, "missing Root or AsyncRoot")
-			}
-			s = asyncRoot.(map[string]any)
-		}
-
-		// remove root from Loggers map
-		if len(s) > 0 {
-			delete(a, s["Type"].(string))
-			r["rootLogger"] = s
-		}
-		r["Logger"] = l
-	}
-
-	return r, nil
-}
-
-// xmlToMap recursively converts XML elements into map[string]any
-func xmlToMap(m map[string]any, d *xml.Decoder) error {
-	for {
-		token, err := d.Token()
-		if err != nil {
-			return err
-		}
-		switch t := token.(type) {
-		case xml.StartElement:
-			p, ok := pluginRegistry[t.Name.Local]
-			if !ok {
-				return util.FormatError(nil, "unsupported xml tag %s", t.Name.Local)
-			}
-
-			s := map[string]any{
-				"Type": t.Name.Local,
-			}
-
-			var name string
-			for _, attr := range t.Attr {
-				if attr.Name.Local == "name" {
-					name = attr.Value
-					continue
-				}
-				s[attr.Name.Local] = attr.Value
-			}
-
-			if name == "" {
-				strType := string(p.Type)
-				if v, ok := m[strType]; ok {
-					switch o := v.(type) {
-					case []any:
-						m[strType] = append(o, s)
-					default:
-						m[strType] = []any{v, s}
-					}
-				} else {
-					m[strType] = s
-				}
-			} else {
-				m[name] = s
-			}
-
-			if err = xmlToMap(s, d); err != nil {
-				return err
-			}
-
-		case xml.CharData:
-			if text := strings.TrimSpace(string(t)); text != "" {
-				s, _ := m["Text"].(string)
-				m["Text"] = s + text
-			}
-		case xml.EndElement:
-			return nil
-		default: // for linter
-		}
-	}
 }
 
 // toStorage converts a flattened map into a *barky.Storage instance.

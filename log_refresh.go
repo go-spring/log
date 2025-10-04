@@ -171,7 +171,7 @@ func RefreshConfig(s *barky.Storage) error {
 		}
 		for _, strTag := range tags {
 			if l, ok := cTags[strTag]; ok && l != logger {
-				err = util.FormatError(nil, "tag '%s' already config in logger %s", strTag, l.GetName())
+				err = util.FormatError(nil, "tag '%s' already config in logger %s", strTag, l)
 				return util.WrapError(err, "create logger %s error", name)
 			}
 			cTags[strTag] = logger
@@ -191,14 +191,14 @@ func RefreshConfig(s *barky.Storage) error {
 	// Start all appenders
 	for _, a := range cAppenders {
 		if err := a.Start(); err != nil {
-			return util.WrapError(err, "appender %s start error", a.GetName())
+			return util.WrapError(err, "appender %s start error", a)
 		}
 	}
 
 	// Start all loggers
 	for _, l := range cLoggers {
 		if err := l.Start(); err != nil {
-			return util.WrapError(err, "logger %s start error", l.GetName())
+			return util.WrapError(err, "logger %s start error", l)
 		}
 	}
 

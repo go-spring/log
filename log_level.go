@@ -35,6 +35,7 @@ var (
 	ErrorLevel = RegisterLevel(500, "ERROR") // Errors that allow the application to continue running
 	PanicLevel = RegisterLevel(600, "PANIC") // Severe issues that may cause a panic in the application
 	FatalLevel = RegisterLevel(700, "FATAL") // Critical issues that will terminate the application
+	MaxLevel   = RegisterLevel(999, "MAX")   // Maximum level (used as the upper bound for comparisons)
 )
 
 var levelRegistry = map[string]Level{}

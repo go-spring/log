@@ -33,7 +33,6 @@ func init() {
 // Appender is an interface that defines components that handle log output.
 type Appender interface {
 	Lifecycle        // Appenders must be startable and stoppable
-	GetName() string // Returns the appender name
 	Append(e *Event) // Handles writing a log event
 	Write(b []byte)  // Directly writes a byte slice
 }
@@ -50,7 +49,7 @@ type AppenderBase struct {
 	Layout Layout `PluginElement:"Layout"` // Layout defines how logs are formatted
 }
 
-func (c *AppenderBase) GetName() string { return c.Name }
+func (c *AppenderBase) String() string  { return c.Name }
 func (c *AppenderBase) Start() error    { return nil }
 func (c *AppenderBase) Stop()           {}
 func (c *AppenderBase) Append(e *Event) {}
@@ -72,7 +71,6 @@ func (c *ConsoleAppender) Append(e *Event) {
 }
 
 // Write writes a byte slice directly to the stdout.
-// Errors are deliberately ignored.
 func (c *ConsoleAppender) Write(b []byte) {
 	_, _ = Stdout.Write(b)
 }
@@ -87,7 +85,8 @@ type FileAppender struct {
 
 // Start opens the log file for appending.
 func (c *FileAppender) Start() error {
-	f, err := os.OpenFile(c.FileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, os.ModePerm)
+	const fileFlag = os.O_WRONLY | os.O_CREATE | os.O_APPEND
+	f, err := os.OpenFile(c.FileName, fileFlag, os.ModePerm)
 	if err != nil {
 		return err
 	}
@@ -101,7 +100,6 @@ func (c *FileAppender) Append(e *Event) {
 }
 
 // Write writes a byte slice directly to the file.
-// Errors are deliberately ignored.
 func (c *FileAppender) Write(b []byte) {
 	_, _ = c.file.Write(b)
 }
@@ -109,8 +107,82 @@ func (c *FileAppender) Write(b []byte) {
 // Stop flushes and closes the file.
 func (c *FileAppender) Stop() {
 	if c.file != nil {
-		// Errors are deliberately ignored
 		_ = c.file.Sync()
 		_ = c.file.Close()
+	}
+}
+
+// -----------------------------------------------------------------------------
+// Appender Utilities
+// -----------------------------------------------------------------------------
+
+// LayoutAppender is an Appender wrapper that applies a Layout
+// to each log event before delegating the formatted output
+// to the underlying Appender.
+type LayoutAppender struct {
+	Appender
+	Layout Layout
+}
+
+// Append formats the given log event using the configured Layout
+// and then writes the formatted bytes to the underlying Appender.
+func (c *LayoutAppender) Append(e *Event) {
+	c.Appender.Write(c.Layout.ToBytes(e))
+}
+
+// LevelFilterAppender filters log events based on their severity level.
+// Only events with levels between MinLevel and MaxLevel (inclusive)
+// will be passed to the underlying Appender.
+type LevelFilterAppender struct {
+	Appender
+	MinLevel Level
+	MaxLevel Level
+}
+
+// Append filters the incoming log event according to the defined level range.
+// If the event's level is outside the range [MinLevel, MaxLevel),
+// the event will be ignored. Otherwise, it is forwarded to the underlying Appender.
+func (c *LevelFilterAppender) Append(e *Event) {
+	if e.Level.code < c.MinLevel.code || e.Level.code >= c.MaxLevel.code {
+		return
+	}
+	c.Appender.Append(e)
+}
+
+// MultiAppender delegates log events to multiple underlying appenders.
+// It is useful when you want to send log events to several outputs.
+type MultiAppender struct {
+	appenders []Appender
+}
+
+// Start initializes all underlying appenders.
+// If any appender fails to start, it returns the corresponding error.
+func (c *MultiAppender) Start() error {
+	for _, appender := range c.appenders {
+		if err := appender.Start(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Append forwards the given log event to all underlying appenders.
+func (c *MultiAppender) Append(e *Event) {
+	for _, appender := range c.appenders {
+		appender.Append(e)
+	}
+}
+
+// Write writes raw byte data to all underlying appenders.
+func (c *MultiAppender) Write(b []byte) {
+	for _, appender := range c.appenders {
+		appender.Write(b)
+	}
+}
+
+// Stop stops all underlying appenders in order.
+func (c *MultiAppender) Stop() {
+	for _, appender := range c.appenders {
+		appender.Stop()
 	}
 }

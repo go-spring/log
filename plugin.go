@@ -72,8 +72,8 @@ func init() {
 
 // Plugin represents metadata about a plugin type.
 type Plugin struct {
-	Name  string       // Name of the plugin
-	Type  PluginType   // Type of the plugin
+	Name string // Name of the plugin
+	//Type  PluginType   // Type of the plugin
 	Class reflect.Type // Underlying struct type
 	File  string       // File where plugin was registered
 	Line  int          // Line number where plugin was registered
@@ -91,8 +91,8 @@ func RegisterPlugin[T any](name string, typ PluginType) {
 		panic("T must be struct")
 	}
 	pluginRegistry[name] = &Plugin{
-		Name:  name,
-		Type:  typ,
+		Name: name,
+		//Type:  typ,
 		Class: t,
 		File:  file,
 		Line:  line,

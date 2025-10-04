@@ -32,15 +32,15 @@ func TestRefreshFile(t *testing.T) {
 
 	t.Run("file not exist", func(t *testing.T) {
 		defer func() { Destroy() }()
-		err := RefreshFile("testdata/file-not-exist.xml")
-		assert.Error(t, err).Matches("open testdata/file-not-exist.xml")
+		err := RefreshFile("testdata/file-not-exist.yaml")
+		assert.Error(t, err).Matches("open testdata/file-not-exist.yaml")
 	})
 
 	t.Run("already refresh", func(t *testing.T) {
 		defer func() { Destroy() }()
-		err := RefreshFile("testdata/log.XML")
+		err := RefreshFile("testdata/log.Yaml")
 		assert.Error(t, err).Nil()
-		err = RefreshFile("testdata/log.XML")
+		err = RefreshFile("testdata/log.Yaml")
 		assert.Error(t, err).Matches("log refresh already done")
 	})
 }

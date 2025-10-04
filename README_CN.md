@@ -79,7 +79,7 @@ func main() {
 	}
 
 	// 加载配置文件
-	err := log.RefreshFile("log.xml")
+	err := log.RefreshFile("log.properties")
 	if err != nil {
 		panic(err)
 	}
@@ -101,28 +101,32 @@ func main() {
 
 ## 配置说明
 
-Go-Spring :: Log 支持通过 XML、JSON 或 YAML 配置文件定义日志行为，例如：
+Go-Spring :: Log 支持通过 JSON 或 YAML 配置文件定义日志行为，例如：
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<Configuration>
-    <Properties>
-        <Property name="LayoutBufferSize">100KB</Property>
-    </Properties>
-    <Appenders>
-        <Console name="console">
-            <JSONLayout bufferSize="${LayoutBufferSize}"/>
-        </Console>
-    </Appenders>
-    <Loggers>
-        <Root level="warn">
-            <AppenderRef ref="console"/>
-        </Root>
-        <Logger name="logger" level="info" tags="_com_request_*">
-            <AppenderRef ref="console"/>
-        </Logger>
-    </Loggers>
-</Configuration>
+```properties
+bufferCap=1KB
+bufferSize=1000
+
+appender.file.type=File
+appender.file.fileName=log.txt
+appender.file.layout.type=JSONLayout
+
+appender.console.type=Console
+appender.console.layout.type=TextLayout
+
+appender.multi.type=MultiAppender
+appender.multi.layout.type=TextLayout
+
+rootLogger.type=Root
+rootLogger.level=warn
+rootLogger.appenderRef.ref=console
+
+logger.myLogger.type=AsyncLogger
+logger.myLogger.level=trace
+logger.myLogger.tags=_com_request_in,_com_request_*
+logger.myLogger.bufferSize=${bufferSize}
+logger.myLogger.appenderRef[0].ref=file
+logger.myLogger.appenderRef[1].ref=multi
 ```
 
 ## 插件开发

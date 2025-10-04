@@ -25,20 +25,13 @@ import (
 
 func fakeGSAppenders() {
 	err := log.RefreshReader(strings.NewReader(`
-		<?xml version="1.0" encoding="UTF-8"?>
-		<Configuration>
-		    <Appenders>
-		        <Discard name="discard">
-		            <JSONLayout/>
-		        </Discard>
-		    </Appenders>
-		    <Loggers>
-		        <Root level="warn">
-		            <AppenderRef ref="discard"/>
-		        </Root>
-		    </Loggers>
-		</Configuration>
-	`), ".xml")
+		appender.discard.type=Discard
+		appender.discard.layout.type=JSONLayout
+		
+		rootLogger.type=Root
+		rootLogger.level=warn
+		rootLogger.appenderRef.ref=discard
+	`), ".properties")
 	if err != nil {
 		panic(err)
 	}

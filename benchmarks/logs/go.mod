@@ -15,12 +15,16 @@ require (
 
 require (
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
+	github.com/go-spring/spring-base v1.2.4 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
+	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/spf13/cast v1.10.0 // indirect
 	golang.org/x/sys v0.12.0 // indirect
 	golang.org/x/term v0.12.0 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
 replace github.com/go-spring/log => ../../

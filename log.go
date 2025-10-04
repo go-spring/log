@@ -42,7 +42,7 @@ Contextual data can be extracted and included in log entries via configurable fu
 
 Configuration from File:
 
-The `log.RefreshFile` function allows loading the logger's configuration from an external file (e.g., XML or JSON).
+The `log.RefreshFile` function allows loading the logger's configuration from an external file (e.g., yaml or JSON).
 
 Logger Initialization and Logging:
 
