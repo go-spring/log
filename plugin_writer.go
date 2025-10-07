@@ -87,10 +87,11 @@ type FileWriter interface {
 // to make it compatible with components expecting an Appender.
 // However, calling Append on this type is explicitly forbidden.
 type FileWriterAsAppender struct {
+	AppenderBase
 	FileWriter
 }
 
-func (c FileWriterAsAppender) Append(e *Event) {
+func (c *FileWriterAsAppender) Append(e *Event) {
 	panic(util.ErrForbiddenMethod)
 }
 
