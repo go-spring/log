@@ -339,7 +339,7 @@ func initFileLogger[T FileWriter](
 	appenders := []*AppenderRef{
 		{
 			Appender: &LevelFilterAppender{
-				AppenderRef: AppenderRef{
+				AppenderRef: &AppenderRef{
 					Appender: &FileWriterAsAppender{
 						FileWriter: fnAppender(RotateFileWriterBase{
 							FileDir:        f.FileDir,
@@ -359,7 +359,7 @@ func initFileLogger[T FileWriter](
 	if f.Separate {
 		appenders = append(appenders, &AppenderRef{
 			Appender: &LevelFilterAppender{
-				AppenderRef: AppenderRef{
+				AppenderRef: &AppenderRef{
 					Appender: &FileWriterAsAppender{
 						FileWriter: fnAppender(RotateFileWriterBase{
 							FileDir:        f.FileDir,
@@ -380,9 +380,9 @@ func initFileLogger[T FileWriter](
 	// Wrap all appenders with LayoutAppender to format log messages
 	a := &LayoutAppender{
 		Layout: f.Layout,
-		AppenderRef: AppenderRef{
+		AppenderRef: &AppenderRef{
 			Appender: &MultiAppender{
-				appenders: appenders,
+				AppenderRefs: appenders,
 			},
 		},
 	}

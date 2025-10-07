@@ -120,23 +120,23 @@ func (c *FileAppender) Stop() {
 // to each log event before delegating the formatted output
 // to the underlying Appender.
 type LayoutAppender struct {
-	AppenderRef
-	Layout Layout
+	*AppenderRef `PluginElement:"AppenderRef"` // Attached appenders
+	Layout       Layout
 }
 
 // Append formats the given log event using the configured Layout
 // and then writes the formatted bytes to the underlying Appender.
 func (c *LayoutAppender) Append(e *Event) {
-	c.Appender.Write(c.Layout.ToBytes(e))
+	c.AppenderRef.Write(c.Layout.ToBytes(e))
 }
 
 // LevelFilterAppender filters log events based on their severity level.
 // Only events with levels between MinLevel and MaxLevel (exclusive)
 // will be passed to the underlying Appender.
 type LevelFilterAppender struct {
-	AppenderRef
-	MinLevel Level
-	MaxLevel Level
+	*AppenderRef `PluginElement:"AppenderRef"` // Attached appenders
+	MinLevel     Level
+	MaxLevel     Level
 }
 
 // Append filters the incoming log event according to the defined level range.
@@ -144,20 +144,20 @@ type LevelFilterAppender struct {
 // the event will be ignored. Otherwise, it is forwarded to the underlying Appender.
 func (c *LevelFilterAppender) Append(e *Event) {
 	if e.Level.code >= c.MinLevel.code && e.Level.code < c.MaxLevel.code {
-		c.Appender.Append(e)
+		c.AppenderRef.Append(e)
 	}
 }
 
 // MultiAppender delegates log events to multiple underlying appenders.
 // It is useful when you want to send log events to several outputs.
 type MultiAppender struct {
-	appenders []*AppenderRef
+	AppenderRefs []*AppenderRef `PluginElement:"AppenderRef"` // Attached appenders
 }
 
 // Start initializes all underlying appenders.
 // If any appender fails to start, it returns the corresponding error.
 func (c *MultiAppender) Start() error {
-	for _, appender := range c.appenders {
+	for _, appender := range c.AppenderRefs {
 		if err := appender.Start(); err != nil {
 			return err
 		}
@@ -167,21 +167,21 @@ func (c *MultiAppender) Start() error {
 
 // Append forwards the given log event to all underlying appenders.
 func (c *MultiAppender) Append(e *Event) {
-	for _, appender := range c.appenders {
+	for _, appender := range c.AppenderRefs {
 		appender.Append(e)
 	}
 }
 
 // Write writes raw byte data to all underlying appenders.
 func (c *MultiAppender) Write(b []byte) {
-	for _, appender := range c.appenders {
+	for _, appender := range c.AppenderRefs {
 		appender.Write(b)
 	}
 }
 
 // Stop stops all underlying appenders in order.
 func (c *MultiAppender) Stop() {
-	for _, appender := range c.appenders {
+	for _, appender := range c.AppenderRefs {
 		appender.Stop()
 	}
 }
