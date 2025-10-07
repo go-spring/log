@@ -120,7 +120,7 @@ func (c *FileAppender) Stop() {
 // to each log event before delegating the formatted output
 // to the underlying Appender.
 type LayoutAppender struct {
-	Appender
+	AppenderRef
 	Layout Layout
 }
 
@@ -134,7 +134,7 @@ func (c *LayoutAppender) Append(e *Event) {
 // Only events with levels between MinLevel and MaxLevel (exclusive)
 // will be passed to the underlying Appender.
 type LevelFilterAppender struct {
-	Appender
+	AppenderRef
 	MinLevel Level
 	MaxLevel Level
 }
@@ -151,7 +151,7 @@ func (c *LevelFilterAppender) Append(e *Event) {
 // MultiAppender delegates log events to multiple underlying appenders.
 // It is useful when you want to send log events to several outputs.
 type MultiAppender struct {
-	appenders []Appender
+	appenders []*AppenderRef
 }
 
 // Start initializes all underlying appenders.

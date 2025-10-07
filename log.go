@@ -119,7 +119,7 @@ var defaultLogger Logger = &SyncLogger{
 		Level: InfoLevel,
 		AppenderRefs: []*AppenderRef{
 			{
-				appender: &ConsoleAppender{
+				Appender: &ConsoleAppender{
 					AppenderBase: AppenderBase{
 						Layout: &TextLayout{
 							BaseLayout: BaseLayout{

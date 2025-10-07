@@ -105,7 +105,7 @@ func RefreshConfig(s *barky.Storage) error {
 			if !ok {
 				return nil, util.FormatError(nil, "appender %s not found", r.Ref)
 			}
-			r.appender = appender
+			r.Appender = appender
 		}
 		return base, nil
 	}
