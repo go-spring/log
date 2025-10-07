@@ -28,6 +28,9 @@ func init() {
 	RegisterPlugin[DiscardAppender]("Discard", PluginTypeAppender)
 	RegisterPlugin[ConsoleAppender]("Console", PluginTypeAppender)
 	RegisterPlugin[FileAppender]("File", PluginTypeAppender)
+	RegisterPlugin[MultiAppender]("Multi", PluginTypeAppender)
+	RegisterPlugin[LayoutAppender]("Layout", PluginTypeAppender)
+	RegisterPlugin[LevelFilterAppender]("LevelFilter", PluginTypeAppender)
 }
 
 // Appender is an interface that defines components that handle log output.
