@@ -28,8 +28,6 @@ func init() {
 
 func init() {
 	RegisterPlugin[AppenderRef]("AppenderRef")
-	RegisterPlugin[SyncLogger]("Root")
-	RegisterPlugin[AsyncLogger]("AsyncRoot")
 	RegisterPlugin[SyncLogger]("Logger")
 	RegisterPlugin[AsyncLogger]("AsyncLogger")
 	RegisterPlugin[FileLogger]("FileLogger")

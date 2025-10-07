@@ -38,7 +38,7 @@ var TagDefault = log.RegisterTag("_def")
 var TagRequestIn = log.RegisterTag("_com_request_in")
 var TagRequestOut = log.RegisterTag(log.BuildTag("com", "request", "out"))
 
-var rootLogger = log.GetRootLogger()
+var rootLogger = log.GetLogger(log.RootLoggerName)
 
 // Loggers with same name 'myLogger'
 var myLogger = log.GetLogger("myLogger")

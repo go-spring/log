@@ -122,9 +122,9 @@ appender.file.layout.type=JSONLayout
 appender.console.type=Console
 appender.console.layout.type=TextLayout
 
-rootLogger.type=Root
-rootLogger.level=warn
-rootLogger.appenderRef.ref=console
+logger.root.type=Logger
+logger.root.level=warn
+logger.root.appenderRef.ref=console
 
 logger.myLogger.type=AsyncLogger
 logger.myLogger.level=trace

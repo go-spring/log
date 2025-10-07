@@ -27,14 +27,14 @@ import (
 	"github.com/go-spring/spring-base/util"
 )
 
+const RootLoggerName = "root"
+
 // global holds the global state of loggers and appenders.
 var global struct {
 	init      atomic.Bool
 	loggers   []Logger
 	appenders []Appender
 }
-
-const RootLoggerName = "::ROOT::"
 
 // RefreshFile loads a logging configuration from a file by its name.
 func RefreshFile(fileName string) error {
@@ -129,21 +129,6 @@ func RefreshConfig(s *barky.Storage) error {
 		cAppenders[name] = v.Interface().(Appender)
 	}
 
-	// Initialize root logger
-	if s.Has("rootLogger") {
-		v, err := newPlugin("rootLogger.type")
-		if err != nil {
-			return util.WrapError(err, "create root logger error")
-		}
-		base, err := initAppenderRefs(v, cAppenders)
-		if err != nil {
-			return util.WrapError(err, "init appender refs for root logger error")
-		}
-		base.Name = RootLoggerName
-		cRoot = v.Interface().(Logger)
-		cLoggers[RootLoggerName] = cRoot
-	}
-
 	// Initialize all other loggers
 	for _, name := range loggers {
 		v, err := newPlugin("logger." + name + ".type")
@@ -156,6 +141,11 @@ func RefreshConfig(s *barky.Storage) error {
 		}
 		logger := v.Interface().(Logger)
 		cLoggers[name] = logger
+
+		if name == RootLoggerName {
+			cRoot = logger
+			continue
+		}
 
 		// Assign tags to logger
 		var tags []string

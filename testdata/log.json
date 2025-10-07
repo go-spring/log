@@ -22,14 +22,14 @@
       }
     }
   },
-  "rootLogger": {
-    "type": "Root",
-    "level": "warn",
-    "appenderRef": {
-      "ref": "console"
-    }
-  },
   "logger": {
+    "root": {
+      "type": "Logger",
+      "level": "warn",
+      "appenderRef": {
+        "ref": "console"
+      }
+    },
     "myLogger": {
       "type": "AsyncLogger",
       "level": "trace",
