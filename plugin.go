@@ -50,29 +50,49 @@ type Lifecycle interface {
 	Stop()
 }
 
-var pluginRegistry = map[string]*Plugin{}
+// PluginType represents different types of plugins.
+type PluginType string
+
+const (
+	PluginTypeLogger      PluginType = "logger"
+	PluginTypeAppenderRef PluginType = "appenderRef"
+	PluginTypeAppender    PluginType = "appender"
+	PluginTypeLayout      PluginType = "layout"
+)
+
+var pluginRegistry = map[PluginType]map[string]*Plugin{}
 
 // Plugin represents metadata about a plugin type.
 type Plugin struct {
 	Name  string       // Name of the plugin
+	Type  PluginType   // Type of the plugin
 	Class reflect.Type // Underlying struct type
 	File  string       // File where plugin was registered
 	Line  int          // Line number where plugin was registered
 }
 
 // RegisterPlugin registers a plugin type T with a given name and plugin type.
-func RegisterPlugin[T any](name string) {
-	_, file, line, _ := runtime.Caller(1)
-	if p, ok := pluginRegistry[name]; ok {
-		err := util.FormatError(nil, "duplicate plugin name %q in %s:%d and %s:%d", name, p.File, p.Line, file, line)
-		panic(err)
-	}
+func RegisterPlugin[T any](name string, typ PluginType) {
 	t := reflect.TypeFor[T]()
 	if t.Kind() != reflect.Struct {
 		panic("T must be struct")
 	}
-	pluginRegistry[name] = &Plugin{
+
+	m := pluginRegistry[typ]
+	if m == nil {
+		m = make(map[string]*Plugin)
+		pluginRegistry[typ] = m
+	}
+
+	_, file, line, _ := runtime.Caller(1)
+	if p, ok := m[name]; ok {
+		err := util.FormatError(nil, "duplicate plugin name %q in %s:%d and %s:%d", name, p.File, p.Line, file, line)
+		panic(err)
+	}
+
+	m[name] = &Plugin{
 		Name:  name,
+		Type:  typ,
 		Class: t,
 		File:  file,
 		Line:  line,
@@ -288,12 +308,12 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 				const def = ":def:"
 				strType := s.Get(subKey+".type", def)
 				if strType != def {
-					if p, ok = pluginRegistry[strType]; !ok {
+					if p, ok = pluginRegistry[PluginType(toCamelKey(elemType))][strType]; !ok {
 						err := util.FormatError(nil, "plugin %s not found", strType)
 						return util.WrapError(err, "inject struct field %s error", ft.Name)
 					}
 				} else {
-					if p, ok = pluginRegistry[elemType]; !ok {
+					if p, ok = pluginRegistry[PluginType(toCamelKey(elemType))][elemType]; !ok {
 						err := util.FormatError(nil, "plugin %s not found", elemType)
 						return util.WrapError(err, "inject struct field %s error", ft.Name)
 					}
@@ -311,12 +331,12 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 			)
 			const def = ":def:"
 			if strType := s.Get(elemKey+".type", def); strType != def {
-				if p, ok = pluginRegistry[strType]; !ok {
+				if p, ok = pluginRegistry[PluginType(toCamelKey(elemType))][strType]; !ok {
 					err := util.FormatError(nil, "plugin %s not found", strType)
 					return util.WrapError(err, "inject struct field %s error", ft.Name)
 				}
 			} else {
-				if p, ok = pluginRegistry[elemType]; !ok {
+				if p, ok = pluginRegistry[PluginType(toCamelKey(elemType))][elemType]; !ok {
 					err := util.FormatError(nil, "plugin %s not found", elemType)
 					return util.WrapError(err, "inject struct field %s error", ft.Name)
 				}
@@ -349,7 +369,7 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 			strType = elemLabel
 		}
 
-		p, ok := pluginRegistry[strType]
+		p, ok := pluginRegistry[PluginType(toCamelKey(elemType))][strType]
 		if !ok {
 			err := util.FormatError(nil, "plugin %s not found", strType)
 			return util.WrapError(err, "inject struct field %s error", ft.Name)

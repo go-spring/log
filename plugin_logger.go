@@ -27,10 +27,10 @@ func init() {
 }
 
 func init() {
-	RegisterPlugin[AppenderRef]("AppenderRef")
-	RegisterPlugin[SyncLogger]("Logger")
-	RegisterPlugin[AsyncLogger]("AsyncLogger")
-	RegisterPlugin[FileLogger]("FileLogger")
+	RegisterPlugin[FileLogger]("File", PluginTypeLogger)
+	RegisterPlugin[SyncLogger]("Logger", PluginTypeLogger)
+	RegisterPlugin[AsyncLogger]("AsyncLogger", PluginTypeLogger)
+	RegisterPlugin[AppenderRef]("AppenderRef", PluginTypeAppenderRef)
 }
 
 // Logger is the interface implemented by all loggers.

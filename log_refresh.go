@@ -78,12 +78,12 @@ func RefreshConfig(s *barky.Storage) error {
 	}
 
 	// Factory function to create plugin instances
-	newPlugin := func(typeKey string) (reflect.Value, error) {
+	newPlugin := func(typ PluginType, typeKey string) (reflect.Value, error) {
 		if !s.Has(typeKey) {
 			return reflect.Value{}, util.FormatError(nil, "attribute 'type' not found")
 		}
 		strType := s.Get(typeKey)
-		p, ok := pluginRegistry[strType]
+		p, ok := pluginRegistry[typ][strType]
 		if !ok {
 			return reflect.Value{}, util.FormatError(nil, "plugin %s not found", strType)
 		}
@@ -122,7 +122,7 @@ func RefreshConfig(s *barky.Storage) error {
 
 	// Initialize appenders
 	for _, name := range appenders {
-		v, err := newPlugin("appender." + name + ".type")
+		v, err := newPlugin(PluginTypeAppender, "appender."+name+".type")
 		if err != nil {
 			return util.WrapError(err, "create appender %s error", name)
 		}
@@ -131,7 +131,7 @@ func RefreshConfig(s *barky.Storage) error {
 
 	// Initialize all other loggers
 	for _, name := range loggers {
-		v, err := newPlugin("logger." + name + ".type")
+		v, err := newPlugin(PluginTypeLogger, "logger."+name+".type")
 		if err != nil {
 			return util.WrapError(err, "create logger %s error", name)
 		}

@@ -57,7 +57,7 @@ func (a *SampleAppender) Append(e *log.Event) {
 }
 
 func init() {
-	log.RegisterPlugin[SampleAppender]("Sample")
+	log.RegisterPlugin[SampleAppender]("Sample", log.PluginTypeAppender)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
