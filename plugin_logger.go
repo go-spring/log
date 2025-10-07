@@ -70,13 +70,14 @@ type SyncLogger struct {
 
 // Publish sends the event directly to appenders (blocking).
 func (c *SyncLogger) Publish(e *Event) {
-	c.Append(e)
+	c.AppenderRefs.Append(e)
 	PutEvent(e) // Return event to the pool
 }
 
 // Write writes raw bytes directly to appenders.
 func (c *SyncLogger) Write(b []byte) (n int, err error) {
-	return c.Write(b)
+	c.AppenderRefs.Write(b)
+	return len(b), nil
 }
 
 // BufferFullPolicy specifies what to do when an async buffer is full.
@@ -139,10 +140,10 @@ func (c *AsyncLogger) Start() error {
 			}
 			switch x := v.(type) {
 			case *Event:
-				c.Append(x)
+				c.AppenderRefs.Append(x)
 				PutEvent(x)
 			case []byte:
-				c.Write(x)
+				c.AppenderRefs.Write(x)
 			default: // for linter
 			}
 		}
