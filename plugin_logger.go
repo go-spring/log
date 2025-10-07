@@ -41,19 +41,12 @@ type Logger interface {
 	Write(b []byte) (n int, err error) // Write raw bytes to appenders
 }
 
-// AppenderRef represents a reference to an appender by name.
-// The actual appender is resolved and injected later during configuration.
-type AppenderRef struct {
-	Appender
-	Ref string `PluginAttribute:"ref"`
-}
-
 // LoggerBase contains fields shared by all logger configurations.
 type LoggerBase struct {
-	Name         string         `PluginAttribute:"name"`          // Logger name
-	Level        Level          `PluginAttribute:"level"`         // Log level
-	Tags         string         `PluginAttribute:"tags,default="` // Optional tags
-	AppenderRefs []*AppenderRef `PluginElement:"AppenderRef"`     // Attached appenders
+	Name  string `PluginAttribute:"name"`          // Logger name
+	Level Level  `PluginAttribute:"level"`         // Log level
+	Tags  string `PluginAttribute:"tags,default="` // Optional tags
+	AppenderRefs
 }
 
 // String returns the name of the logger.
@@ -64,37 +57,6 @@ func (c *LoggerBase) String() string {
 // EnableLevel checks if the given log level is enabled for this logger.
 func (c *LoggerBase) EnableLevel(level Level) bool {
 	return level.code >= c.Level.code
-}
-
-// publishAppenders sends a log event to all configured appenders.
-func (c *LoggerBase) publishAppenders(e *Event) {
-	for _, r := range c.AppenderRefs {
-		r.Append(e)
-	}
-}
-
-// writeAppenders writes raw bytes directly to all appenders.
-func (c *LoggerBase) writeAppenders(b []byte) {
-	for _, r := range c.AppenderRefs {
-		r.Write(b)
-	}
-}
-
-// Start initializes all underlying appenders.
-func (c *LoggerBase) Start() error {
-	for _, r := range c.AppenderRefs {
-		if err := r.Start(); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// Stop stops all underlying appenders.
-func (c *LoggerBase) Stop() {
-	for _, r := range c.AppenderRefs {
-		r.Stop()
-	}
 }
 
 // ----------------------------------------------------------------------------
@@ -108,14 +70,13 @@ type SyncLogger struct {
 
 // Publish sends the event directly to appenders (blocking).
 func (c *SyncLogger) Publish(e *Event) {
-	c.publishAppenders(e)
+	c.Append(e)
 	PutEvent(e) // Return event to the pool
 }
 
 // Write writes raw bytes directly to appenders.
 func (c *SyncLogger) Write(b []byte) (n int, err error) {
-	c.writeAppenders(b)
-	return len(b), nil
+	return c.Write(b)
 }
 
 // BufferFullPolicy specifies what to do when an async buffer is full.
@@ -163,12 +124,6 @@ func (c *AsyncLogger) GetDiscardCounter() int64 {
 
 // Start initializes channels and launches the worker goroutine.
 func (c *AsyncLogger) Start() error {
-
-	// Start underlying appenders
-	if err := c.LoggerBase.Start(); err != nil {
-		return err
-	}
-
 	if c.BufferSize < 100 {
 		return util.FormatError(nil, "bufferSize is too small")
 	}
@@ -184,10 +139,10 @@ func (c *AsyncLogger) Start() error {
 			}
 			switch x := v.(type) {
 			case *Event:
-				c.publishAppenders(x)
+				c.Append(x)
 				PutEvent(x)
 			case []byte:
-				c.writeAppenders(x)
+				c.Write(x)
 			default: // for linter
 			}
 		}
@@ -339,14 +294,18 @@ func initFileLogger[T FileWriter](
 	appenders := []*AppenderRef{
 		{
 			Appender: &LevelFilterAppender{
-				AppenderRef: &AppenderRef{
-					Appender: &FileWriterAsAppender{
-						FileWriter: fnAppender(RotateFileWriterBase{
-							FileDir:        f.FileDir,
-							FileName:       f.FileName,
-							ClearHours:     f.ClearHours,
-							RotateStrategy: f.RotateStrategy,
-						}),
+				AppenderRefs: AppenderRefs{
+					AppenderRefs: []*AppenderRef{
+						{
+							Appender: &FileWriterAsAppender{
+								FileWriter: fnAppender(RotateFileWriterBase{
+									FileDir:        f.FileDir,
+									FileName:       f.FileName,
+									ClearHours:     f.ClearHours,
+									RotateStrategy: f.RotateStrategy,
+								}),
+							},
+						},
 					},
 				},
 				MinLevel: f.Level,
@@ -359,14 +318,18 @@ func initFileLogger[T FileWriter](
 	if f.Separate {
 		appenders = append(appenders, &AppenderRef{
 			Appender: &LevelFilterAppender{
-				AppenderRef: &AppenderRef{
-					Appender: &FileWriterAsAppender{
-						FileWriter: fnAppender(RotateFileWriterBase{
-							FileDir:        f.FileDir,
-							FileName:       f.FileName + ".wf",
-							ClearHours:     f.ClearHours,
-							RotateStrategy: f.RotateStrategy,
-						}),
+				AppenderRefs: AppenderRefs{
+					AppenderRefs: []*AppenderRef{
+						{
+							Appender: &FileWriterAsAppender{
+								FileWriter: fnAppender(RotateFileWriterBase{
+									FileDir:        f.FileDir,
+									FileName:       f.FileName + ".wf",
+									ClearHours:     f.ClearHours,
+									RotateStrategy: f.RotateStrategy,
+								}),
+							},
+						},
 					},
 				},
 				MinLevel: WarnLevel,
@@ -379,20 +342,26 @@ func initFileLogger[T FileWriter](
 
 	// Wrap all appenders with LayoutAppender to format log messages
 	a := &LayoutAppender{
-		Layout: f.Layout,
-		AppenderRef: &AppenderRef{
-			Appender: &MultiAppender{
-				AppenderRefs: appenders,
+		AppenderRefs: AppenderRefs{
+			AppenderRefs: []*AppenderRef{
+				{
+					Appender: &MultiAppender{
+						AppenderRefs: AppenderRefs{
+							AppenderRefs: appenders,
+						},
+					},
+				},
 			},
 		},
+		Layout: f.Layout,
 	}
 
 	// Attach the final appender to the logger
 	switch x := f.Logger.(type) {
 	case *SyncLogger:
-		x.AppenderRefs = append(x.AppenderRefs, &AppenderRef{Appender: a})
+		x.AppenderRefs.AppenderRefs = append(x.AppenderRefs.AppenderRefs, &AppenderRef{Appender: a})
 	case *AsyncLogger:
-		x.AppenderRefs = append(x.AppenderRefs, &AppenderRef{Appender: a})
+		x.AppenderRefs.AppenderRefs = append(x.AppenderRefs.AppenderRefs, &AppenderRef{Appender: a})
 	default: // for linter
 	}
 

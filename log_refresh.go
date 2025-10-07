@@ -100,7 +100,7 @@ func RefreshConfig(s *barky.Storage) error {
 			base = &config.LoggerBase
 		default: // for linter
 		}
-		for _, r := range base.AppenderRefs {
+		for _, r := range base.AppenderRefs.AppenderRefs {
 			appender, ok := cAppenders[r.Ref]
 			if !ok {
 				return nil, util.FormatError(nil, "appender %s not found", r.Ref)

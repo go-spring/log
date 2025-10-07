@@ -48,6 +48,7 @@ var myLoggerV2 = log.GetLogger("myLogger")
 
 type SampleAppender struct {
 	log.AppenderBase
+	Layout log.Layout `PluginElement:"Layout,default=TextLayout"`
 }
 
 func (a *SampleAppender) Append(e *log.Event) {

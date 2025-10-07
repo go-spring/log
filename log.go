@@ -117,10 +117,10 @@ func init() {
 var defaultLogger Logger = &SyncLogger{
 	LoggerBase: LoggerBase{
 		Level: InfoLevel,
-		AppenderRefs: []*AppenderRef{
-			{
-				Appender: &ConsoleAppender{
-					AppenderBase: AppenderBase{
+		AppenderRefs: AppenderRefs{
+			AppenderRefs: []*AppenderRef{
+				{
+					Appender: &ConsoleAppender{
 						Layout: &TextLayout{
 							BaseLayout: BaseLayout{
 								FileLineLength: 48,
