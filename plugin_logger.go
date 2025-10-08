@@ -253,8 +253,8 @@ type FileLogger struct {
 	Separate bool `PluginAttribute:"separate,default=false"`
 
 	// rotation and cleanup configuration
-	ClearHours     int32          `PluginAttribute:"clearHours,default=168"`
-	RotateStrategy RotateStrategy `PluginAttribute:"rotateStrategy,default=1h"`
+	ClearHours    int32         `PluginAttribute:"clearHours,default=168"`
+	RollingPolicy RollingPolicy `PluginAttribute:"rollingPolicy,default=1h"`
 
 	// asynchronous logging configuration
 	AsyncWrite       bool             `PluginAttribute:"async,default=false"`
@@ -267,7 +267,7 @@ type FileLogger struct {
 func (f *FileLogger) Start() error {
 	if f.AsyncWrite {
 		// Async mode: use AsyncLogger and AsyncRotateFileWriter
-		return initFileLogger(f, NewSyncRotateFileWriter, func(f *FileLogger) Logger {
+		return initFileLogger(f, func(f *FileLogger) Logger {
 			return &AsyncLogger{
 				LoggerBase:       f.LoggerBase,
 				BufferSize:       f.BufferSize,
@@ -276,7 +276,7 @@ func (f *FileLogger) Start() error {
 		})
 	} else {
 		// Sync mode: use SyncLogger and SyncRotateFileWriter
-		return initFileLogger(f, NewSyncRotateFileWriter, func(f *FileLogger) Logger {
+		return initFileLogger(f, func(f *FileLogger) Logger {
 			return &SyncLogger{
 				LoggerBase: f.LoggerBase,
 			}
@@ -287,9 +287,8 @@ func (f *FileLogger) Start() error {
 // initFileLogger is a generic helper to configure both synchronous and asynchronous FileLogger.
 //   - fnAppender creates either SyncRotateFileWriter or AsyncRotateFileWriter.
 //   - fnLogger creates either SyncLogger or AsyncLogger.
-func initFileLogger[T FileWriter](
+func initFileLogger(
 	f *FileLogger,
-	fnAppender func(RotateFileWriterBase) T,
 	fnLogger func(f *FileLogger) Logger,
 ) error {
 
@@ -303,17 +302,15 @@ func initFileLogger[T FileWriter](
 	// Create appenders for the normal log file
 	appenders := []*AppenderRef{
 		{
-			Appender: &FileWriterAsAppender{
+			Appender: &FileAppender{
 				AppenderBase: AppenderBase{
 					MinLevel: f.MinLevel,
 					MaxLevel: normalMaxLevel,
 				},
-				FileWriter: fnAppender(RotateFileWriterBase{
-					FileDir:        f.FileDir,
-					FileName:       f.FileName,
-					ClearHours:     f.ClearHours,
-					RotateStrategy: f.RotateStrategy,
-				}),
+				FileDir:       f.FileDir,
+				FileName:      f.FileName,
+				ClearHours:    f.ClearHours,
+				RollingPolicy: f.RollingPolicy,
 			},
 		},
 	}
@@ -321,17 +318,15 @@ func initFileLogger[T FileWriter](
 	// Create appenders for warning and error logs if Separate is enabled
 	if f.Separate {
 		appenders = append(appenders, &AppenderRef{
-			Appender: &FileWriterAsAppender{
+			Appender: &FileAppender{
 				AppenderBase: AppenderBase{
 					MinLevel: WarnLevel,
 					MaxLevel: MaxLevel,
 				},
-				FileWriter: fnAppender(RotateFileWriterBase{
-					FileDir:        f.FileDir,
-					FileName:       f.FileName + ".wf",
-					ClearHours:     f.ClearHours,
-					RotateStrategy: f.RotateStrategy,
-				}),
+				FileDir:       f.FileDir,
+				FileName:      f.FileName + ".wf",
+				ClearHours:    f.ClearHours,
+				RollingPolicy: f.RollingPolicy,
 			},
 		})
 	}

@@ -37,6 +37,14 @@ func init() {
 	RegisterPlugin[ConsoleAppender]("Console", PluginTypeAppender)
 	RegisterPlugin[FileAppender]("File", PluginTypeAppender)
 	RegisterPlugin[GroupAppender]("Group", PluginTypeAppender)
+
+	// register built-in converters
+	RegisterConverter(ParseRotateStrategy)
+
+	// register built-in rotate strategies
+	RegisterRotateStrategy("1h", FixedRotateStrategy{Interval: time.Hour})
+	RegisterRotateStrategy("30m", FixedRotateStrategy{Interval: 30 * time.Minute})
+	RegisterRotateStrategy("10m", FixedRotateStrategy{Interval: 10 * time.Minute})
 }
 
 // Appender defines components that handle log output.
@@ -137,64 +145,10 @@ func (c *ConsoleAppender) Write(b []byte) {
 	_, _ = Stdout.Write(b)
 }
 
-// FileAppender writes formatted log events to a specified file.
-type FileAppender struct {
-	AppenderBase
-	Layout   Layout `PluginElement:"Layout,default=TextLayout"`
-	FileDir  string `PluginAttribute:"fileDir,default=./logs"`
-	FileName string `PluginAttribute:"fileName"`
+var rotateStrategyRegistry = map[string]RollingPolicy{}
 
-	file *os.File
-}
-
-func (c *FileAppender) ConcurrentSafe() bool { return true }
-
-// Start opens the log file for appending.
-func (c *FileAppender) Start() error {
-	const fileFlag = os.O_WRONLY | os.O_CREATE | os.O_APPEND
-	fileName := filepath.Join(c.FileDir, c.FileName)
-	f, err := os.OpenFile(fileName, fileFlag, 0644)
-	if err != nil {
-		return err
-	}
-	c.file = f
-	return nil
-}
-
-// Append formats the log event and writes it to the file.
-func (c *FileAppender) Append(e *Event) {
-	if c.EnableLevel(e.Level) {
-		c.Write(c.Layout.ToBytes(e))
-	}
-}
-
-// Write writes a byte slice directly to the file.
-func (c *FileAppender) Write(b []byte) {
-	_, _ = c.file.Write(b)
-}
-
-// Stop flushes and closes the file.
-func (c *FileAppender) Stop() {
-	if c.file != nil {
-		_ = c.file.Sync()
-		_ = c.file.Close()
-	}
-}
-
-func init() {
-	// register built-in converters
-	RegisterConverter(ParseRotateStrategy)
-
-	// register built-in rotate strategies
-	RegisterRotateStrategy("1h", FixedRotateStrategy{Interval: time.Hour})
-	RegisterRotateStrategy("30m", FixedRotateStrategy{Interval: 30 * time.Minute})
-	RegisterRotateStrategy("10m", FixedRotateStrategy{Interval: 10 * time.Minute})
-}
-
-var rotateStrategyRegistry = map[string]RotateStrategy{}
-
-// RotateStrategy defines the interface for log rotation strategies.
-type RotateStrategy interface {
+// RollingPolicy defines the interface for log rotation strategies.
+type RollingPolicy interface {
 	Time(t time.Time) int64
 	Format(t time.Time) string
 }
@@ -216,12 +170,17 @@ func (r FixedRotateStrategy) Format(t time.Time) string {
 }
 
 // RegisterRotateStrategy registers a rotation strategy with a given name.
-func RegisterRotateStrategy(name string, strategy RotateStrategy) {
+func RegisterRotateStrategy(name string, strategy RollingPolicy) {
 	rotateStrategyRegistry[name] = strategy
 }
 
+var noneRotateStrategy = &FixedRotateStrategy{}
+
 // ParseRotateStrategy retrieves a registered rotation strategy by name.
-func ParseRotateStrategy(name string) (RotateStrategy, error) {
+func ParseRotateStrategy(name string) (RollingPolicy, error) {
+	if name == "None" {
+		return noneRotateStrategy, nil
+	}
 	s, ok := rotateStrategyRegistry[name]
 	if !ok {
 		return nil, fmt.Errorf("invalid rotate strategy: %q", name)
@@ -229,7 +188,7 @@ func ParseRotateStrategy(name string) (RotateStrategy, error) {
 	return s, nil
 }
 
-// RotateFileAppender allows **multiple goroutines** to call Write()
+// FileAppender allows **multiple goroutines** to call Write()
 // safely, at the cost of slightly higher overhead and potential
 // (acceptable) log loss during rotation.
 //
@@ -243,31 +202,34 @@ func ParseRotateStrategy(name string) (RotateStrategy, error) {
 //   - During Stop(), concurrent writes may also be lost.
 //   - If zero log loss is required, use AsyncRotateFileWriter
 //     with a dedicated logging goroutine instead.
-type RotateFileAppender struct {
-	FileDir        string
-	FileName       string
-	ClearHours     int32
-	RotateStrategy RotateStrategy
-	file           atomic.Pointer[os.File]
-	mutex          sync.Mutex
-	currTime       atomic.Int64
+type FileAppender struct {
+	AppenderBase
+	Layout   Layout `PluginElement:"Layout,default=TextLayout"`
+	FileDir  string `PluginAttribute:"fileDir,default=./logs"`
+	FileName string `PluginAttribute:"fileName"`
+
+	ClearHours    int32
+	RollingPolicy RollingPolicy
+	file          atomic.Pointer[os.File]
+	mutex         sync.Mutex
+	currTime      atomic.Int64
 }
 
 // Start opens the initial log file.
-func (c *RotateFileAppender) Start() error {
+func (c *FileAppender) Start() error {
 	now := time.Now()
 	filePath, file, err := c.createFile(now)
 	if err != nil {
 		return util.WrapError(err, "Failed to create log file %s", filePath)
 	}
 	c.file.Store(file)
-	c.currTime.Store(c.RotateStrategy.Time(now))
+	c.currTime.Store(c.RollingPolicy.Time(now))
 	return nil
 }
 
 // Write writes bytes to the current log file.
 // May lose a few writes during rotation or Stop().
-func (c *RotateFileAppender) Write(b []byte) {
+func (c *FileAppender) Write(b []byte) {
 	c.rotate()
 	if file := c.file.Load(); file != nil {
 		_, _ = file.Write(b)
@@ -275,7 +237,7 @@ func (c *RotateFileAppender) Write(b []byte) {
 }
 
 // Stop flushes and closes the current file.
-func (c *RotateFileAppender) Stop() {
+func (c *FileAppender) Stop() {
 	c.rotate()
 	if file := c.file.Swap(nil); file != nil {
 		_ = file.Sync()
@@ -287,9 +249,9 @@ func (c *RotateFileAppender) Stop() {
 // If so, it closes the old file, opens a new one, and triggers cleanup.
 // Risk: If file creation fails during rotation, new logs will be lost
 // until the issue is resolved.
-func (c *RotateFileAppender) rotate() {
+func (c *FileAppender) rotate() {
 	now := time.Now()
-	nowTime := c.RotateStrategy.Time(now)
+	nowTime := c.RollingPolicy.Time(now)
 	if nowTime <= c.currTime.Load() {
 		return // still in the current slot
 	}
@@ -323,16 +285,16 @@ func (c *RotateFileAppender) rotate() {
 	go c.clearExpiredFiles()
 }
 
-func (c *RotateFileAppender) ConcurrentSafe() bool { return true }
+func (c *FileAppender) ConcurrentSafe() bool { return true }
 
-func (c *RotateFileAppender) Append(e *Event) {
+func (c *FileAppender) Append(e *Event) {
 	panic(util.ErrForbiddenMethod)
 }
 
 // createFile creates or opens the current log file for appending.
 // The application is responsible for ensuring the directory exists.
-func (c *RotateFileAppender) createFile(t time.Time) (string, *os.File, error) {
-	fileName := c.FileName + "." + c.RotateStrategy.Format(t)
+func (c *FileAppender) createFile(t time.Time) (string, *os.File, error) {
+	fileName := c.FileName + "." + c.RollingPolicy.Format(t)
 	filePath := filepath.Join(c.FileDir, fileName)
 	const fileFlag = os.O_CREATE | os.O_WRONLY | os.O_APPEND
 	file, err := os.OpenFile(filePath, fileFlag, 0644)
@@ -343,7 +305,7 @@ func (c *RotateFileAppender) createFile(t time.Time) (string, *os.File, error) {
 }
 
 // clearExpiredFiles removes expired log files.
-func (c *RotateFileAppender) clearExpiredFiles() {
+func (c *FileAppender) clearExpiredFiles() {
 	expiration := time.Now().Add(-time.Duration(c.ClearHours) * time.Hour)
 	entries, _ := os.ReadDir(c.FileDir)
 	for _, entry := range entries {
