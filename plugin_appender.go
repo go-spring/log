@@ -103,7 +103,7 @@ func (c *ConsoleAppender) Write(b []byte) {
 type FileAppender struct {
 	AppenderBase
 	Layout   Layout `PluginElement:"Layout,default=TextLayout"`
-	FileDir  string `PluginAttribute:"dir,default=./log"`
+	FileDir  string `PluginAttribute:"fileDir,default=./logs"`
 	FileName string `PluginAttribute:"fileName"`
 
 	file *os.File

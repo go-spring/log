@@ -46,14 +46,17 @@ var myLoggerV2 = log.GetLogger("myLogger")
 
 ///////////////////////////////////////////////////////////////////////////////
 
+var _ log.Appender = (*SampleAppender)(nil)
+
 type SampleAppender struct {
 	log.AppenderBase
 	Layout log.Layout `PluginElement:"Layout,default=TextLayout"`
 }
 
-func (a *SampleAppender) Start() error   { return nil }
-func (a *SampleAppender) Stop()          {}
-func (a *SampleAppender) Write(b []byte) {}
+func (a *SampleAppender) ConcurrentSafe() bool { return true }
+func (a *SampleAppender) Start() error         { return nil }
+func (a *SampleAppender) Stop()                {}
+func (a *SampleAppender) Write(b []byte)       {}
 func (a *SampleAppender) Append(e *log.Event) {
 	data := a.Layout.ToBytes(e)
 	_, _ = os.Stdout.Write(data)

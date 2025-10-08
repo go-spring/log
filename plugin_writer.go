@@ -91,6 +91,8 @@ type FileWriterAsAppender struct {
 	FileWriter
 }
 
+func (c *FileWriterAsAppender) ConcurrentSafe() bool { return true }
+
 func (c *FileWriterAsAppender) Append(e *Event) {
 	panic(util.ErrForbiddenMethod)
 }
@@ -137,85 +139,6 @@ func (c *RotateFileWriterBase) clearExpiredFiles() {
 			_ = os.Remove(filePath)
 		}
 	}
-}
-
-// AsyncRotateFileWriter is intended for **single-writer usage**,
-// typically in asynchronous logging pipelines where one goroutine
-// is responsible for writing logs to disk.
-//
-// Usage constraints:
-// - Only one goroutine should call Write concurrently.
-// - Stop() must not be called concurrently with Write().
-// - Best used with an async queue where a single worker flushes logs to disk.
-type AsyncRotateFileWriter struct {
-	RotateFileWriterBase
-	file     *os.File
-	currTime int64
-}
-
-// NewAsyncRotateFileWriter creates a new AsyncRotateFileWriter instance.
-func NewAsyncRotateFileWriter(base RotateFileWriterBase) *AsyncRotateFileWriter {
-	return &AsyncRotateFileWriter{RotateFileWriterBase: base}
-}
-
-// Start opens the initial log file.
-func (c *AsyncRotateFileWriter) Start() error {
-	now := time.Now()
-	filePath, file, err := c.createFile(now)
-	if err != nil {
-		return util.WrapError(err, "Failed to create log file %s", filePath)
-	}
-	c.file = file
-	c.currTime = c.RotateStrategy.Time(now)
-	return nil
-}
-
-// Write writes bytes directly to the current log file.
-func (c *AsyncRotateFileWriter) Write(b []byte) {
-	c.rotate()
-	if c.file != nil {
-		_, _ = c.file.Write(b)
-	}
-}
-
-// Stop flushes and closes the current log file.
-// Must not be called concurrently with Write().
-func (c *AsyncRotateFileWriter) Stop() {
-	if c.file != nil {
-		_ = c.file.Sync()
-		_ = c.file.Close()
-	}
-}
-
-// rotate checks if the current time has passed into a new rotation slot.
-// If so, it closes the old file, opens a new one, and triggers cleanup.
-// Risk: If file creation fails during rotation, new logs will be lost
-// until the issue is resolved.
-func (c *AsyncRotateFileWriter) rotate() {
-	now := time.Now()
-	nowTime := c.RotateStrategy.Time(now)
-	if nowTime <= c.currTime {
-		return // still in the current slot
-	}
-
-	// close the old file
-	if c.file != nil {
-		_ = c.file.Sync()
-		_ = c.file.Close()
-		c.file = nil
-	}
-
-	filePath, file, err := c.createFile(now)
-	if err != nil {
-		err = util.WrapError(err, "Failed to create log file %s", filePath)
-		_, _ = fmt.Fprintln(os.Stderr, err)
-		return
-	}
-	c.file = file
-	c.currTime = nowTime
-
-	// trigger cleanup after each rotation for timely housekeeping
-	go c.clearExpiredFiles()
 }
 
 // SyncRotateFileWriter allows **multiple goroutines** to call Write()

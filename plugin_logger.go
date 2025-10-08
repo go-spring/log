@@ -246,8 +246,8 @@ type FileLogger struct {
 	Logger
 
 	// File output configuration
-	FileDir  string `PluginAttribute:"dir,default=./log"`
-	FileName string `PluginAttribute:"file,default=app.log"`
+	FileDir  string `PluginAttribute:"fileDir,default=./logs"`
+	FileName string `PluginAttribute:"fileName,default=app.log"`
 
 	// If true, warning/error logs go to a separate .wf file.
 	Separate bool `PluginAttribute:"separate,default=false"`
@@ -267,7 +267,7 @@ type FileLogger struct {
 func (f *FileLogger) Start() error {
 	if f.AsyncWrite {
 		// Async mode: use AsyncLogger and AsyncRotateFileWriter
-		return initFileLogger(f, NewAsyncRotateFileWriter, func(f *FileLogger) Logger {
+		return initFileLogger(f, NewSyncRotateFileWriter, func(f *FileLogger) Logger {
 			return &AsyncLogger{
 				LoggerBase:       f.LoggerBase,
 				BufferSize:       f.BufferSize,
