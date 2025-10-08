@@ -19,6 +19,7 @@ package log
 import (
 	"io"
 	"os"
+	"path/filepath"
 )
 
 // Stdout is the standard output stream used by appenders.
@@ -37,6 +38,10 @@ type Appender interface {
 	GetName() string // Returns the appender's name
 	Append(e *Event) // Handles writing a log event
 	Write(b []byte)  // Directly writes a byte slice
+
+	// ConcurrentSafe indicates that all appenders must be safe
+	// for concurrent use by multiple goroutines.
+	ConcurrentSafe() bool
 }
 
 var (
@@ -56,7 +61,7 @@ type AppenderBase struct {
 // GetName returns the appender's name.
 func (c *AppenderBase) GetName() string { return c.Name }
 
-// EnableLevel checks whether a given log level is within the configured range.
+// EnableLevel checks if the given log level is enabled for this appender.
 func (c *AppenderBase) EnableLevel(level Level) bool {
 	return level.code >= c.MinLevel.code && level.code <= c.MaxLevel.code
 }
@@ -66,10 +71,11 @@ type DiscardAppender struct {
 	AppenderBase
 }
 
-func (c *DiscardAppender) Start() error    { return nil }
-func (c *DiscardAppender) Stop()           {}
-func (c *DiscardAppender) Append(e *Event) {}
-func (c *DiscardAppender) Write(b []byte)  {}
+func (c *DiscardAppender) Start() error         { return nil }
+func (c *DiscardAppender) Stop()                {}
+func (c *DiscardAppender) Append(e *Event)      {}
+func (c *DiscardAppender) Write(b []byte)       {}
+func (c *DiscardAppender) ConcurrentSafe() bool { return true }
 
 // ConsoleAppender writes formatted log events to standard output.
 type ConsoleAppender struct {
@@ -77,8 +83,9 @@ type ConsoleAppender struct {
 	Layout Layout `PluginElement:"Layout,default=TextLayout"`
 }
 
-func (c *ConsoleAppender) Start() error { return nil }
-func (c *ConsoleAppender) Stop()        {}
+func (c *ConsoleAppender) Start() error         { return nil }
+func (c *ConsoleAppender) Stop()                {}
+func (c *ConsoleAppender) ConcurrentSafe() bool { return true }
 
 // Append formats the event and writes it to standard output.
 func (c *ConsoleAppender) Append(e *Event) {
@@ -96,15 +103,19 @@ func (c *ConsoleAppender) Write(b []byte) {
 type FileAppender struct {
 	AppenderBase
 	Layout   Layout `PluginElement:"Layout,default=TextLayout"`
+	FileDir  string `PluginAttribute:"dir,default=./log"`
 	FileName string `PluginAttribute:"fileName"`
 
 	file *os.File
 }
 
+func (c *FileAppender) ConcurrentSafe() bool { return true }
+
 // Start opens the log file for appending.
 func (c *FileAppender) Start() error {
 	const fileFlag = os.O_WRONLY | os.O_CREATE | os.O_APPEND
-	f, err := os.OpenFile(c.FileName, fileFlag, os.ModePerm)
+	fileName := filepath.Join(c.FileDir, c.FileName)
+	f, err := os.OpenFile(fileName, fileFlag, os.ModePerm)
 	if err != nil {
 		return err
 	}
@@ -145,8 +156,9 @@ type GroupAppender struct {
 	AppenderRefs []*AppenderRef `PluginElement:"AppenderRef"`
 }
 
-func (c *GroupAppender) Start() error { return nil }
-func (c *GroupAppender) Stop()        {}
+func (c *GroupAppender) Start() error         { return nil }
+func (c *GroupAppender) Stop()                {}
+func (c *GroupAppender) ConcurrentSafe() bool { return true }
 
 // Append forwards the event to each child appender.
 func (c *GroupAppender) Append(e *Event) {
