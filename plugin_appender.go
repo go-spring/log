@@ -31,10 +31,10 @@ func init() {
 	RegisterPlugin[GroupAppender]("Group", PluginTypeAppender)
 }
 
-// Appender is an interface that defines components that handle log output.
+// Appender defines components that handle log output.
 type Appender interface {
-	Lifecycle        // Appenders must be startable and stoppable
-	GetName() string // Returns the appender name
+	Lifecycle        // Start/Stop methods for resource management
+	GetName() string // Returns the appender's name
 	Append(e *Event) // Handles writing a log event
 	Write(b []byte)  // Directly writes a byte slice
 }
@@ -46,20 +46,22 @@ var (
 	_ Appender = (*GroupAppender)(nil)
 )
 
-// AppenderBase provides common configuration and default behavior for appenders.
+// AppenderBase provides common configuration fields for all appenders.
 type AppenderBase struct {
 	Name     string `PluginAttribute:"name"`
 	MinLevel Level  `PluginAttribute:"minLevel,default=None"`
 	MaxLevel Level  `PluginAttribute:"maxLevel,default=Max"`
 }
 
+// GetName returns the appender's name.
 func (c *AppenderBase) GetName() string { return c.Name }
 
+// EnableLevel checks whether a given log level is within the configured range.
 func (c *AppenderBase) EnableLevel(level Level) bool {
 	return level.code >= c.MinLevel.code && level.code <= c.MaxLevel.code
 }
 
-// DiscardAppender ignores all log events (no output).
+// DiscardAppender ignores all log events (no-op).
 type DiscardAppender struct {
 	AppenderBase
 }
@@ -69,7 +71,7 @@ func (c *DiscardAppender) Stop()           {}
 func (c *DiscardAppender) Append(e *Event) {}
 func (c *DiscardAppender) Write(b []byte)  {}
 
-// ConsoleAppender writes formatted log events to stdout.
+// ConsoleAppender writes formatted log events to standard output.
 type ConsoleAppender struct {
 	AppenderBase
 	Layout Layout `PluginElement:"Layout,default=TextLayout"`
@@ -85,7 +87,7 @@ func (c *ConsoleAppender) Append(e *Event) {
 	}
 }
 
-// Write writes a byte slice directly to the stdout.
+// Write writes a byte slice directly to standard output.
 func (c *ConsoleAppender) Write(b []byte) {
 	_, _ = Stdout.Write(b)
 }
@@ -131,26 +133,29 @@ func (c *FileAppender) Stop() {
 }
 
 // AppenderRef represents a reference to an appender by name.
-// The actual appender is resolved and injected later during configuration.
+// The actual Appender is resolved and injected later during configuration.
 type AppenderRef struct {
 	Appender
 	Ref string `PluginAttribute:"ref"`
 }
 
+// GroupAppender forwards log events to a group of other appenders.
 type GroupAppender struct {
 	AppenderBase
-	AppenderRefs []*AppenderRef `PluginElement:"AppenderRef"` // Attached appenders
+	AppenderRefs []*AppenderRef `PluginElement:"AppenderRef"`
 }
 
 func (c *GroupAppender) Start() error { return nil }
 func (c *GroupAppender) Stop()        {}
 
+// Append forwards the event to each child appender.
 func (c *GroupAppender) Append(e *Event) {
 	for _, r := range c.AppenderRefs {
 		r.Append(e)
 	}
 }
 
+// Write forwards raw bytes to each child appender.
 func (c *GroupAppender) Write(b []byte) {
 	for _, r := range c.AppenderRefs {
 		r.Write(b)
