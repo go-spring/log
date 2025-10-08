@@ -59,7 +59,7 @@ func (c *LoggerBase) GetName() string {
 
 // EnableLevel checks if the given log level is enabled for this logger.
 func (c *LoggerBase) EnableLevel(level Level) bool {
-	return level.code >= c.MinLevel.code && level.code < c.MaxLevel.code
+	return level.code >= c.MinLevel.code && level.code <= c.MaxLevel.code
 }
 
 // ----------------------------------------------------------------------------

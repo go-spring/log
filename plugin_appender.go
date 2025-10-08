@@ -39,13 +39,6 @@ type Appender interface {
 	Write(b []byte)  // Directly writes a byte slice
 }
 
-// AppenderRef represents a reference to an appender by name.
-// The actual appender is resolved and injected later during configuration.
-type AppenderRef struct {
-	Appender
-	Ref string `PluginAttribute:"ref"`
-}
-
 var (
 	_ Appender = (*DiscardAppender)(nil)
 	_ Appender = (*ConsoleAppender)(nil)
@@ -63,7 +56,7 @@ type AppenderBase struct {
 func (c *AppenderBase) GetName() string { return c.Name }
 
 func (c *AppenderBase) EnableLevel(level Level) bool {
-	return level.code >= c.MinLevel.code && level.code < c.MaxLevel.code
+	return level.code >= c.MinLevel.code && level.code <= c.MaxLevel.code
 }
 
 // DiscardAppender ignores all log events (no output).
@@ -137,14 +130,20 @@ func (c *FileAppender) Stop() {
 	}
 }
 
+// AppenderRef represents a reference to an appender by name.
+// The actual appender is resolved and injected later during configuration.
+type AppenderRef struct {
+	Appender
+	Ref string `PluginAttribute:"ref"`
+}
+
 type GroupAppender struct {
 	AppenderBase
 	AppenderRefs []*AppenderRef `PluginElement:"AppenderRef"` // Attached appenders
 }
 
 func (c *GroupAppender) Start() error { return nil }
-
-func (c *GroupAppender) Stop() {}
+func (c *GroupAppender) Stop()        {}
 
 func (c *GroupAppender) Append(e *Event) {
 	for _, r := range c.AppenderRefs {
