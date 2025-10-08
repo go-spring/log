@@ -61,7 +61,7 @@ func TestLoggerConfig(t *testing.T) {
 		assert.Error(t, err).Nil()
 
 		l := &SyncLogger{LoggerBase{
-			AppenderRefs: AppenderRefs{
+			GroupAppender: GroupAppender{
 				AppenderRefs: []*AppenderRef{
 					{Appender: a},
 				},
@@ -88,7 +88,7 @@ func TestLoggerConfig(t *testing.T) {
 		l := &SyncLogger{LoggerBase{
 			Level: InfoLevel,
 			Tags:  "_com_*",
-			AppenderRefs: AppenderRefs{
+			GroupAppender: GroupAppender{
 				AppenderRefs: []*AppenderRef{
 					{Appender: a},
 				},
@@ -159,7 +159,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 			LoggerBase: LoggerBase{
 				Level: InfoLevel,
 				Tags:  "_com_*",
-				AppenderRefs: AppenderRefs{
+				GroupAppender: GroupAppender{
 					AppenderRefs: []*AppenderRef{
 						{Appender: a},
 					},
@@ -202,7 +202,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 			LoggerBase: LoggerBase{
 				Level: InfoLevel,
 				Tags:  "_com_*",
-				AppenderRefs: AppenderRefs{
+				GroupAppender: GroupAppender{
 					AppenderRefs: []*AppenderRef{
 						{Appender: a},
 					},
@@ -245,7 +245,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 			LoggerBase: LoggerBase{
 				Level: InfoLevel,
 				Tags:  "_com_*",
-				AppenderRefs: AppenderRefs{
+				GroupAppender: GroupAppender{
 					AppenderRefs: []*AppenderRef{
 						{Appender: a},
 					},
@@ -288,7 +288,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 			LoggerBase: LoggerBase{
 				Level: InfoLevel,
 				Tags:  "_com_*",
-				AppenderRefs: AppenderRefs{
+				GroupAppender: GroupAppender{
 					AppenderRefs: []*AppenderRef{
 						{Appender: a},
 					},
@@ -321,7 +321,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 
 		l := &AsyncLogger{
 			LoggerBase: LoggerBase{
-				AppenderRefs: AppenderRefs{
+				GroupAppender: GroupAppender{
 					AppenderRefs: []*AppenderRef{
 						{Appender: a},
 					},

@@ -117,7 +117,7 @@ func init() {
 var defaultLogger Logger = &SyncLogger{
 	LoggerBase: LoggerBase{
 		Level: InfoLevel,
-		AppenderRefs: AppenderRefs{
+		GroupAppender: GroupAppender{
 			AppenderRefs: []*AppenderRef{
 				{
 					Appender: &ConsoleAppender{

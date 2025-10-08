@@ -47,7 +47,7 @@ type LoggerBase struct {
 	Level  Level  `PluginAttribute:"level"`         // Log level
 	Tags   string `PluginAttribute:"tags,default="` // Optional tags
 	Layout Layout `PluginElement:"Layout?"`
-	AppenderRefs
+	GroupAppender
 }
 
 // String returns the name of the logger.
@@ -72,16 +72,16 @@ type SyncLogger struct {
 // Publish sends the event directly to appenders (blocking).
 func (c *SyncLogger) Publish(e *Event) {
 	if c.Layout == nil {
-		c.AppenderRefs.Append(e)
+		c.GroupAppender.Append(e)
 	} else {
-		c.AppenderRefs.Write(c.Layout.ToBytes(e))
+		c.GroupAppender.Write(c.Layout.ToBytes(e))
 	}
 	PutEvent(e) // Return event to the pool
 }
 
 // Write writes raw bytes directly to appenders.
 func (c *SyncLogger) Write(b []byte) (n int, err error) {
-	c.AppenderRefs.Write(b)
+	c.GroupAppender.Write(b)
 	return len(b), nil
 }
 
@@ -146,13 +146,13 @@ func (c *AsyncLogger) Start() error {
 			switch x := v.(type) {
 			case *Event:
 				if c.Layout == nil {
-					c.AppenderRefs.Append(x)
+					c.GroupAppender.Append(x)
 				} else {
-					c.AppenderRefs.Write(c.Layout.ToBytes(x))
+					c.GroupAppender.Write(c.Layout.ToBytes(x))
 				}
 				PutEvent(x)
 			case []byte:
-				c.AppenderRefs.Write(x)
+				c.GroupAppender.Write(x)
 			default: // for linter
 			}
 		}
@@ -339,9 +339,9 @@ func initFileLogger[T FileWriter](
 	// Attach the final appender to the logger
 	switch x := f.Logger.(type) {
 	case *SyncLogger:
-		x.AppenderRefs.AppenderRefs = appenders
+		x.GroupAppender.AppenderRefs = appenders
 	case *AsyncLogger:
-		x.AppenderRefs.AppenderRefs = appenders
+		x.GroupAppender.AppenderRefs = appenders
 	default: // for linter
 	}
 

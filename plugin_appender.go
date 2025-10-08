@@ -28,9 +28,7 @@ func init() {
 	RegisterPlugin[DiscardAppender]("Discard", PluginTypeAppender)
 	RegisterPlugin[ConsoleAppender]("Console", PluginTypeAppender)
 	RegisterPlugin[FileAppender]("File", PluginTypeAppender)
-	RegisterPlugin[MultiAppender]("Multi", PluginTypeAppender)
-	//RegisterPlugin[LayoutAppender]("Layout", PluginTypeAppender)
-	//RegisterPlugin[LevelFilterAppender]("LevelFilter", PluginTypeAppender)
+	RegisterPlugin[GroupAppender]("Group", PluginTypeAppender)
 }
 
 // Appender is an interface that defines components that handle log output.
@@ -48,21 +46,21 @@ type AppenderRef struct {
 	Ref string `PluginAttribute:"ref"`
 }
 
-type AppenderRefs struct {
+type GroupAppender struct {
 	AppenderRefs []*AppenderRef `PluginElement:"AppenderRef"` // Attached appenders
 }
 
-func (c *AppenderRefs) Start() error { return nil }
+func (c *GroupAppender) Start() error { return nil }
 
-func (c *AppenderRefs) Stop() {}
+func (c *GroupAppender) Stop() {}
 
-func (c *AppenderRefs) Append(e *Event) {
+func (c *GroupAppender) Append(e *Event) {
 	for _, r := range c.AppenderRefs {
 		r.Append(e)
 	}
 }
 
-func (c *AppenderRefs) Write(b []byte) {
+func (c *GroupAppender) Write(b []byte) {
 	for _, r := range c.AppenderRefs {
 		r.Write(b)
 	}
@@ -155,26 +153,5 @@ func (c *FileAppender) Stop() {
 	if c.file != nil {
 		_ = c.file.Sync()
 		_ = c.file.Close()
-	}
-}
-
-// -----------------------------------------------------------------------------
-// Appender Utilities
-// -----------------------------------------------------------------------------
-
-var (
-	_ Appender = (*MultiAppender)(nil)
-)
-
-// MultiAppender delegates log events to multiple underlying appenders.
-// It is useful when you want to send log events to several outputs.
-type MultiAppender struct {
-	AppenderBase
-	AppenderRefs
-}
-
-func (c *MultiAppender) Append(e *Event) {
-	if c.EnableLevel(e.Level) {
-		c.AppenderRefs.Append(e)
 	}
 }
