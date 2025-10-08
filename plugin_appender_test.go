@@ -141,7 +141,7 @@ func TestFileAppender(t *testing.T) {
 
 		a.Stop()
 
-		b, err := os.ReadFile(a.file.Load().Name())
+		b, err := os.ReadFile(a.file.Name())
 		assert.Error(t, err).Nil()
 		assert.String(t, string(b)).Equal("[INFO][0001-01-01T00:00:00.000][file.go:100] _def||msg=hello world\n")
 	})

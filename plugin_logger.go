@@ -302,7 +302,7 @@ func initFileLogger(
 	// Create appenders for the normal log file
 	appenders := []*AppenderRef{
 		{
-			Appender: &FileAppender{
+			Appender: &RollingFileAppender{
 				AppenderBase: AppenderBase{
 					MinLevel: f.MinLevel,
 					MaxLevel: normalMaxLevel,
@@ -318,7 +318,7 @@ func initFileLogger(
 	// Create appenders for warning and error logs if Separate is enabled
 	if f.Separate {
 		appenders = append(appenders, &AppenderRef{
-			Appender: &FileAppender{
+			Appender: &RollingFileAppender{
 				AppenderBase: AppenderBase{
 					MinLevel: WarnLevel,
 					MaxLevel: MaxLevel,
