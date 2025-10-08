@@ -110,7 +110,7 @@ func (c *RotateFileWriterBase) createFile(t time.Time) (string, *os.File, error)
 	fileName := c.FileName + "." + c.RotateStrategy.Format(t)
 	filePath := filepath.Join(c.FileDir, fileName)
 	const fileFlag = os.O_CREATE | os.O_WRONLY | os.O_APPEND
-	file, err := os.OpenFile(filePath, fileFlag, os.ModePerm)
+	file, err := os.OpenFile(filePath, fileFlag, 0644)
 	if err != nil {
 		return filePath, nil, err
 	}

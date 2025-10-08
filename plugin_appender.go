@@ -115,7 +115,7 @@ func (c *FileAppender) ConcurrentSafe() bool { return true }
 func (c *FileAppender) Start() error {
 	const fileFlag = os.O_WRONLY | os.O_CREATE | os.O_APPEND
 	fileName := filepath.Join(c.FileDir, c.FileName)
-	f, err := os.OpenFile(fileName, fileFlag, os.ModePerm)
+	f, err := os.OpenFile(fileName, fileFlag, 0644)
 	if err != nil {
 		return err
 	}
