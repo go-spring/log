@@ -29,7 +29,7 @@ func fakeGSAppenders() {
 		appender.discard.layout.type=JSONLayout
 		
 		logger.root.type=Logger
-		logger.root.level=warn
+		logger.root.minLevel=warn
 		logger.root.appenderRef.ref=discard
 	`), ".properties")
 	if err != nil {

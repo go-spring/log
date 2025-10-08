@@ -40,12 +40,12 @@ func TestReaders(t *testing.T) {
 		"logger.myLogger.appenderRef[1].ref":  "sample",
 		"logger.myLogger.appenderRef[1].type": "AppenderRef",
 		"logger.myLogger.bufferSize":          "${bufferSize}",
-		"logger.myLogger.level":               "trace",
+		"logger.myLogger.minLevel":            "trace",
 		"logger.myLogger.tags":                "_com_request_in,_com_request_*",
 		"logger.myLogger.type":                "AsyncLogger",
 		"logger.root.appenderRef.ref":         "console",
 		"logger.root.appenderRef.type":        "AppenderRef",
-		"logger.root.level":                   "warn",
+		"logger.root.minLevel":                "warn",
 		"logger.root.type":                    "Logger",
 	}
 	testFiles := []string{
@@ -107,7 +107,7 @@ func TestToCamelKey(t *testing.T) {
 		{"", ""},
 		{"Key", "key"},
 		{"KeyTest", "keyTest"},
-		{"logger.root.level", "logger.root.level"},
+		{"logger.root.minLevel", "logger.root.minLevel"},
 		{"logger.root.appenderRef.ref", "logger.root.appenderRef.ref"},
 		{"appender_ref", "appenderRef"},
 		{"appender_ref_type", "appenderRefType"},

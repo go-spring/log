@@ -17,12 +17,12 @@ appender:
 logger:
   root:
     type: Logger
-    level: warn
+    minLevel: warn
     appenderRef:
       ref: console
   myLogger:
     type: AsyncLogger
-    level: trace
+    minLevel: trace
     tags: _com_request_in,_com_request_*
     bufferSize: '${bufferSize}'
     appenderRef:

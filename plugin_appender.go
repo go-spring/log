@@ -46,30 +46,11 @@ type AppenderRef struct {
 	Ref string `PluginAttribute:"ref"`
 }
 
-type GroupAppender struct {
-	AppenderRefs []*AppenderRef `PluginElement:"AppenderRef"` // Attached appenders
-}
-
-func (c *GroupAppender) Start() error { return nil }
-
-func (c *GroupAppender) Stop() {}
-
-func (c *GroupAppender) Append(e *Event) {
-	for _, r := range c.AppenderRefs {
-		r.Append(e)
-	}
-}
-
-func (c *GroupAppender) Write(b []byte) {
-	for _, r := range c.AppenderRefs {
-		r.Write(b)
-	}
-}
-
 var (
 	_ Appender = (*DiscardAppender)(nil)
 	_ Appender = (*ConsoleAppender)(nil)
 	_ Appender = (*FileAppender)(nil)
+	_ Appender = (*GroupAppender)(nil)
 )
 
 // AppenderBase provides common configuration and default behavior for appenders.
@@ -153,5 +134,26 @@ func (c *FileAppender) Stop() {
 	if c.file != nil {
 		_ = c.file.Sync()
 		_ = c.file.Close()
+	}
+}
+
+type GroupAppender struct {
+	AppenderBase
+	AppenderRefs []*AppenderRef `PluginElement:"AppenderRef"` // Attached appenders
+}
+
+func (c *GroupAppender) Start() error { return nil }
+
+func (c *GroupAppender) Stop() {}
+
+func (c *GroupAppender) Append(e *Event) {
+	for _, r := range c.AppenderRefs {
+		r.Append(e)
+	}
+}
+
+func (c *GroupAppender) Write(b []byte) {
+	for _, r := range c.AppenderRefs {
+		r.Write(b)
 	}
 }

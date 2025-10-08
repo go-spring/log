@@ -114,7 +114,7 @@ func TestRefreshConfig(t *testing.T) {
 	t.Run("logger.root no type", func(t *testing.T) {
 		defer func() { global.init.Store(false) }()
 		content := `
-			logger.root.level=debug
+			logger.root.minLevel=debug
 			appender.console.type=Console
 			appender.console.layout.type=TextLayout
 			logger.test.type=AsyncLogger
@@ -127,7 +127,7 @@ func TestRefreshConfig(t *testing.T) {
 		defer func() { global.init.Store(false) }()
 		content := `
 			logger.root.type=Logger
-			logger.root.level=debug
+			logger.root.minLevel=debug
 			logger.root.appenderRef.ref=file
 			appender.console.type=Console
 			appender.console.layout.type=TextLayout
@@ -140,7 +140,7 @@ func TestRefreshConfig(t *testing.T) {
 		defer func() { global.init.Store(false) }()
 		content := `
 			logger.root.type=Logger
-			logger.root.level=debug
+			logger.root.minLevel=debug
 			logger.root.appenderRef.ref=console
 			appender.console.type=Console
 			appender.console.layout.type=TextLayout
@@ -154,11 +154,11 @@ func TestRefreshConfig(t *testing.T) {
 		defer func() { global.init.Store(false) }()
 		content := `
 			logger.root.type=Logger
-			logger.root.level=debug
+			logger.root.minLevel=debug
 			logger.root.appenderRef.ref=console
 			appender.console.type=Console
 			appender.console.layout.type=TextLayout
-			logger.myLogger.level=info
+			logger.myLogger.minLevel=info
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
 		assert.Error(t, err).Matches("attribute 'type' not found")
@@ -168,12 +168,12 @@ func TestRefreshConfig(t *testing.T) {
 		defer func() { global.init.Store(false) }()
 		content := `
 			logger.root.type=Logger
-			logger.root.level=debug
+			logger.root.minLevel=debug
 			logger.root.appenderRef.ref=console
 			appender.console.type=Console
 			appender.console.layout.type=TextLayout
 			logger.myLogger.type=Logger
-			logger.myLogger.level=info
+			logger.myLogger.minLevel=info
 			logger.myLogger.appenderRef.ref=file
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
@@ -184,12 +184,12 @@ func TestRefreshConfig(t *testing.T) {
 		defer func() { global.init.Store(false) }()
 		content := `
 			logger.root.type=Logger
-			logger.root.level=debug
+			logger.root.minLevel=debug
 			logger.root.appenderRef.ref=console
 			appender.console.type=Console
 			appender.console.layout.type=TextLayout
 			logger.myLogger.type=Logger
-			logger.myLogger.level=info
+			logger.myLogger.minLevel=info
 			logger.myLogger.appenderRef.ref=console
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
@@ -200,12 +200,12 @@ func TestRefreshConfig(t *testing.T) {
 		defer func() { global.init.Store(false) }()
 		content := `
 			logger.root.type=Logger
-			logger.root.level=debug
+			logger.root.minLevel=debug
 			logger.root.appenderRef.ref=console
 			appender.console.type=Console
 			appender.console.layout.type=TextLayout
 			logger.myLogger.type=Logger
-			logger.myLogger.level=info
+			logger.myLogger.minLevel=info
 			logger.myLogger.tags=**
 			logger.myLogger.appenderRef.ref=console
 		`
@@ -217,12 +217,12 @@ func TestRefreshConfig(t *testing.T) {
 		defer func() { global.init.Store(false) }()
 		content := `
 			logger.root.type=Logger
-			logger.root.level=debug
+			logger.root.minLevel=debug
 			logger.root.appenderRef.ref=console
 			appender.console.type=Console
 			appender.console.layout.type=TextLayout
 			logger.myLogger.type=AsyncLogger
-			logger.myLogger.level=info
+			logger.myLogger.minLevel=info
 			logger.myLogger.tags=.*
 			logger.myLogger.bufferSize=10
 			logger.myLogger.appenderRef.ref=console
@@ -236,12 +236,12 @@ func TestRefreshConfig(t *testing.T) {
 		content := `
 			bufferCap=1GB
 			logger.root.type=Logger
-			logger.root.level=debug
+			logger.root.minLevel=debug
 			logger.root.appenderRef.ref=console
 			appender.console.type=Console
 			appender.console.layout.type=TextLayout
 			logger.myLogger.type=AsyncLogger
-			logger.myLogger.level=info
+			logger.myLogger.minLevel=info
 			logger.myLogger.tags=.*
 			logger.myLogger.appenderRef.ref=console
 		`

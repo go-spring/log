@@ -36,6 +36,7 @@ func init() {
 // Logger is the interface implemented by all loggers.
 type Logger interface {
 	Lifecycle                          // Start/Stop methods
+	GetName() string                   // Returns the appender name
 	Publish(e *Event)                  // Send events to appenders
 	EnableLevel(level Level) bool      // Whether a log level is enabled
 	Write(b []byte) (n int, err error) // Write raw bytes to appenders
@@ -43,21 +44,22 @@ type Logger interface {
 
 // LoggerBase contains fields shared by all logger configurations.
 type LoggerBase struct {
-	Name   string `PluginAttribute:"name"`          // Logger name
-	Level  Level  `PluginAttribute:"level"`         // Log level
-	Tags   string `PluginAttribute:"tags,default="` // Optional tags
-	Layout Layout `PluginElement:"Layout?"`
+	Name     string `PluginAttribute:"name"` // Logger name
+	MinLevel Level  `PluginAttribute:"minLevel,default=None"`
+	MaxLevel Level  `PluginAttribute:"maxLevel,default=Max"`
+	Tags     string `PluginAttribute:"tags,default="` // Optional tags
+	Layout   Layout `PluginElement:"Layout?"`
 	GroupAppender
 }
 
-// String returns the name of the logger.
-func (c *LoggerBase) String() string {
+// GetName returns the name of the logger.
+func (c *LoggerBase) GetName() string {
 	return c.Name
 }
 
 // EnableLevel checks if the given log level is enabled for this logger.
 func (c *LoggerBase) EnableLevel(level Level) bool {
-	return level.code >= c.Level.code
+	return level.code >= c.MinLevel.code && level.code < c.MaxLevel.code
 }
 
 // ----------------------------------------------------------------------------
@@ -303,7 +305,7 @@ func initFileLogger[T FileWriter](
 		{
 			Appender: &FileWriterAsAppender{
 				AppenderBase: AppenderBase{
-					MinLevel: f.Level,
+					MinLevel: f.MinLevel,
 					MaxLevel: normalMaxLevel,
 				},
 				FileWriter: fnAppender(RotateFileWriterBase{
