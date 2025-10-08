@@ -43,9 +43,10 @@ type Logger interface {
 
 // LoggerBase contains fields shared by all logger configurations.
 type LoggerBase struct {
-	Name  string `PluginAttribute:"name"`          // Logger name
-	Level Level  `PluginAttribute:"level"`         // Log level
-	Tags  string `PluginAttribute:"tags,default="` // Optional tags
+	Name   string `PluginAttribute:"name"`          // Logger name
+	Level  Level  `PluginAttribute:"level"`         // Log level
+	Tags   string `PluginAttribute:"tags,default="` // Optional tags
+	Layout Layout `PluginElement:"Layout?"`
 	AppenderRefs
 }
 
@@ -70,7 +71,11 @@ type SyncLogger struct {
 
 // Publish sends the event directly to appenders (blocking).
 func (c *SyncLogger) Publish(e *Event) {
-	c.AppenderRefs.Append(e)
+	if c.Layout == nil {
+		c.AppenderRefs.Append(e)
+	} else {
+		c.AppenderRefs.Write(c.Layout.ToBytes(e))
+	}
 	PutEvent(e) // Return event to the pool
 }
 
@@ -140,7 +145,11 @@ func (c *AsyncLogger) Start() error {
 			}
 			switch x := v.(type) {
 			case *Event:
-				c.AppenderRefs.Append(x)
+				if c.Layout == nil {
+					c.AppenderRefs.Append(x)
+				} else {
+					c.AppenderRefs.Write(c.Layout.ToBytes(x))
+				}
 				PutEvent(x)
 			case []byte:
 				c.AppenderRefs.Write(x)
@@ -234,8 +243,6 @@ type FileLogger struct {
 	LoggerBase
 	Logger
 
-	Layout Layout `PluginElement:"Layout,default=TextLayout"`
-
 	// File output configuration
 	FileDir  string `PluginAttribute:"dir,default=./log"`
 	FileName string `PluginAttribute:"file,default=app.log"`
@@ -294,23 +301,17 @@ func initFileLogger[T FileWriter](
 	// Create appenders for the normal log file
 	appenders := []*AppenderRef{
 		{
-			Appender: &LevelFilterAppender{
-				AppenderRefs: AppenderRefs{
-					AppenderRefs: []*AppenderRef{
-						{
-							Appender: &FileWriterAsAppender{
-								FileWriter: fnAppender(RotateFileWriterBase{
-									FileDir:        f.FileDir,
-									FileName:       f.FileName,
-									ClearHours:     f.ClearHours,
-									RotateStrategy: f.RotateStrategy,
-								}),
-							},
-						},
-					},
+			Appender: &FileWriterAsAppender{
+				AppenderBase: AppenderBase{
+					MinLevel: f.Level,
+					MaxLevel: normalMaxLevel,
 				},
-				MinLevel: f.Level,
-				MaxLevel: normalMaxLevel,
+				FileWriter: fnAppender(RotateFileWriterBase{
+					FileDir:        f.FileDir,
+					FileName:       f.FileName,
+					ClearHours:     f.ClearHours,
+					RotateStrategy: f.RotateStrategy,
+				}),
 			},
 		},
 	}
@@ -318,51 +319,29 @@ func initFileLogger[T FileWriter](
 	// Create appenders for warning and error logs if Separate is enabled
 	if f.Separate {
 		appenders = append(appenders, &AppenderRef{
-			Appender: &LevelFilterAppender{
-				AppenderRefs: AppenderRefs{
-					AppenderRefs: []*AppenderRef{
-						{
-							Appender: &FileWriterAsAppender{
-								FileWriter: fnAppender(RotateFileWriterBase{
-									FileDir:        f.FileDir,
-									FileName:       f.FileName + ".wf",
-									ClearHours:     f.ClearHours,
-									RotateStrategy: f.RotateStrategy,
-								}),
-							},
-						},
-					},
+			Appender: &FileWriterAsAppender{
+				AppenderBase: AppenderBase{
+					MinLevel: WarnLevel,
+					MaxLevel: MaxLevel,
 				},
-				MinLevel: WarnLevel,
-				MaxLevel: MaxLevel,
+				FileWriter: fnAppender(RotateFileWriterBase{
+					FileDir:        f.FileDir,
+					FileName:       f.FileName + ".wf",
+					ClearHours:     f.ClearHours,
+					RotateStrategy: f.RotateStrategy,
+				}),
 			},
 		})
 	}
 
 	f.Logger = fnLogger(f)
 
-	// Wrap all appenders with LayoutAppender to format log messages
-	a := &LayoutAppender{
-		AppenderRefs: AppenderRefs{
-			AppenderRefs: []*AppenderRef{
-				{
-					Appender: &MultiAppender{
-						AppenderRefs: AppenderRefs{
-							AppenderRefs: appenders,
-						},
-					},
-				},
-			},
-		},
-		Layout: f.Layout,
-	}
-
 	// Attach the final appender to the logger
 	switch x := f.Logger.(type) {
 	case *SyncLogger:
-		x.AppenderRefs.AppenderRefs = append(x.AppenderRefs.AppenderRefs, &AppenderRef{Appender: a})
+		x.AppenderRefs.AppenderRefs = appenders
 	case *AsyncLogger:
-		x.AppenderRefs.AppenderRefs = append(x.AppenderRefs.AppenderRefs, &AppenderRef{Appender: a})
+		x.AppenderRefs.AppenderRefs = appenders
 	default: // for linter
 	}
 

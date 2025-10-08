@@ -29,8 +29,8 @@ func init() {
 	RegisterPlugin[ConsoleAppender]("Console", PluginTypeAppender)
 	RegisterPlugin[FileAppender]("File", PluginTypeAppender)
 	RegisterPlugin[MultiAppender]("Multi", PluginTypeAppender)
-	RegisterPlugin[LayoutAppender]("Layout", PluginTypeAppender)
-	RegisterPlugin[LevelFilterAppender]("LevelFilter", PluginTypeAppender)
+	//RegisterPlugin[LayoutAppender]("Layout", PluginTypeAppender)
+	//RegisterPlugin[LevelFilterAppender]("LevelFilter", PluginTypeAppender)
 }
 
 // Appender is an interface that defines components that handle log output.
@@ -76,10 +76,16 @@ var (
 
 // AppenderBase provides common configuration and default behavior for appenders.
 type AppenderBase struct {
-	Name string `PluginAttribute:"name"`
+	Name     string `PluginAttribute:"name"`
+	MinLevel Level  `PluginAttribute:"minLevel,default=None"`
+	MaxLevel Level  `PluginAttribute:"maxLevel,default=Max"`
 }
 
 func (c *AppenderBase) GetName() string { return c.Name }
+
+func (c *AppenderBase) EnableLevel(level Level) bool {
+	return level.code >= c.MinLevel.code && level.code < c.MaxLevel.code
+}
 
 // DiscardAppender ignores all log events (no output).
 type DiscardAppender struct {
@@ -102,7 +108,9 @@ func (c *ConsoleAppender) Stop()        {}
 
 // Append formats the event and writes it to standard output.
 func (c *ConsoleAppender) Append(e *Event) {
-	c.Write(c.Layout.ToBytes(e))
+	if c.EnableLevel(e.Level) {
+		c.Write(c.Layout.ToBytes(e))
+	}
 }
 
 // Write writes a byte slice directly to the stdout.
@@ -132,7 +140,9 @@ func (c *FileAppender) Start() error {
 
 // Append formats the log event and writes it to the file.
 func (c *FileAppender) Append(e *Event) {
-	c.Write(c.Layout.ToBytes(e))
+	if c.EnableLevel(e.Level) {
+		c.Write(c.Layout.ToBytes(e))
+	}
 }
 
 // Write writes a byte slice directly to the file.
@@ -154,8 +164,6 @@ func (c *FileAppender) Stop() {
 
 var (
 	_ Appender = (*MultiAppender)(nil)
-	_ Appender = (*LayoutAppender)(nil)
-	_ Appender = (*LevelFilterAppender)(nil)
 )
 
 // MultiAppender delegates log events to multiple underlying appenders.
@@ -165,36 +173,8 @@ type MultiAppender struct {
 	AppenderRefs
 }
 
-// LayoutAppender is an Appender wrapper that applies a Layout
-// to each log event before delegating the formatted output
-// to the underlying Appender.
-type LayoutAppender struct {
-	AppenderBase
-	AppenderRefs
-	Layout Layout `PluginElement:"Layout,default=TextLayout"`
-}
-
-// Append formats the given log event using the configured Layout
-// and then writes the formatted bytes to the underlying Appender.
-func (c *LayoutAppender) Append(e *Event) {
-	c.AppenderRefs.Write(c.Layout.ToBytes(e))
-}
-
-// LevelFilterAppender filters log events based on their severity level.
-// Only events with levels between MinLevel and MaxLevel (exclusive)
-// will be passed to the underlying Appender.
-type LevelFilterAppender struct {
-	AppenderBase
-	AppenderRefs
-	MinLevel Level
-	MaxLevel Level
-}
-
-// Append filters the incoming log event according to the defined level range.
-// If the event's level is outside the range [MinLevel, MaxLevel),
-// the event will be ignored. Otherwise, it is forwarded to the underlying Appender.
-func (c *LevelFilterAppender) Append(e *Event) {
-	if e.Level.code >= c.MinLevel.code && e.Level.code < c.MaxLevel.code {
+func (c *MultiAppender) Append(e *Event) {
+	if c.EnableLevel(e.Level) {
 		c.AppenderRefs.Append(e)
 	}
 }

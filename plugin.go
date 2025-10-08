@@ -265,6 +265,8 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 		err := util.FormatError(nil, "found no plugin element")
 		return util.WrapError(err, "inject struct field %s error", ft.Name)
 	}
+
+	elemType, nullable := strings.CutSuffix(elemType, "?")
 	elemKey := prefix + "." + toCamelKey(elemType)
 
 	switch fv.Kind() {
@@ -273,6 +275,9 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 		if !s.Has(elemKey) && !s.Has(elemKey+"[0]") {
 			elemDef, ok := elemTag.Lookup("default")
 			if !ok {
+				if nullable {
+					return nil
+				}
 				err := util.FormatError(nil, "found no plugin element")
 				return util.WrapError(err, "inject struct field %s error", ft.Name)
 			}
@@ -363,6 +368,9 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 		} else {
 			elemLabel, ok := elemTag.Lookup("default")
 			if !ok {
+				if nullable { // nullable
+					return nil
+				}
 				err := util.FormatError(nil, "found no plugin element")
 				return util.WrapError(err, "inject struct field %s error", ft.Name)
 			}

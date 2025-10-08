@@ -44,6 +44,10 @@ func TestConsoleAppender(t *testing.T) {
 		}()
 
 		a := &ConsoleAppender{
+			AppenderBase: AppenderBase{
+				MinLevel: NoneLevel,
+				MaxLevel: MaxLevel,
+			},
 			Layout: &TextLayout{
 				BaseLayout{
 					FileLineLength: 48,
@@ -111,6 +115,10 @@ func TestFileAppender(t *testing.T) {
 		assert.Error(t, err).Nil()
 
 		a := &FileAppender{
+			AppenderBase: AppenderBase{
+				MinLevel: NoneLevel,
+				MaxLevel: MaxLevel,
+			},
 			Layout: &TextLayout{
 				BaseLayout{
 					FileLineLength: 48,
