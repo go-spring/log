@@ -4,43 +4,46 @@ grammar Expr;
 // Lexer Rules
 // ----------------------------------
 
-// 类型名或者字段名（标识符）
+// Identifier for type names or field names
 IDENT : [a-zA-Z_][a-zA-Z0-9_]* ;
 
-// 数组下标，只支持整数
+// Array index (only supports integers)
 INDEX : [0-9]+ ;
 
-// 字符串，支持单引号或双引号
+// String literal, supports both single and double quotes
 STRING
-    : '"' (~["\\] | '\\' .)* '"'
-    | '\'' (~['\\] | '\\' .)* '\''
+    : '"' (~["\\] | '\\' .)* '"'   // Double-quoted string with escape support
+    | '\'' (~['\\] | '\\' .)* '\'' // Single-quoted string with escape support
     ;
 
-// 空白字符
+// Whitespace (spaces, tabs, newlines) are skipped
 WS : [ \t\r\n]+ -> skip ;
 
 // ----------------------------------
 // Parser Rules
 // ----------------------------------
 
-// 表达式 type{k=v，可以没有任何kv}
+// Main expression: a type with optional key-value pairs
 expr
     : IDENT '{' (innerExpr (',' innerExpr)*)? '}'   # TypeExpr
     ;
 
-// k=v
+// Key-value assignment: field = value
 innerExpr
     : fieldAccess '=' value                          # FieldAssign
     ;
 
-// 支持多段字段访问，点号或数组形式
+// Field access supports nested fields via dot notation or array indices
 fieldAccess
     : IDENT ('.' IDENT | '[' INDEX ']')*            # NestedField
     ;
 
-// 值，可以是字符串，嵌套表达式，或者不包含空格的原始内容
+// Value can be:
+// 1. A string literal
+// 2. A nested expression
+// 3. A raw value (non-whitespace, non-special characters)
 value
     : STRING                                       # StringValue
     | expr                                         # NestedExpr
-    | ~[ \t\r\n{}=,]+                              # RawValue：非空白、非特殊字符的内容
+    | ~[ \t\r\n{}=,]+                              # RawValue
     ;
