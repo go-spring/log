@@ -26,6 +26,8 @@ WS : [ \t\r\n]+ -> skip ;
 // Parser Rules
 // ----------------------------------
 
+root: expr eof ;
+
 // Main expression: a type with optional key-value pairs
 // Example: TypeName { field1 = "value1", field2 = NestedType { ... }, field3 = rawValue }
 expr
