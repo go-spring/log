@@ -117,7 +117,7 @@ func toStorage(m map[string]string) (*barky.Storage, error) {
 	s := barky.NewStorage()
 	for k, v := range m {
 		var ok bool
-		if k, ok = strings.CutSuffix(toCamelKey(k), "@c"); ok {
+		if k, ok = strings.CutSuffix(toCamelKey(k), "!"); ok {
 			subMap, err := expr.Parse(v)
 			if err != nil {
 				return nil, util.FormatError(err, "toStorage error")

@@ -5,10 +5,10 @@
     "file": {
       "type": "File",
       "fileName": "log.txt",
-      "layout@c": "JSONLayout{}"
+      "layout!": "JSONLayout{}"
     },
-    "console@c": "Console{layout=TextLayout{}}",
-    "sample@c": "Sample{layout.type=TextLayout}"
+    "console!": "Console{layout=TextLayout{}}",
+    "sample!": "Sample{layout.type=TextLayout}"
   },
   "logger": {
     "root": {
