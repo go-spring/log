@@ -170,17 +170,31 @@ func toCamelKey(key string) string {
 
 var identifierPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]*$`)
 
-// ParseComposeType parses a compose type string into a map.
+// ParseComposeType parses a compose-type string into a map of key-value pairs.
+// A compose-type string has the format:
+//
+//	TypeName{key1=value1, key2=value2, ...}
+//
+// Example:
+//
+//	   Logger{level=info, appenderRef[0].ref=file} -> map[string]string{
+//		      "type": "Logger",
+//		      "level": "info",
+//		      "appenderRef[0].ref": "file",
+//	    }
+//
+// If the string does not match the compose-type pattern, it returns nil,nil,
+// indicating it should be treated as a normal string.
 func ParseComposeType(s string) (map[string]string, error) {
 	i := strings.Index(s, "{")
 	j := strings.LastIndex(s, "}")
 	if i <= 0 || j <= i+1 {
-		return nil, nil // 作为普通字符串
+		return nil, nil // Not a compose-type, treat as normal string
 	}
 
 	strType := strings.TrimSpace(s[:i])
 	if !identifierPattern.MatchString(strType) {
-		return nil, nil // 作为普通字符串
+		return nil, nil // Not a compose-type, treat as normal string
 	}
 
 	m := make(map[string]string)
