@@ -4,16 +4,14 @@ grammar Expr;
 // Lexer Rules
 // ----------------------------------
 
-KW_TRUE  : 'true';
-KW_FALSE : 'false';
 
-// Identifier for type names or field names
+// Identifier for type names, field names, or symbolic constants
 IDENT : [a-zA-Z_][a-zA-Z0-9_]* ;
 
 // Array index (only non-negative integers)
 INDEX : [0-9]+ ;
 
-// String literal, supports only double quotes for simplicity
+// String literal: double-quoted strings
 STRING
     : '"' ( ~["\\] | '\\' ["\\/bfnrt] )* '"'
     ;
@@ -43,13 +41,14 @@ WS : [ \t\r\n]+ -> skip ;
 // Root node: entry point of the parser, ensures the entire input is a single expression
 root: expr EOF ;
 
-// Main expression: a type with optional key-value pairs
+// Main expression: a type name with optional key-value pairs enclosed in braces
 // Example: TypeName { field1 = "value1", field2 = NestedType { ... }, field3 = rawValue }
 expr
     : IDENT '{' innerExprList? '}'
     ;
 
 // List of key-value assignments inside an expression, optionally comma-separated
+// Trailing comma is allowed
 innerExprList
     : innerExpr (',' innerExpr)* ','?
     ;
@@ -65,11 +64,10 @@ fieldAccess
     : IDENT ('.' IDENT | '[' INDEX ']')*
     ;
 
-// value: clear and conflict-free definition
+// Value can be a string, identifier, boolean, numeric literal, or nested expression
 value
-    : STRING                 // must use string for paths, special symbols, etc.
-    | IDENT                  // symbolic identifiers like 'debug', 'info'
-    | KW_TRUE | KW_FALSE     // boolean literals
-    | INTEGER | FLOAT        // numeric literals
-    | expr                   // nested expressions
+    : STRING
+    | IDENT
+    | INTEGER | FLOAT
+    | expr
     ;
