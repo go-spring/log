@@ -7,14 +7,17 @@ grammar Expr;
 // Identifier for type names or field names
 IDENT : [a-zA-Z_][a-zA-Z0-9_]* ;
 
-// Array index (only supports integers)
+// Array index (only non-negative integers)
 INDEX : [0-9]+ ;
 
-// String literal, supports both single and double quotes
+// String literal, supports single or double quotes with common escape sequences
 STRING
-    : '"' (~["\\] | '\\' .)* '"'
-    | '\'' (~['\\] | '\\' .)* '\''
+    : '"' ( ~["\\] | '\\' ["\\/bfnrt] )* '"'
+    | '\'' ( ~['\\] | '\\' ["\\/bfnrt] )* '\''
     ;
+
+// Raw value: non-whitespace, non-special characters
+RAW_VALUE : ~[ \t\r\n{}=,]+ ;
 
 // Whitespace (spaces, tabs, newlines) are skipped
 WS : [ \t\r\n]+ -> skip ;
@@ -24,8 +27,9 @@ WS : [ \t\r\n]+ -> skip ;
 // ----------------------------------
 
 // Main expression: a type with optional key-value pairs
+// Example: TypeName { field1 = "value1", field2 = NestedType { ... }, field3 = rawValue }
 expr
-    : IDENT '{' (innerExpr (',' innerExpr)*)? '}'
+    : IDENT '{' (innerExpr (',' innerExpr)* ','?)? '}'
     ;
 
 // Key-value assignment: field = value
@@ -34,6 +38,7 @@ innerExpr
     ;
 
 // Field access supports nested fields via dot notation or array indices
+// Examples: foo, foo.bar, foo[0], foo.bar[1].baz
 fieldAccess
     : IDENT ('.' IDENT | '[' INDEX ']')*
     ;
@@ -45,5 +50,5 @@ fieldAccess
 value
     : STRING
     | expr
-    | ~[ \t\r\n{}=,]+
+    | RAW_VALUE
     ;
