@@ -21,6 +21,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/go-spring/spring-base/barky"
@@ -165,4 +166,47 @@ func toCamelKey(key string) string {
 		r = append(r, c)
 	}
 	return string(r)
+}
+
+var identifierPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]*$`)
+
+// ParseComposeType parses a compose type string into a map.
+func ParseComposeType(s string) (map[string]string, error) {
+	i := strings.Index(s, "{")
+	j := strings.LastIndex(s, "}")
+	if i <= 0 || j <= i+1 {
+		return nil, nil // 作为普通字符串
+	}
+
+	strType := strings.TrimSpace(s[:i])
+	if !identifierPattern.MatchString(strType) {
+		return nil, nil // 作为普通字符串
+	}
+
+	m := make(map[string]string)
+	m["type"] = strType
+
+	for kv := range strings.SplitSeq(s[i+1:j], ",") {
+		if kv = strings.TrimSpace(kv); kv == "" {
+			continue
+		}
+
+		ss := strings.SplitN(kv, "=", 2)
+		if len(ss) != 2 {
+			return nil, util.FormatError(nil, "invalid compose type %q", s)
+		}
+
+		k := strings.TrimSpace(ss[0])
+		if !identifierPattern.MatchString(k) {
+			return nil, util.FormatError(nil, "invalid compose type %q", s)
+		}
+
+		if _, ok := m[k]; ok {
+			err := util.FormatError(nil, "duplicate compose type key %q", k)
+			return nil, util.FormatError(err, "invalid compose type %q", s)
+		}
+
+		m[k] = strings.TrimSpace(ss[1])
+	}
+	return m, nil
 }
