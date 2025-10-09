@@ -135,10 +135,6 @@ func (l *ParseTreeListener) parseInnerExpr(key string, ctx IInnerExprContext) {
 		l.Result[fieldKey] = s
 	case ctx.Value().IDENT() != nil:
 		l.Result[fieldKey] = ctx.Value().IDENT().GetText()
-	case ctx.Value().KW_TRUE() != nil:
-		l.Result[fieldKey] = ctx.Value().KW_TRUE().GetText()
-	case ctx.Value().KW_FALSE() != nil:
-		l.Result[fieldKey] = ctx.Value().KW_FALSE().GetText()
 	case ctx.Value().INTEGER() != nil:
 		l.Result[fieldKey] = ctx.Value().INTEGER().GetText()
 	case ctx.Value().FLOAT() != nil:
