@@ -25,6 +25,16 @@ import (
 	"github.com/antlr4-go/antlr/v4"
 )
 
+// Parse parses an expression string into a flat map representation.
+//
+// Example:
+//
+//	Input:  Logger { level = "info", path = /var/log/app.log }
+//	Output: map[string]string{
+//	           "type": "Logger",
+//	           "level": "info",
+//	           "path":  "/var/log/app.log",
+//	        }
 func Parse(data string) (ret map[string]string, err error) {
 	if data = strings.TrimSpace(data); data == "" {
 		return nil, nil
@@ -61,7 +71,7 @@ func Parse(data string) (ret map[string]string, err error) {
 	}
 	antlr.ParseTreeWalkerDefault.Walk(l, p.Root())
 
-	// Step 4: Return parsed expression or error
+	// Step 4: Return the final result or error
 	if e.Error != nil {
 		return nil, e.Error
 	}
@@ -84,16 +94,19 @@ func (l *ErrorListener) SyntaxError(_ antlr.Recognizer, _ any, line, column int,
 	l.Error = fmt.Errorf("%w\nline %d:%d %s << text: %q", l.Error, line, column, msg, l.Data)
 }
 
-// ParseTreeListener walks the parse tree and constructs the expression AST.
+// ParseTreeListener walks the parse tree and builds the key-value map.
 type ParseTreeListener struct {
 	BaseExprListener
 	Result map[string]string
 }
 
+// ExitRoot is called when exiting the root node of the parse tree.
+// It starts recursive parsing of the main expression.
 func (l *ParseTreeListener) ExitRoot(ctx *RootContext) {
 	l.parseExpr("", ctx.Expr())
 }
 
+// parseExpr processes a type expression block and traverses its inner expressions.
 func (l *ParseTreeListener) parseExpr(key string, ctx IExprContext) {
 	typeKey := "type"
 	if key != "" {
@@ -107,6 +120,7 @@ func (l *ParseTreeListener) parseExpr(key string, ctx IExprContext) {
 	}
 }
 
+// parseInnerExpr processes a single key-value assignment inside an expression block.
 func (l *ParseTreeListener) parseInnerExpr(key string, ctx IInnerExprContext) {
 	fieldKey := ctx.FieldAccess().GetText()
 	if key != "" {
