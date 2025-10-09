@@ -43,26 +43,26 @@ func exprParserInit() {
 	}
 	staticData.PredictionContextCache = antlr.NewPredictionContextCache()
 	staticData.serializedATN = []int32{
-		4, 1, 12, 49, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
+		4, 1, 12, 50, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
 		4, 1, 0, 1, 0, 1, 0, 3, 0, 14, 8, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 5, 1,
 		21, 8, 1, 10, 1, 12, 1, 24, 9, 1, 1, 1, 3, 1, 27, 8, 1, 1, 2, 1, 2, 1,
 		2, 1, 2, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 5, 3, 39, 8, 3, 10, 3, 12,
-		3, 42, 9, 3, 1, 4, 1, 4, 1, 4, 3, 4, 47, 8, 4, 1, 4, 0, 0, 5, 0, 2, 4,
-		6, 8, 0, 0, 50, 0, 10, 1, 0, 0, 0, 2, 17, 1, 0, 0, 0, 4, 28, 1, 0, 0, 0,
-		6, 32, 1, 0, 0, 0, 8, 46, 1, 0, 0, 0, 10, 11, 5, 8, 0, 0, 11, 13, 5, 1,
-		0, 0, 12, 14, 3, 2, 1, 0, 13, 12, 1, 0, 0, 0, 13, 14, 1, 0, 0, 0, 14, 15,
-		1, 0, 0, 0, 15, 16, 5, 2, 0, 0, 16, 1, 1, 0, 0, 0, 17, 22, 3, 4, 2, 0,
-		18, 19, 5, 3, 0, 0, 19, 21, 3, 4, 2, 0, 20, 18, 1, 0, 0, 0, 21, 24, 1,
-		0, 0, 0, 22, 20, 1, 0, 0, 0, 22, 23, 1, 0, 0, 0, 23, 26, 1, 0, 0, 0, 24,
-		22, 1, 0, 0, 0, 25, 27, 5, 3, 0, 0, 26, 25, 1, 0, 0, 0, 26, 27, 1, 0, 0,
-		0, 27, 3, 1, 0, 0, 0, 28, 29, 3, 6, 3, 0, 29, 30, 5, 4, 0, 0, 30, 31, 3,
-		8, 4, 0, 31, 5, 1, 0, 0, 0, 32, 40, 5, 8, 0, 0, 33, 34, 5, 5, 0, 0, 34,
-		39, 5, 8, 0, 0, 35, 36, 5, 6, 0, 0, 36, 37, 5, 9, 0, 0, 37, 39, 5, 7, 0,
-		0, 38, 33, 1, 0, 0, 0, 38, 35, 1, 0, 0, 0, 39, 42, 1, 0, 0, 0, 40, 38,
-		1, 0, 0, 0, 40, 41, 1, 0, 0, 0, 41, 7, 1, 0, 0, 0, 42, 40, 1, 0, 0, 0,
-		43, 47, 5, 10, 0, 0, 44, 47, 3, 0, 0, 0, 45, 47, 5, 11, 0, 0, 46, 43, 1,
-		0, 0, 0, 46, 44, 1, 0, 0, 0, 46, 45, 1, 0, 0, 0, 47, 9, 1, 0, 0, 0, 6,
-		13, 22, 26, 38, 40, 46,
+		3, 42, 9, 3, 1, 4, 1, 4, 1, 4, 1, 4, 3, 4, 48, 8, 4, 1, 4, 0, 0, 5, 0,
+		2, 4, 6, 8, 0, 0, 52, 0, 10, 1, 0, 0, 0, 2, 17, 1, 0, 0, 0, 4, 28, 1, 0,
+		0, 0, 6, 32, 1, 0, 0, 0, 8, 47, 1, 0, 0, 0, 10, 11, 5, 8, 0, 0, 11, 13,
+		5, 1, 0, 0, 12, 14, 3, 2, 1, 0, 13, 12, 1, 0, 0, 0, 13, 14, 1, 0, 0, 0,
+		14, 15, 1, 0, 0, 0, 15, 16, 5, 2, 0, 0, 16, 1, 1, 0, 0, 0, 17, 22, 3, 4,
+		2, 0, 18, 19, 5, 3, 0, 0, 19, 21, 3, 4, 2, 0, 20, 18, 1, 0, 0, 0, 21, 24,
+		1, 0, 0, 0, 22, 20, 1, 0, 0, 0, 22, 23, 1, 0, 0, 0, 23, 26, 1, 0, 0, 0,
+		24, 22, 1, 0, 0, 0, 25, 27, 5, 3, 0, 0, 26, 25, 1, 0, 0, 0, 26, 27, 1,
+		0, 0, 0, 27, 3, 1, 0, 0, 0, 28, 29, 3, 6, 3, 0, 29, 30, 5, 4, 0, 0, 30,
+		31, 3, 8, 4, 0, 31, 5, 1, 0, 0, 0, 32, 40, 5, 8, 0, 0, 33, 34, 5, 5, 0,
+		0, 34, 39, 5, 8, 0, 0, 35, 36, 5, 6, 0, 0, 36, 37, 5, 9, 0, 0, 37, 39,
+		5, 7, 0, 0, 38, 33, 1, 0, 0, 0, 38, 35, 1, 0, 0, 0, 39, 42, 1, 0, 0, 0,
+		40, 38, 1, 0, 0, 0, 40, 41, 1, 0, 0, 0, 41, 7, 1, 0, 0, 0, 42, 40, 1, 0,
+		0, 0, 43, 48, 5, 10, 0, 0, 44, 48, 5, 11, 0, 0, 45, 48, 5, 8, 0, 0, 46,
+		48, 3, 0, 0, 0, 47, 43, 1, 0, 0, 0, 47, 44, 1, 0, 0, 0, 47, 45, 1, 0, 0,
+		0, 47, 46, 1, 0, 0, 0, 48, 9, 1, 0, 0, 0, 6, 13, 22, 26, 38, 40, 47,
 	}
 	deserializer := antlr.NewATNDeserializer(nil)
 	staticData.atn = deserializer.Deserialize(staticData.serializedATN)
@@ -782,8 +782,9 @@ type IValueContext interface {
 
 	// Getter signatures
 	STRING() antlr.TerminalNode
-	Expr() IExprContext
 	RAW_VALUE() antlr.TerminalNode
+	IDENT() antlr.TerminalNode
+	Expr() IExprContext
 
 	// IsValueContext differentiates from other interfaces.
 	IsValueContext()
@@ -825,6 +826,14 @@ func (s *ValueContext) STRING() antlr.TerminalNode {
 	return s.GetToken(ExprParserSTRING, 0)
 }
 
+func (s *ValueContext) RAW_VALUE() antlr.TerminalNode {
+	return s.GetToken(ExprParserRAW_VALUE, 0)
+}
+
+func (s *ValueContext) IDENT() antlr.TerminalNode {
+	return s.GetToken(ExprParserIDENT, 0)
+}
+
 func (s *ValueContext) Expr() IExprContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
@@ -839,10 +848,6 @@ func (s *ValueContext) Expr() IExprContext {
 	}
 
 	return t.(IExprContext)
-}
-
-func (s *ValueContext) RAW_VALUE() antlr.TerminalNode {
-	return s.GetToken(ExprParserRAW_VALUE, 0)
 }
 
 func (s *ValueContext) GetRuleContext() antlr.RuleContext {
@@ -868,14 +873,14 @@ func (s *ValueContext) ExitRule(listener antlr.ParseTreeListener) {
 func (p *ExprParser) Value() (localctx IValueContext) {
 	localctx = NewValueContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 8, ExprParserRULE_value)
-	p.SetState(46)
+	p.SetState(47)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
 	}
 
-	switch p.GetTokenStream().LA(1) {
-	case ExprParserSTRING:
+	switch p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 5, p.GetParserRuleContext()) {
+	case 1:
 		p.EnterOuterAlt(localctx, 1)
 		{
 			p.SetState(43)
@@ -886,17 +891,10 @@ func (p *ExprParser) Value() (localctx IValueContext) {
 			}
 		}
 
-	case ExprParserIDENT:
+	case 2:
 		p.EnterOuterAlt(localctx, 2)
 		{
 			p.SetState(44)
-			p.Expr()
-		}
-
-	case ExprParserRAW_VALUE:
-		p.EnterOuterAlt(localctx, 3)
-		{
-			p.SetState(45)
 			p.Match(ExprParserRAW_VALUE)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -904,8 +902,25 @@ func (p *ExprParser) Value() (localctx IValueContext) {
 			}
 		}
 
-	default:
-		p.SetError(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+	case 3:
+		p.EnterOuterAlt(localctx, 3)
+		{
+			p.SetState(45)
+			p.Match(ExprParserIDENT)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+
+	case 4:
+		p.EnterOuterAlt(localctx, 4)
+		{
+			p.SetState(46)
+			p.Expr()
+		}
+
+	case antlr.ATNInvalidAltNumber:
 		goto errorExit
 	}
 

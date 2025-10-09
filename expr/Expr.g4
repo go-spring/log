@@ -54,5 +54,6 @@ fieldAccess
 value
     : STRING
     | RAW_VALUE
+    | IDENT
     | expr
     ;

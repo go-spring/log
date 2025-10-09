@@ -101,6 +101,8 @@ func (l *ParseTreeListener) parseInnerExpr(key string, ctx IInnerExprContext) {
 		l.Result[fieldKey], _ = strconv.Unquote(ctx.Value().STRING().GetText())
 	case ctx.Value().RAW_VALUE() != nil:
 		l.Result[fieldKey] = ctx.Value().RAW_VALUE().GetText()
+	case ctx.Value().IDENT() != nil:
+		l.Result[fieldKey] = ctx.Value().IDENT().GetText()
 	case ctx.Value().Expr() != nil:
 		l.parseExpr(fieldKey, ctx.Value().Expr())
 	default: // for linter
