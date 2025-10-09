@@ -164,6 +164,14 @@ func TestParse(t *testing.T) {
 				"output": "stdout",
 			},
 		},
+		{
+			name:  "field with multiple dots",
+			input: `File{fileName=log.txt, layout.type=JSONLayout}`,
+			want: map[string]string{
+				"type":         "Logger",
+				"appender.out": "stdout",
+			},
+		},
 	}
 
 	for _, tt := range tests {
