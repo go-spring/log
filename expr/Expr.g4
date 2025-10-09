@@ -13,7 +13,6 @@ INDEX : [0-9]+ ;
 // String literal, supports single or double quotes with common escape sequences
 STRING
     : '"' ( ~["\\] | '\\' ["\\/bfnrt] )* '"'
-    | '\'' ( ~['\\] | '\\' ["\\/bfnrt] )* '\''
     ;
 
 CONTINUOUS_VALUE
