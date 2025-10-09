@@ -12,8 +12,8 @@ INDEX : [0-9]+ ;
 
 // String literal, supports both single and double quotes
 STRING
-    : '"' (~["\\] | '\\' .)* '"'   // Double-quoted string with escape support
-    | '\'' (~['\\] | '\\' .)* '\'' // Single-quoted string with escape support
+    : '"' (~["\\] | '\\' .)* '"'
+    | '\'' (~['\\] | '\\' .)* '\''
     ;
 
 // Whitespace (spaces, tabs, newlines) are skipped
@@ -25,17 +25,17 @@ WS : [ \t\r\n]+ -> skip ;
 
 // Main expression: a type with optional key-value pairs
 expr
-    : IDENT '{' (innerExpr (',' innerExpr)*)? '}'   # TypeExpr
+    : IDENT '{' (innerExpr (',' innerExpr)*)? '}'
     ;
 
 // Key-value assignment: field = value
 innerExpr
-    : fieldAccess '=' value                          # FieldAssign
+    : fieldAccess '=' value
     ;
 
 // Field access supports nested fields via dot notation or array indices
 fieldAccess
-    : IDENT ('.' IDENT | '[' INDEX ']')*            # NestedField
+    : IDENT ('.' IDENT | '[' INDEX ']')*
     ;
 
 // Value can be:
@@ -43,7 +43,7 @@ fieldAccess
 // 2. A nested expression
 // 3. A raw value (non-whitespace, non-special characters)
 value
-    : STRING                                       # StringValue
-    | expr                                         # NestedExpr
-    | ~[ \t\r\n{}=,]+                              # RawValue
+    : STRING
+    | expr
+    | ~[ \t\r\n{}=,]+
     ;
