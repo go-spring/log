@@ -116,8 +116,21 @@ func ReadYAML(b []byte) (map[string]any, error) {
 func toStorage(m map[string]string) (*barky.Storage, error) {
 	s := barky.NewStorage()
 	for k, v := range m {
-		if err := s.Set(toCamelKey(k), v, 0); err != nil {
+		k = toCamelKey(k)
+		subMap, err := ParseComposeType(v)
+		if err != nil {
 			return nil, util.FormatError(err, "toStorage error")
+		}
+		if len(subMap) == 0 {
+			if err = s.Set(k, v, 0); err != nil {
+				return nil, util.FormatError(err, "toStorage error")
+			}
+			continue
+		}
+		for k2, v2 := range subMap {
+			if err = s.Set(k+"."+toCamelKey(k2), v2, 0); err != nil {
+				return nil, util.FormatError(err, "toStorage error")
+			}
 		}
 	}
 	return s, nil
@@ -168,7 +181,7 @@ func toCamelKey(key string) string {
 	return string(r)
 }
 
-var identifierPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]*$`)
+var identifierPattern = regexp.MustCompile(`^([A-Za-z_][A-Za-z0-9_-]*(\[\d+])?)(\.([A-Za-z_][A-Za-z0-9_-]*(\[\d+])?))*$`)
 
 // ParseComposeType parses a compose-type string into a map of key-value pairs.
 // A compose-type string has the format:
@@ -188,7 +201,7 @@ var identifierPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]*$`)
 func ParseComposeType(s string) (map[string]string, error) {
 	i := strings.Index(s, "{")
 	j := strings.LastIndex(s, "}")
-	if i <= 0 || j <= i+1 {
+	if i <= 0 || j < i+1 {
 		return nil, nil // Not a compose-type, treat as normal string
 	}
 

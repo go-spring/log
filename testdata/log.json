@@ -5,16 +5,9 @@
     "file": {
       "type": "File",
       "fileName": "log.txt",
-      "layout": {
-        "type": "JSONLayout"
-      }
+      "layout": "JSONLayout{}"
     },
-    "console": {
-      "type": "Console",
-      "layout": {
-        "type": "TextLayout"
-      }
-    },
+    "console": "Console{layout.type=TextLayout}",
     "sample": {
       "type": "Sample",
       "layout": {
