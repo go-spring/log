@@ -3,6 +3,7 @@ package expr
 import (
 	"fmt"
 	"runtime/debug"
+	"strconv"
 	"strings"
 
 	"github.com/antlr4-go/antlr/v4"
@@ -39,7 +40,9 @@ func Parse(data string) (ret map[string]string, err error) {
 	p.AddErrorListener(e)
 
 	// Step 3: Walk parse tree with custom listener
-	l := &ParseTreeListener{Tokens: tokens}
+	l := &ParseTreeListener{
+		Result: make(map[string]string),
+	}
 	antlr.ParseTreeWalkerDefault.Walk(l, p.Expr())
 
 	// Step 4: Return parsed expression or error
@@ -68,7 +71,6 @@ func (l *ErrorListener) SyntaxError(_ antlr.Recognizer, _ any, line, column int,
 // ParseTreeListener walks the parse tree and constructs the expression AST.
 type ParseTreeListener struct {
 	BaseExprListener
-	Tokens *antlr.CommonTokenStream
 	Result map[string]string
 }
 
@@ -94,7 +96,7 @@ func (l *ParseTreeListener) parseInnerExpr(key string, ctx IInnerExprContext) {
 	}
 	switch {
 	case ctx.Value().STRING() != nil:
-		l.Result[fieldKey] = ctx.Value().STRING().GetText()
+		l.Result[fieldKey], _ = strconv.Unquote(ctx.Value().STRING().GetText())
 	case ctx.Value().RAW_VALUE() != nil:
 		l.Result[fieldKey] = ctx.Value().RAW_VALUE().GetText()
 	case ctx.Value().Expr() != nil:
