@@ -7,13 +7,8 @@
       "fileName": "log.txt",
       "layout@c": "JSONLayout{}"
     },
-    "console@c": "Console{layout.type=TextLayout}",
-    "sample": {
-      "type": "Sample",
-      "layout": {
-        "type": "TextLayout"
-      }
-    }
+    "console@c": "Console{layout=TextLayout{}}",
+    "sample@c": "Sample{layout.type=TextLayout}"
   },
   "logger": {
     "root": {
