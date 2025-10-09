@@ -35,7 +35,7 @@ func exprParserInit() {
 		"", "'{'", "'}'", "','", "'='", "'.'", "'['", "']'",
 	}
 	staticData.SymbolicNames = []string{
-		"", "", "", "", "", "", "", "", "IDENT", "INDEX", "STRING", "RAW_VALUE",
+		"", "", "", "", "", "", "", "", "IDENT", "INDEX", "STRING", "CONTINUOUS_VALUE",
 		"WS",
 	}
 	staticData.RuleNames = []string{
@@ -102,19 +102,19 @@ func NewExprParser(input antlr.TokenStream) *ExprParser {
 
 // ExprParser tokens.
 const (
-	ExprParserEOF       = antlr.TokenEOF
-	ExprParserT__0      = 1
-	ExprParserT__1      = 2
-	ExprParserT__2      = 3
-	ExprParserT__3      = 4
-	ExprParserT__4      = 5
-	ExprParserT__5      = 6
-	ExprParserT__6      = 7
-	ExprParserIDENT     = 8
-	ExprParserINDEX     = 9
-	ExprParserSTRING    = 10
-	ExprParserRAW_VALUE = 11
-	ExprParserWS        = 12
+	ExprParserEOF              = antlr.TokenEOF
+	ExprParserT__0             = 1
+	ExprParserT__1             = 2
+	ExprParserT__2             = 3
+	ExprParserT__3             = 4
+	ExprParserT__4             = 5
+	ExprParserT__5             = 6
+	ExprParserT__6             = 7
+	ExprParserIDENT            = 8
+	ExprParserINDEX            = 9
+	ExprParserSTRING           = 10
+	ExprParserCONTINUOUS_VALUE = 11
+	ExprParserWS               = 12
 )
 
 // ExprParser rules.
@@ -902,7 +902,7 @@ type IValueContext interface {
 
 	// Getter signatures
 	STRING() antlr.TerminalNode
-	RAW_VALUE() antlr.TerminalNode
+	CONTINUOUS_VALUE() antlr.TerminalNode
 	IDENT() antlr.TerminalNode
 	Expr() IExprContext
 
@@ -946,8 +946,8 @@ func (s *ValueContext) STRING() antlr.TerminalNode {
 	return s.GetToken(ExprParserSTRING, 0)
 }
 
-func (s *ValueContext) RAW_VALUE() antlr.TerminalNode {
-	return s.GetToken(ExprParserRAW_VALUE, 0)
+func (s *ValueContext) CONTINUOUS_VALUE() antlr.TerminalNode {
+	return s.GetToken(ExprParserCONTINUOUS_VALUE, 0)
 }
 
 func (s *ValueContext) IDENT() antlr.TerminalNode {
@@ -1015,7 +1015,7 @@ func (p *ExprParser) Value() (localctx IValueContext) {
 		p.EnterOuterAlt(localctx, 2)
 		{
 			p.SetState(49)
-			p.Match(ExprParserRAW_VALUE)
+			p.Match(ExprParserCONTINUOUS_VALUE)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit

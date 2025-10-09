@@ -102,6 +102,55 @@ func TestParse(t *testing.T) {
 				"level": "info",
 			},
 		},
+		{
+			name:  "field with array index access",
+			input: `Logger { appender[0] = "stdout" }`,
+			want: map[string]string{
+				"type":        "Logger",
+				"appender[0]": "stdout",
+			},
+		},
+		{
+			name:  "field with dot notation access",
+			input: `Logger { appender.out = "stdout" }`,
+			want: map[string]string{
+				"type":         "Logger",
+				"appender.out": "stdout",
+			},
+		},
+		{
+			name:  "field with complex access",
+			input: `Logger { appender.out[0].name = "stdout" }`,
+			want: map[string]string{
+				"type":                 "Logger",
+				"appender.out[0].name": "stdout",
+			},
+		},
+		{
+			name:  "single quoted string",
+			input: `Logger { level = 'info' }`,
+			want: map[string]string{
+				"type":  "Logger",
+				"level": "info",
+			},
+		},
+		{
+			name:  "string with escaped characters",
+			input: `Logger { format = "time=\"${timestamp}\"\nlevel=${level}" }`,
+			want: map[string]string{
+				"type":   "Logger",
+				"format": "time=\"${timestamp}\"\nlevel=${level}",
+			},
+		},
+		{
+			name:  "trailing comma in field list",
+			input: `Logger { level = "info", output = "stdout", }`,
+			want: map[string]string{
+				"type":   "Logger",
+				"level":  "info",
+				"output": "stdout",
+			},
+		},
 	}
 
 	for _, tt := range tests {

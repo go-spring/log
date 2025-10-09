@@ -16,8 +16,9 @@ STRING
     | '\'' ( ~['\\] | '\\' ["\\/bfnrt] )* '\''
     ;
 
-// Raw value: non-whitespace, non-special characters
-RAW_VALUE : ~[ \t\r\n{}=,]+ ;
+CONTINUOUS_VALUE
+    : ~[ \t\r\n{}=,."'[\]]+
+    ;
 
 // Whitespace (spaces, tabs, newlines) are skipped
 WS : [ \t\r\n]+ -> skip ;
@@ -58,7 +59,7 @@ fieldAccess
 // 4. An identifier (for simple symbolic values)
 value
     : STRING
-    | RAW_VALUE
+    | CONTINUOUS_VALUE
     | IDENT
     | expr
     ;
