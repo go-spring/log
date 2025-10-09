@@ -5,9 +5,9 @@
     "file": {
       "type": "File",
       "fileName": "log.txt",
-      "layout": "JSONLayout{}"
+      "layout@c": "JSONLayout{}"
     },
-    "console": "Console{layout.type=TextLayout}",
+    "console@c": "Console{layout.type=TextLayout}",
     "sample": {
       "type": "Sample",
       "layout": {

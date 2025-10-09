@@ -21,9 +21,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
+	"github.com/go-spring/log/expr"
 	"github.com/go-spring/spring-base/barky"
 	"github.com/go-spring/spring-base/util"
 	"github.com/magiconair/properties"
@@ -116,19 +116,19 @@ func ReadYAML(b []byte) (map[string]any, error) {
 func toStorage(m map[string]string) (*barky.Storage, error) {
 	s := barky.NewStorage()
 	for k, v := range m {
-		k = toCamelKey(k)
-		subMap, err := ParseComposeType(v)
-		if err != nil {
-			return nil, util.FormatError(err, "toStorage error")
-		}
-		if len(subMap) == 0 {
-			if err = s.Set(k, v, 0); err != nil {
+		var ok bool
+		if k, ok = strings.CutSuffix(toCamelKey(k), "@c"); ok {
+			subMap, err := expr.Parse(v)
+			if err != nil {
 				return nil, util.FormatError(err, "toStorage error")
 			}
-			continue
-		}
-		for k2, v2 := range subMap {
-			if err = s.Set(k+"."+toCamelKey(k2), v2, 0); err != nil {
+			for k2, v2 := range subMap {
+				if err = s.Set(k+"."+toCamelKey(k2), v2, 0); err != nil {
+					return nil, util.FormatError(err, "toStorage error")
+				}
+			}
+		} else {
+			if err := s.Set(k, v, 0); err != nil {
 				return nil, util.FormatError(err, "toStorage error")
 			}
 		}
@@ -179,61 +179,4 @@ func toCamelKey(key string) string {
 		r = append(r, c)
 	}
 	return string(r)
-}
-
-var identifierPattern = regexp.MustCompile(`^([A-Za-z_][A-Za-z0-9_-]*(\[\d+])?)(\.([A-Za-z_][A-Za-z0-9_-]*(\[\d+])?))*$`)
-
-// ParseComposeType parses a compose-type string into a map of key-value pairs.
-// A compose-type string has the format:
-//
-//	TypeName{key1=value1, key2=value2, ...}
-//
-// Example:
-//
-//	   Logger{level=info, appenderRef[0].ref=file} -> map[string]string{
-//		      "type": "Logger",
-//		      "level": "info",
-//		      "appenderRef[0].ref": "file",
-//	    }
-//
-// If the string does not match the compose-type pattern, it returns nil,nil,
-// indicating it should be treated as a normal string.
-func ParseComposeType(s string) (map[string]string, error) {
-	i := strings.Index(s, "{")
-	j := strings.LastIndex(s, "}")
-	if i <= 0 || j < i+1 {
-		return nil, nil // Not a compose-type, treat as normal string
-	}
-
-	strType := strings.TrimSpace(s[:i])
-	if !identifierPattern.MatchString(strType) {
-		return nil, nil // Not a compose-type, treat as normal string
-	}
-
-	m := make(map[string]string)
-	m["type"] = strType
-
-	for kv := range strings.SplitSeq(s[i+1:j], ",") {
-		if kv = strings.TrimSpace(kv); kv == "" {
-			continue
-		}
-
-		ss := strings.SplitN(kv, "=", 2)
-		if len(ss) != 2 {
-			return nil, util.FormatError(nil, "invalid compose type %q", s)
-		}
-
-		k := strings.TrimSpace(ss[0])
-		if !identifierPattern.MatchString(k) {
-			return nil, util.FormatError(nil, "invalid compose type %q", s)
-		}
-
-		if _, ok := m[k]; ok {
-			err := util.FormatError(nil, "duplicate compose type key %q", k)
-			return nil, util.FormatError(err, "invalid compose type %q", s)
-		}
-
-		m[k] = strings.TrimSpace(ss[1])
-	}
-	return m, nil
 }
