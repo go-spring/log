@@ -4,7 +4,6 @@ grammar Expr;
 // Lexer Rules
 // ----------------------------------
 
-
 KW_TRUE  : 'true';
 KW_FALSE : 'false';
 
@@ -14,30 +13,22 @@ IDENT : [a-zA-Z_][a-zA-Z0-9_]* ;
 // Array index (only non-negative integers)
 INDEX : [0-9]+ ;
 
-// String literal, supports single or double quotes with common escape sequences
+// String literal, supports only double quotes for simplicity
 STRING
     : '"' ( ~["\\] | '\\' ["\\/bfnrt] )* '"'
     ;
 
-// --------------------
 // Integer literal
-// Decimal integer with optional sign (+/-) or hexadecimal integer prefixed with 0x.
-// --------------------
 INTEGER
     : ('+' | '-')? DIGIT+ | '0x' HEX_DIGIT+
     ;
 
-// --------------------
 // Floating-point number
-// Supports decimals and scientific notation (e.g., 1.23e+10)
-// --------------------
 FLOAT
     : ('+' | '-')? ( DIGIT+ ('.' DIGIT+)? | '.' DIGIT+ ) (('E' | 'e') ('+'|'-')? DIGIT+ )?
     ;
 
-// --------------------
-// Fragments (used internally, not emitted as tokens)
-// --------------------
+// Fragments
 fragment DIGIT     : '0'..'9';
 fragment LETTER    : 'A'..'Z' | 'a'..'z';
 fragment HEX_DIGIT : DIGIT | 'A'..'F' | 'a'..'f';
@@ -74,14 +65,11 @@ fieldAccess
     : IDENT ('.' IDENT | '[' INDEX ']')*
     ;
 
-// Value can be:
-// 1. A string literal
-// 2. A nested expression
-// 3. A raw value (non-whitespace, non-special characters)
-// 4. An identifier (for simple symbolic values)
+// value: clear and conflict-free definition
 value
-    : STRING
-    | IDENT
-    | KW_TRUE | KW_FALSE | INTEGER | FLOAT
-    | expr
+    : STRING                 // must use string for paths, special symbols, etc.
+    | IDENT                  // symbolic identifiers like 'debug', 'info'
+    | KW_TRUE | KW_FALSE     // boolean literals
+    | INTEGER | FLOAT        // numeric literals
+    | expr                   // nested expressions
     ;

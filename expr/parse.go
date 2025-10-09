@@ -133,10 +133,16 @@ func (l *ParseTreeListener) parseInnerExpr(key string, ctx IInnerExprContext) {
 			panic(err)
 		}
 		l.Result[fieldKey] = s
-	case ctx.Value().CONTINUOUS_VALUE() != nil:
-		l.Result[fieldKey] = ctx.Value().CONTINUOUS_VALUE().GetText()
 	case ctx.Value().IDENT() != nil:
 		l.Result[fieldKey] = ctx.Value().IDENT().GetText()
+	case ctx.Value().KW_TRUE() != nil:
+		l.Result[fieldKey] = ctx.Value().KW_TRUE().GetText()
+	case ctx.Value().KW_FALSE() != nil:
+		l.Result[fieldKey] = ctx.Value().KW_FALSE().GetText()
+	case ctx.Value().INTEGER() != nil:
+		l.Result[fieldKey] = ctx.Value().INTEGER().GetText()
+	case ctx.Value().FLOAT() != nil:
+		l.Result[fieldKey] = ctx.Value().FLOAT().GetText()
 	case ctx.Value().Expr() != nil:
 		l.parseExpr(fieldKey, ctx.Value().Expr())
 	default: // for linter
