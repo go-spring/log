@@ -1,4 +1,4 @@
-grammar expr;
+grammar Expr;
 
 // ----------------------------------
 // Lexer Rules

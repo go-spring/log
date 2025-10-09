@@ -1,10 +1,10 @@
-// Code generated from expr.g4 by ANTLR 4.13.2. DO NOT EDIT.
+// Code generated from Expr.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
-package expr // expr
+package expr // Expr
 import "github.com/antlr4-go/antlr/v4"
 
-// exprListener is a complete listener for a parse tree produced by exprParser.
-type exprListener interface {
+// ExprListener is a complete listener for a parse tree produced by ExprParser.
+type ExprListener interface {
 	antlr.ParseTreeListener
 
 	// EnterExpr is called when entering the expr production.

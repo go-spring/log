@@ -1,4 +1,4 @@
-// Code generated from expr.g4 by ANTLR 4.13.2. DO NOT EDIT.
+// Code generated from Expr.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package expr
 
@@ -14,7 +14,7 @@ var _ = fmt.Printf
 var _ = sync.Once{}
 var _ = unicode.IsLetter
 
-type exprLexer struct {
+type ExprLexer struct {
 	*antlr.BaseLexer
 	channelNames []string
 	modeNames    []string
@@ -107,19 +107,19 @@ func exprlexerLexerInit() {
 	}
 }
 
-// exprLexerInit initializes any static state used to implement exprLexer. By default the
+// ExprLexerInit initializes any static state used to implement ExprLexer. By default the
 // static state used to implement the lexer is lazily initialized during the first call to
-// NewexprLexer(). You can call this function if you wish to initialize the static state ahead
+// NewExprLexer(). You can call this function if you wish to initialize the static state ahead
 // of time.
 func ExprLexerInit() {
 	staticData := &ExprLexerLexerStaticData
 	staticData.once.Do(exprlexerLexerInit)
 }
 
-// NewexprLexer produces a new lexer instance for the optional input antlr.CharStream.
-func NewexprLexer(input antlr.CharStream) *exprLexer {
+// NewExprLexer produces a new lexer instance for the optional input antlr.CharStream.
+func NewExprLexer(input antlr.CharStream) *ExprLexer {
 	ExprLexerInit()
-	l := new(exprLexer)
+	l := new(ExprLexer)
 	l.BaseLexer = antlr.NewBaseLexer(input)
 	staticData := &ExprLexerLexerStaticData
 	l.Interpreter = antlr.NewLexerATNSimulator(l, staticData.atn, staticData.decisionToDFA, staticData.PredictionContextCache)
@@ -128,24 +128,24 @@ func NewexprLexer(input antlr.CharStream) *exprLexer {
 	l.RuleNames = staticData.RuleNames
 	l.LiteralNames = staticData.LiteralNames
 	l.SymbolicNames = staticData.SymbolicNames
-	l.GrammarFileName = "expr.g4"
+	l.GrammarFileName = "Expr.g4"
 	// TODO: l.EOF = antlr.TokenEOF
 
 	return l
 }
 
-// exprLexer tokens.
+// ExprLexer tokens.
 const (
-	exprLexerT__0      = 1
-	exprLexerT__1      = 2
-	exprLexerT__2      = 3
-	exprLexerT__3      = 4
-	exprLexerT__4      = 5
-	exprLexerT__5      = 6
-	exprLexerT__6      = 7
-	exprLexerIDENT     = 8
-	exprLexerINDEX     = 9
-	exprLexerSTRING    = 10
-	exprLexerRAW_VALUE = 11
-	exprLexerWS        = 12
+	ExprLexerT__0      = 1
+	ExprLexerT__1      = 2
+	ExprLexerT__2      = 3
+	ExprLexerT__3      = 4
+	ExprLexerT__4      = 5
+	ExprLexerT__5      = 6
+	ExprLexerT__6      = 7
+	ExprLexerIDENT     = 8
+	ExprLexerINDEX     = 9
+	ExprLexerSTRING    = 10
+	ExprLexerRAW_VALUE = 11
+	ExprLexerWS        = 12
 )

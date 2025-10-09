@@ -1,6 +1,6 @@
-// Code generated from expr.g4 by ANTLR 4.13.2. DO NOT EDIT.
+// Code generated from Expr.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
-package expr // expr
+package expr // Expr
 import (
 	"fmt"
 	"strconv"
@@ -14,7 +14,7 @@ var _ = fmt.Printf
 var _ = strconv.Itoa
 var _ = sync.Once{}
 
-type exprParser struct {
+type ExprParser struct {
 	*antlr.BaseParser
 }
 
@@ -73,53 +73,53 @@ func exprParserInit() {
 	}
 }
 
-// exprParserInit initializes any static state used to implement exprParser. By default the
+// ExprParserInit initializes any static state used to implement ExprParser. By default the
 // static state used to implement the parser is lazily initialized during the first call to
-// NewexprParser(). You can call this function if you wish to initialize the static state ahead
+// NewExprParser(). You can call this function if you wish to initialize the static state ahead
 // of time.
 func ExprParserInit() {
 	staticData := &ExprParserStaticData
 	staticData.once.Do(exprParserInit)
 }
 
-// NewexprParser produces a new parser instance for the optional input antlr.TokenStream.
-func NewexprParser(input antlr.TokenStream) *exprParser {
+// NewExprParser produces a new parser instance for the optional input antlr.TokenStream.
+func NewExprParser(input antlr.TokenStream) *ExprParser {
 	ExprParserInit()
-	this := new(exprParser)
+	this := new(ExprParser)
 	this.BaseParser = antlr.NewBaseParser(input)
 	staticData := &ExprParserStaticData
 	this.Interpreter = antlr.NewParserATNSimulator(this, staticData.atn, staticData.decisionToDFA, staticData.PredictionContextCache)
 	this.RuleNames = staticData.RuleNames
 	this.LiteralNames = staticData.LiteralNames
 	this.SymbolicNames = staticData.SymbolicNames
-	this.GrammarFileName = "expr.g4"
+	this.GrammarFileName = "Expr.g4"
 
 	return this
 }
 
-// exprParser tokens.
+// ExprParser tokens.
 const (
-	exprParserEOF       = antlr.TokenEOF
-	exprParserT__0      = 1
-	exprParserT__1      = 2
-	exprParserT__2      = 3
-	exprParserT__3      = 4
-	exprParserT__4      = 5
-	exprParserT__5      = 6
-	exprParserT__6      = 7
-	exprParserIDENT     = 8
-	exprParserINDEX     = 9
-	exprParserSTRING    = 10
-	exprParserRAW_VALUE = 11
-	exprParserWS        = 12
+	ExprParserEOF       = antlr.TokenEOF
+	ExprParserT__0      = 1
+	ExprParserT__1      = 2
+	ExprParserT__2      = 3
+	ExprParserT__3      = 4
+	ExprParserT__4      = 5
+	ExprParserT__5      = 6
+	ExprParserT__6      = 7
+	ExprParserIDENT     = 8
+	ExprParserINDEX     = 9
+	ExprParserSTRING    = 10
+	ExprParserRAW_VALUE = 11
+	ExprParserWS        = 12
 )
 
-// exprParser rules.
+// ExprParser rules.
 const (
-	exprParserRULE_expr        = 0
-	exprParserRULE_innerExpr   = 1
-	exprParserRULE_fieldAccess = 2
-	exprParserRULE_value       = 3
+	ExprParserRULE_expr        = 0
+	ExprParserRULE_innerExpr   = 1
+	ExprParserRULE_fieldAccess = 2
+	ExprParserRULE_value       = 3
 )
 
 // IExprContext is an interface to support dynamic dispatch.
@@ -146,13 +146,13 @@ type ExprContext struct {
 func NewEmptyExprContext() *ExprContext {
 	var p = new(ExprContext)
 	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
-	p.RuleIndex = exprParserRULE_expr
+	p.RuleIndex = ExprParserRULE_expr
 	return p
 }
 
 func InitEmptyExprContext(p *ExprContext) {
 	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
-	p.RuleIndex = exprParserRULE_expr
+	p.RuleIndex = ExprParserRULE_expr
 }
 
 func (*ExprContext) IsExprContext() {}
@@ -163,7 +163,7 @@ func NewExprContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokin
 	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
-	p.RuleIndex = exprParserRULE_expr
+	p.RuleIndex = ExprParserRULE_expr
 
 	return p
 }
@@ -171,7 +171,7 @@ func NewExprContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokin
 func (s *ExprContext) GetParser() antlr.Parser { return s.parser }
 
 func (s *ExprContext) IDENT() antlr.TerminalNode {
-	return s.GetToken(exprParserIDENT, 0)
+	return s.GetToken(ExprParserIDENT, 0)
 }
 
 func (s *ExprContext) AllInnerExpr() []IInnerExprContext {
@@ -224,20 +224,20 @@ func (s *ExprContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) s
 }
 
 func (s *ExprContext) EnterRule(listener antlr.ParseTreeListener) {
-	if listenerT, ok := listener.(exprListener); ok {
+	if listenerT, ok := listener.(ExprListener); ok {
 		listenerT.EnterExpr(s)
 	}
 }
 
 func (s *ExprContext) ExitRule(listener antlr.ParseTreeListener) {
-	if listenerT, ok := listener.(exprListener); ok {
+	if listenerT, ok := listener.(ExprListener); ok {
 		listenerT.ExitExpr(s)
 	}
 }
 
-func (p *exprParser) Expr() (localctx IExprContext) {
+func (p *ExprParser) Expr() (localctx IExprContext) {
 	localctx = NewExprContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 0, exprParserRULE_expr)
+	p.EnterRule(localctx, 0, ExprParserRULE_expr)
 	var _la int
 
 	var _alt int
@@ -245,7 +245,7 @@ func (p *exprParser) Expr() (localctx IExprContext) {
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(8)
-		p.Match(exprParserIDENT)
+		p.Match(ExprParserIDENT)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
@@ -253,7 +253,7 @@ func (p *exprParser) Expr() (localctx IExprContext) {
 	}
 	{
 		p.SetState(9)
-		p.Match(exprParserT__0)
+		p.Match(ExprParserT__0)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
@@ -266,7 +266,7 @@ func (p *exprParser) Expr() (localctx IExprContext) {
 	}
 	_la = p.GetTokenStream().LA(1)
 
-	if _la == exprParserIDENT {
+	if _la == ExprParserIDENT {
 		{
 			p.SetState(10)
 			p.InnerExpr()
@@ -284,7 +284,7 @@ func (p *exprParser) Expr() (localctx IExprContext) {
 			if _alt == 1 {
 				{
 					p.SetState(11)
-					p.Match(exprParserT__1)
+					p.Match(ExprParserT__1)
 					if p.HasError() {
 						// Recognition error - abort rule
 						goto errorExit
@@ -313,10 +313,10 @@ func (p *exprParser) Expr() (localctx IExprContext) {
 		}
 		_la = p.GetTokenStream().LA(1)
 
-		if _la == exprParserT__1 {
+		if _la == ExprParserT__1 {
 			{
 				p.SetState(18)
-				p.Match(exprParserT__1)
+				p.Match(ExprParserT__1)
 				if p.HasError() {
 					// Recognition error - abort rule
 					goto errorExit
@@ -328,7 +328,7 @@ func (p *exprParser) Expr() (localctx IExprContext) {
 	}
 	{
 		p.SetState(23)
-		p.Match(exprParserT__2)
+		p.Match(ExprParserT__2)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
@@ -371,13 +371,13 @@ type InnerExprContext struct {
 func NewEmptyInnerExprContext() *InnerExprContext {
 	var p = new(InnerExprContext)
 	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
-	p.RuleIndex = exprParserRULE_innerExpr
+	p.RuleIndex = ExprParserRULE_innerExpr
 	return p
 }
 
 func InitEmptyInnerExprContext(p *InnerExprContext) {
 	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
-	p.RuleIndex = exprParserRULE_innerExpr
+	p.RuleIndex = ExprParserRULE_innerExpr
 }
 
 func (*InnerExprContext) IsInnerExprContext() {}
@@ -388,7 +388,7 @@ func NewInnerExprContext(parser antlr.Parser, parent antlr.ParserRuleContext, in
 	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
-	p.RuleIndex = exprParserRULE_innerExpr
+	p.RuleIndex = ExprParserRULE_innerExpr
 
 	return p
 }
@@ -436,20 +436,20 @@ func (s *InnerExprContext) ToStringTree(ruleNames []string, recog antlr.Recogniz
 }
 
 func (s *InnerExprContext) EnterRule(listener antlr.ParseTreeListener) {
-	if listenerT, ok := listener.(exprListener); ok {
+	if listenerT, ok := listener.(ExprListener); ok {
 		listenerT.EnterInnerExpr(s)
 	}
 }
 
 func (s *InnerExprContext) ExitRule(listener antlr.ParseTreeListener) {
-	if listenerT, ok := listener.(exprListener); ok {
+	if listenerT, ok := listener.(ExprListener); ok {
 		listenerT.ExitInnerExpr(s)
 	}
 }
 
-func (p *exprParser) InnerExpr() (localctx IInnerExprContext) {
+func (p *ExprParser) InnerExpr() (localctx IInnerExprContext) {
 	localctx = NewInnerExprContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 2, exprParserRULE_innerExpr)
+	p.EnterRule(localctx, 2, ExprParserRULE_innerExpr)
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(25)
@@ -457,7 +457,7 @@ func (p *exprParser) InnerExpr() (localctx IInnerExprContext) {
 	}
 	{
 		p.SetState(26)
-		p.Match(exprParserT__3)
+		p.Match(ExprParserT__3)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
@@ -506,13 +506,13 @@ type FieldAccessContext struct {
 func NewEmptyFieldAccessContext() *FieldAccessContext {
 	var p = new(FieldAccessContext)
 	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
-	p.RuleIndex = exprParserRULE_fieldAccess
+	p.RuleIndex = ExprParserRULE_fieldAccess
 	return p
 }
 
 func InitEmptyFieldAccessContext(p *FieldAccessContext) {
 	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
-	p.RuleIndex = exprParserRULE_fieldAccess
+	p.RuleIndex = ExprParserRULE_fieldAccess
 }
 
 func (*FieldAccessContext) IsFieldAccessContext() {}
@@ -523,7 +523,7 @@ func NewFieldAccessContext(parser antlr.Parser, parent antlr.ParserRuleContext, 
 	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
-	p.RuleIndex = exprParserRULE_fieldAccess
+	p.RuleIndex = ExprParserRULE_fieldAccess
 
 	return p
 }
@@ -531,19 +531,19 @@ func NewFieldAccessContext(parser antlr.Parser, parent antlr.ParserRuleContext, 
 func (s *FieldAccessContext) GetParser() antlr.Parser { return s.parser }
 
 func (s *FieldAccessContext) AllIDENT() []antlr.TerminalNode {
-	return s.GetTokens(exprParserIDENT)
+	return s.GetTokens(ExprParserIDENT)
 }
 
 func (s *FieldAccessContext) IDENT(i int) antlr.TerminalNode {
-	return s.GetToken(exprParserIDENT, i)
+	return s.GetToken(ExprParserIDENT, i)
 }
 
 func (s *FieldAccessContext) AllINDEX() []antlr.TerminalNode {
-	return s.GetTokens(exprParserINDEX)
+	return s.GetTokens(ExprParserINDEX)
 }
 
 func (s *FieldAccessContext) INDEX(i int) antlr.TerminalNode {
-	return s.GetToken(exprParserINDEX, i)
+	return s.GetToken(ExprParserINDEX, i)
 }
 
 func (s *FieldAccessContext) GetRuleContext() antlr.RuleContext {
@@ -555,26 +555,26 @@ func (s *FieldAccessContext) ToStringTree(ruleNames []string, recog antlr.Recogn
 }
 
 func (s *FieldAccessContext) EnterRule(listener antlr.ParseTreeListener) {
-	if listenerT, ok := listener.(exprListener); ok {
+	if listenerT, ok := listener.(ExprListener); ok {
 		listenerT.EnterFieldAccess(s)
 	}
 }
 
 func (s *FieldAccessContext) ExitRule(listener antlr.ParseTreeListener) {
-	if listenerT, ok := listener.(exprListener); ok {
+	if listenerT, ok := listener.(ExprListener); ok {
 		listenerT.ExitFieldAccess(s)
 	}
 }
 
-func (p *exprParser) FieldAccess() (localctx IFieldAccessContext) {
+func (p *ExprParser) FieldAccess() (localctx IFieldAccessContext) {
 	localctx = NewFieldAccessContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 4, exprParserRULE_fieldAccess)
+	p.EnterRule(localctx, 4, ExprParserRULE_fieldAccess)
 	var _la int
 
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(29)
-		p.Match(exprParserIDENT)
+		p.Match(ExprParserIDENT)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
@@ -587,7 +587,7 @@ func (p *exprParser) FieldAccess() (localctx IFieldAccessContext) {
 	}
 	_la = p.GetTokenStream().LA(1)
 
-	for _la == exprParserT__4 || _la == exprParserT__5 {
+	for _la == ExprParserT__4 || _la == ExprParserT__5 {
 		p.SetState(35)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
@@ -595,10 +595,10 @@ func (p *exprParser) FieldAccess() (localctx IFieldAccessContext) {
 		}
 
 		switch p.GetTokenStream().LA(1) {
-		case exprParserT__4:
+		case ExprParserT__4:
 			{
 				p.SetState(30)
-				p.Match(exprParserT__4)
+				p.Match(ExprParserT__4)
 				if p.HasError() {
 					// Recognition error - abort rule
 					goto errorExit
@@ -606,17 +606,17 @@ func (p *exprParser) FieldAccess() (localctx IFieldAccessContext) {
 			}
 			{
 				p.SetState(31)
-				p.Match(exprParserIDENT)
+				p.Match(ExprParserIDENT)
 				if p.HasError() {
 					// Recognition error - abort rule
 					goto errorExit
 				}
 			}
 
-		case exprParserT__5:
+		case ExprParserT__5:
 			{
 				p.SetState(32)
-				p.Match(exprParserT__5)
+				p.Match(ExprParserT__5)
 				if p.HasError() {
 					// Recognition error - abort rule
 					goto errorExit
@@ -624,7 +624,7 @@ func (p *exprParser) FieldAccess() (localctx IFieldAccessContext) {
 			}
 			{
 				p.SetState(33)
-				p.Match(exprParserINDEX)
+				p.Match(ExprParserINDEX)
 				if p.HasError() {
 					// Recognition error - abort rule
 					goto errorExit
@@ -632,7 +632,7 @@ func (p *exprParser) FieldAccess() (localctx IFieldAccessContext) {
 			}
 			{
 				p.SetState(34)
-				p.Match(exprParserT__6)
+				p.Match(ExprParserT__6)
 				if p.HasError() {
 					// Recognition error - abort rule
 					goto errorExit
@@ -689,13 +689,13 @@ type ValueContext struct {
 func NewEmptyValueContext() *ValueContext {
 	var p = new(ValueContext)
 	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
-	p.RuleIndex = exprParserRULE_value
+	p.RuleIndex = ExprParserRULE_value
 	return p
 }
 
 func InitEmptyValueContext(p *ValueContext) {
 	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
-	p.RuleIndex = exprParserRULE_value
+	p.RuleIndex = ExprParserRULE_value
 }
 
 func (*ValueContext) IsValueContext() {}
@@ -706,7 +706,7 @@ func NewValueContext(parser antlr.Parser, parent antlr.ParserRuleContext, invoki
 	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
-	p.RuleIndex = exprParserRULE_value
+	p.RuleIndex = ExprParserRULE_value
 
 	return p
 }
@@ -714,7 +714,7 @@ func NewValueContext(parser antlr.Parser, parent antlr.ParserRuleContext, invoki
 func (s *ValueContext) GetParser() antlr.Parser { return s.parser }
 
 func (s *ValueContext) STRING() antlr.TerminalNode {
-	return s.GetToken(exprParserSTRING, 0)
+	return s.GetToken(ExprParserSTRING, 0)
 }
 
 func (s *ValueContext) Expr() IExprContext {
@@ -734,7 +734,7 @@ func (s *ValueContext) Expr() IExprContext {
 }
 
 func (s *ValueContext) RAW_VALUE() antlr.TerminalNode {
-	return s.GetToken(exprParserRAW_VALUE, 0)
+	return s.GetToken(ExprParserRAW_VALUE, 0)
 }
 
 func (s *ValueContext) GetRuleContext() antlr.RuleContext {
@@ -746,20 +746,20 @@ func (s *ValueContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) 
 }
 
 func (s *ValueContext) EnterRule(listener antlr.ParseTreeListener) {
-	if listenerT, ok := listener.(exprListener); ok {
+	if listenerT, ok := listener.(ExprListener); ok {
 		listenerT.EnterValue(s)
 	}
 }
 
 func (s *ValueContext) ExitRule(listener antlr.ParseTreeListener) {
-	if listenerT, ok := listener.(exprListener); ok {
+	if listenerT, ok := listener.(ExprListener); ok {
 		listenerT.ExitValue(s)
 	}
 }
 
-func (p *exprParser) Value() (localctx IValueContext) {
+func (p *ExprParser) Value() (localctx IValueContext) {
 	localctx = NewValueContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 6, exprParserRULE_value)
+	p.EnterRule(localctx, 6, ExprParserRULE_value)
 	p.SetState(43)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
@@ -767,29 +767,29 @@ func (p *exprParser) Value() (localctx IValueContext) {
 	}
 
 	switch p.GetTokenStream().LA(1) {
-	case exprParserSTRING:
+	case ExprParserSTRING:
 		p.EnterOuterAlt(localctx, 1)
 		{
 			p.SetState(40)
-			p.Match(exprParserSTRING)
+			p.Match(ExprParserSTRING)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
 			}
 		}
 
-	case exprParserIDENT:
+	case ExprParserIDENT:
 		p.EnterOuterAlt(localctx, 2)
 		{
 			p.SetState(41)
 			p.Expr()
 		}
 
-	case exprParserRAW_VALUE:
+	case ExprParserRAW_VALUE:
 		p.EnterOuterAlt(localctx, 3)
 		{
 			p.SetState(42)
-			p.Match(exprParserRAW_VALUE)
+			p.Match(ExprParserRAW_VALUE)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
