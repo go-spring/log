@@ -10,6 +10,9 @@ type ExprListener interface {
 	// EnterExpr is called when entering the expr production.
 	EnterExpr(c *ExprContext)
 
+	// EnterInnerExprList is called when entering the innerExprList production.
+	EnterInnerExprList(c *InnerExprListContext)
+
 	// EnterInnerExpr is called when entering the innerExpr production.
 	EnterInnerExpr(c *InnerExprContext)
 
@@ -21,6 +24,9 @@ type ExprListener interface {
 
 	// ExitExpr is called when exiting the expr production.
 	ExitExpr(c *ExprContext)
+
+	// ExitInnerExprList is called when exiting the innerExprList production.
+	ExitInnerExprList(c *InnerExprListContext)
 
 	// ExitInnerExpr is called when exiting the innerExpr production.
 	ExitInnerExpr(c *InnerExprContext)

@@ -26,6 +26,12 @@ func (s *BaseExprListener) EnterExpr(ctx *ExprContext) {}
 // ExitExpr is called when production expr is exited.
 func (s *BaseExprListener) ExitExpr(ctx *ExprContext) {}
 
+// EnterInnerExprList is called when production innerExprList is entered.
+func (s *BaseExprListener) EnterInnerExprList(ctx *InnerExprListContext) {}
+
+// ExitInnerExprList is called when production innerExprList is exited.
+func (s *BaseExprListener) ExitInnerExprList(ctx *InnerExprListContext) {}
+
 // EnterInnerExpr is called when production innerExpr is entered.
 func (s *BaseExprListener) EnterInnerExpr(ctx *InnerExprContext) {}
 

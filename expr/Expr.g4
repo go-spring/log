@@ -29,7 +29,11 @@ WS : [ \t\r\n]+ -> skip ;
 // Main expression: a type with optional key-value pairs
 // Example: TypeName { field1 = "value1", field2 = NestedType { ... }, field3 = rawValue }
 expr
-    : IDENT '{' (innerExpr (',' innerExpr)* ','?)? '}'
+    : IDENT '{' innerExprList? '}'
+    ;
+
+innerExprList
+    : innerExpr (',' innerExpr)* ','?
     ;
 
 // Key-value assignment: field = value
@@ -49,6 +53,6 @@ fieldAccess
 // 3. A raw value (non-whitespace, non-special characters)
 value
     : STRING
-    | expr
     | RAW_VALUE
+    | expr
     ;

@@ -84,8 +84,10 @@ func (l *ParseTreeListener) parseExpr(key string, ctx IExprContext) {
 		typeKey = key + ".type"
 	}
 	l.Result[typeKey] = ctx.IDENT().GetText()
-	for _, innerExpr := range ctx.AllInnerExpr() {
-		l.parseInnerExpr(key, innerExpr)
+	if x := ctx.InnerExprList(); x != nil {
+		for _, innerExpr := range x.AllInnerExpr() {
+			l.parseInnerExpr(key, innerExpr)
+		}
 	}
 }
 
