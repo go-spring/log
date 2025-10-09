@@ -15,16 +15,6 @@ STRING : '"' (~["\\] | '\\' .)* '"'
        | '\'' (~['\\] | '\\' .)* '\''
        ;
 
-// 整数，value，正负值，十六进制值
-INTEGER
-    : ('+' | '-')? DIGIT+ | '0x' HEX_DIGIT+
-    ;
-
-// 浮点数，value，正负值，科学计数法
-FLOAT
-    : ('+' | '-')? ( DIGIT+ ('.' DIGIT+)? | '.' DIGIT+ ) (('E' | 'e') ('+'|'-')? DIGIT+ )?
-    ;
-
 // 空白字符
 WS : [ \t\r\n]+ -> skip ;
 
@@ -34,7 +24,7 @@ WS : [ \t\r\n]+ -> skip ;
 
 // 表达式 type{k=v 可以不包含任何kv，需要使用逗号进行分隔}
 expr
-    : IDENT '{' innerExpr (',' innerExpr)* '}'   # TypeExpr
+    : IDENT '{' (innerExpr (',' innerExpr)*)* '}'   # TypeExpr
     ;
 
 // k=v
@@ -50,7 +40,6 @@ fieldAccess
 // 值，字符串，整数，浮点数，字面值（不只是标识符），嵌套的表达式
 value
     : STRING                                    # StringValue
-    | INTEGER                                   # IntValue
-    | FLOAT                                     # FloatValue
     | expr                                      # NestedExpr
+    | 我认为只要是不包含空格的内容就行
     ;
