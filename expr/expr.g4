@@ -7,13 +7,14 @@ grammar Expr;
 // 类型名或者字段名（标识符）
 IDENT : [a-zA-Z_][a-zA-Z0-9_]* ;
 
-// index （数组下标，只支持普通整数）
+// 数组下标，只支持整数
 INDEX : [0-9]+ ;
 
-// 字符串，双引号或者单引号
-STRING : '"' (~["\\] | '\\' .)* '"'
-       | '\'' (~['\\] | '\\' .)* '\''
-       ;
+// 字符串，支持单引号或双引号
+STRING
+    : '"' (~["\\] | '\\' .)* '"'
+    | '\'' (~['\\] | '\\' .)* '\''
+    ;
 
 // 空白字符
 WS : [ \t\r\n]+ -> skip ;
@@ -22,24 +23,24 @@ WS : [ \t\r\n]+ -> skip ;
 // Parser Rules
 // ----------------------------------
 
-// 表达式 type{k=v 可以不包含任何kv，需要使用逗号进行分隔}
+// 表达式 type{k=v，可以没有任何kv}
 expr
-    : IDENT '{' (innerExpr (',' innerExpr)*)* '}'   # TypeExpr
+    : IDENT '{' (innerExpr (',' innerExpr)*)? '}'   # TypeExpr
     ;
 
 // k=v
 innerExpr
-    : fieldAccess '=' value                      # FieldAssign
+    : fieldAccess '=' value                          # FieldAssign
     ;
 
-// k，支持多段，点号或者数组形式
+// 支持多段字段访问，点号或数组形式
 fieldAccess
-    : IDENT ('.' IDENT | '[' INDEX ']')*          # NestedField
+    : IDENT ('.' IDENT | '[' INDEX ']')*            # NestedField
     ;
 
-// 值，字符串，整数，浮点数，字面值（不只是标识符），嵌套的表达式
+// 值，可以是字符串，嵌套表达式，或者不包含空格的原始内容
 value
-    : STRING                                    # StringValue
-    | expr                                      # NestedExpr
-    | 我认为只要是不包含空格的内容就行
+    : STRING                                       # StringValue
+    | expr                                         # NestedExpr
+    | ~[ \t\r\n{}=,]+                              # RawValue：非空白、非特殊字符的内容
     ;
