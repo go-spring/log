@@ -8,10 +8,6 @@ grammar Expr;
 // Examples: MyType, field_name, CONSTANT
 IDENT : [a-zA-Z_][a-zA-Z0-9_]* ;
 
-// Array index (only non-negative integers)
-// Examples: 0, 1, 42
-INDEX : [0-9]+ ;
-
 // String literal: double-quoted string with optional escape sequences
 // Examples: "hello", "line\nbreak"
 STRING
@@ -71,7 +67,7 @@ innerExpr
 // - Array indices: foo[0]
 // - Combined: foo.bar[1].baz
 fieldAccess
-    : IDENT ('.' IDENT | '[' INDEX ']')*
+    : IDENT ('.' IDENT | '[' INTEGER ']')*
     ;
 
 // Value can be:
@@ -81,8 +77,4 @@ fieldAccess
 // - A nested expression (type with braces)
 // Examples: "hello", true, 42, 3.14, NestedType { ... }
 value
-    : STRING
-    | IDENT
-    | INTEGER | FLOAT
-    | expr
-    ;
+    : IDENT | STRING | INTEGER | FLOAT | expr ;

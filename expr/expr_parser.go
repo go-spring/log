@@ -35,15 +35,15 @@ func exprParserInit() {
 		"", "'{'", "'}'", "','", "'='", "'.'", "'['", "']'",
 	}
 	staticData.SymbolicNames = []string{
-		"", "", "", "", "", "", "", "", "IDENT", "INDEX", "STRING", "INTEGER",
-		"FLOAT", "WS",
+		"", "", "", "", "", "", "", "", "IDENT", "STRING", "INTEGER", "FLOAT",
+		"WS",
 	}
 	staticData.RuleNames = []string{
 		"root", "expr", "innerExprList", "innerExpr", "fieldAccess", "value",
 	}
 	staticData.PredictionContextCache = antlr.NewPredictionContextCache()
 	staticData.serializedATN = []int32{
-		4, 1, 13, 56, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
+		4, 1, 12, 56, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
 		4, 2, 5, 7, 5, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 3, 1, 19, 8, 1, 1, 1,
 		1, 1, 1, 2, 1, 2, 1, 2, 5, 2, 26, 8, 2, 10, 2, 12, 2, 29, 9, 2, 1, 2, 3,
 		2, 32, 8, 2, 1, 3, 1, 3, 1, 3, 1, 3, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4,
@@ -59,10 +59,10 @@ func exprParserInit() {
 		5, 3, 0, 0, 31, 30, 1, 0, 0, 0, 31, 32, 1, 0, 0, 0, 32, 5, 1, 0, 0, 0,
 		33, 34, 3, 8, 4, 0, 34, 35, 5, 4, 0, 0, 35, 36, 3, 10, 5, 0, 36, 7, 1,
 		0, 0, 0, 37, 45, 5, 8, 0, 0, 38, 39, 5, 5, 0, 0, 39, 44, 5, 8, 0, 0, 40,
-		41, 5, 6, 0, 0, 41, 42, 5, 9, 0, 0, 42, 44, 5, 7, 0, 0, 43, 38, 1, 0, 0,
-		0, 43, 40, 1, 0, 0, 0, 44, 47, 1, 0, 0, 0, 45, 43, 1, 0, 0, 0, 45, 46,
-		1, 0, 0, 0, 46, 9, 1, 0, 0, 0, 47, 45, 1, 0, 0, 0, 48, 54, 5, 10, 0, 0,
-		49, 54, 5, 8, 0, 0, 50, 54, 5, 11, 0, 0, 51, 54, 5, 12, 0, 0, 52, 54, 3,
+		41, 5, 6, 0, 0, 41, 42, 5, 10, 0, 0, 42, 44, 5, 7, 0, 0, 43, 38, 1, 0,
+		0, 0, 43, 40, 1, 0, 0, 0, 44, 47, 1, 0, 0, 0, 45, 43, 1, 0, 0, 0, 45, 46,
+		1, 0, 0, 0, 46, 9, 1, 0, 0, 0, 47, 45, 1, 0, 0, 0, 48, 54, 5, 8, 0, 0,
+		49, 54, 5, 9, 0, 0, 50, 54, 5, 10, 0, 0, 51, 54, 5, 11, 0, 0, 52, 54, 3,
 		2, 1, 0, 53, 48, 1, 0, 0, 0, 53, 49, 1, 0, 0, 0, 53, 50, 1, 0, 0, 0, 53,
 		51, 1, 0, 0, 0, 53, 52, 1, 0, 0, 0, 54, 11, 1, 0, 0, 0, 6, 18, 27, 31,
 		43, 45, 53,
@@ -112,11 +112,10 @@ const (
 	ExprParserT__5    = 6
 	ExprParserT__6    = 7
 	ExprParserIDENT   = 8
-	ExprParserINDEX   = 9
-	ExprParserSTRING  = 10
-	ExprParserINTEGER = 11
-	ExprParserFLOAT   = 12
-	ExprParserWS      = 13
+	ExprParserSTRING  = 9
+	ExprParserINTEGER = 10
+	ExprParserFLOAT   = 11
+	ExprParserWS      = 12
 )
 
 // ExprParser rules.
@@ -721,8 +720,8 @@ type IFieldAccessContext interface {
 	// Getter signatures
 	AllIDENT() []antlr.TerminalNode
 	IDENT(i int) antlr.TerminalNode
-	AllINDEX() []antlr.TerminalNode
-	INDEX(i int) antlr.TerminalNode
+	AllINTEGER() []antlr.TerminalNode
+	INTEGER(i int) antlr.TerminalNode
 
 	// IsFieldAccessContext differentiates from other interfaces.
 	IsFieldAccessContext()
@@ -768,12 +767,12 @@ func (s *FieldAccessContext) IDENT(i int) antlr.TerminalNode {
 	return s.GetToken(ExprParserIDENT, i)
 }
 
-func (s *FieldAccessContext) AllINDEX() []antlr.TerminalNode {
-	return s.GetTokens(ExprParserINDEX)
+func (s *FieldAccessContext) AllINTEGER() []antlr.TerminalNode {
+	return s.GetTokens(ExprParserINTEGER)
 }
 
-func (s *FieldAccessContext) INDEX(i int) antlr.TerminalNode {
-	return s.GetToken(ExprParserINDEX, i)
+func (s *FieldAccessContext) INTEGER(i int) antlr.TerminalNode {
+	return s.GetToken(ExprParserINTEGER, i)
 }
 
 func (s *FieldAccessContext) GetRuleContext() antlr.RuleContext {
@@ -854,7 +853,7 @@ func (p *ExprParser) FieldAccess() (localctx IFieldAccessContext) {
 			}
 			{
 				p.SetState(41)
-				p.Match(ExprParserINDEX)
+				p.Match(ExprParserINTEGER)
 				if p.HasError() {
 					// Recognition error - abort rule
 					goto errorExit
@@ -903,8 +902,8 @@ type IValueContext interface {
 	GetParser() antlr.Parser
 
 	// Getter signatures
-	STRING() antlr.TerminalNode
 	IDENT() antlr.TerminalNode
+	STRING() antlr.TerminalNode
 	INTEGER() antlr.TerminalNode
 	FLOAT() antlr.TerminalNode
 	Expr() IExprContext
@@ -945,12 +944,12 @@ func NewValueContext(parser antlr.Parser, parent antlr.ParserRuleContext, invoki
 
 func (s *ValueContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *ValueContext) STRING() antlr.TerminalNode {
-	return s.GetToken(ExprParserSTRING, 0)
-}
-
 func (s *ValueContext) IDENT() antlr.TerminalNode {
 	return s.GetToken(ExprParserIDENT, 0)
+}
+
+func (s *ValueContext) STRING() antlr.TerminalNode {
+	return s.GetToken(ExprParserSTRING, 0)
 }
 
 func (s *ValueContext) INTEGER() antlr.TerminalNode {
@@ -1011,7 +1010,7 @@ func (p *ExprParser) Value() (localctx IValueContext) {
 		p.EnterOuterAlt(localctx, 1)
 		{
 			p.SetState(48)
-			p.Match(ExprParserSTRING)
+			p.Match(ExprParserIDENT)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
@@ -1022,7 +1021,7 @@ func (p *ExprParser) Value() (localctx IValueContext) {
 		p.EnterOuterAlt(localctx, 2)
 		{
 			p.SetState(49)
-			p.Match(ExprParserIDENT)
+			p.Match(ExprParserSTRING)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit

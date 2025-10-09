@@ -173,6 +173,66 @@ func TestParse(t *testing.T) {
 				"layout.type": "JSONLayout",
 			},
 		},
+		{
+			name:  "integer value",
+			input: `Logger { maxFileSize = 1024 }`,
+			want: map[string]string{
+				"type":        "Logger",
+				"maxFileSize": "1024",
+			},
+		},
+		{
+			name:  "negative integer value",
+			input: `Logger { minLevel = -1 }`,
+			want: map[string]string{
+				"type":     "Logger",
+				"minLevel": "-1",
+			},
+		},
+		{
+			name:  "float value",
+			input: `Logger { ratio = 0.5 }`,
+			want: map[string]string{
+				"type":  "Logger",
+				"ratio": "0.5",
+			},
+		},
+		{
+			name:  "scientific notation float value",
+			input: `Logger { threshold = 1e-5 }`,
+			want: map[string]string{
+				"type":      "Logger",
+				"threshold": "1e-5",
+			},
+		},
+		{
+			name:  "hexadecimal value",
+			input: `Logger { color = 0xFF0000 }`,
+			want: map[string]string{
+				"type":  "Logger",
+				"color": "0xFF0000",
+			},
+		},
+		{
+			name:  "deeply nested structure",
+			input: `Logger { appender = ConsoleAppender { encoder = PatternEncoder { pattern = "%d %level %msg" } } }`,
+			want: map[string]string{
+				"type":                     "Logger",
+				"appender.type":            "ConsoleAppender",
+				"appender.encoder.type":    "PatternEncoder",
+				"appender.encoder.pattern": "%d %level %msg",
+			},
+		},
+		{
+			name:    "invalid syntax extra comma",
+			input:   `Logger { level = "info", , output = "stdout" }`,
+			wantErr: true,
+		},
+		{
+			name:    "invalid syntax missing value",
+			input:   `Logger { level = }`,
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
