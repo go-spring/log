@@ -43,7 +43,7 @@ func Parse(data string) (ret map[string]string, err error) {
 	l := &ParseTreeListener{
 		Result: make(map[string]string),
 	}
-	antlr.ParseTreeWalkerDefault.Walk(l, p.Expr())
+	antlr.ParseTreeWalkerDefault.Walk(l, p.Root())
 
 	// Step 4: Return parsed expression or error
 	if e.Error != nil {
@@ -74,8 +74,8 @@ type ParseTreeListener struct {
 	Result map[string]string
 }
 
-func (l *ParseTreeListener) ExitExpr(ctx *ExprContext) {
-	l.parseExpr("", ctx)
+func (l *ParseTreeListener) ExitRoot(ctx *RootContext) {
+	l.parseExpr("", ctx.Expr())
 }
 
 func (l *ParseTreeListener) parseExpr(key string, ctx IExprContext) {

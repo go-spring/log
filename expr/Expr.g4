@@ -26,7 +26,8 @@ WS : [ \t\r\n]+ -> skip ;
 // Parser Rules
 // ----------------------------------
 
-root: expr eof ;
+// Root node: entry point of the parser, ensures the entire input is a single expression
+root: expr EOF ;
 
 // Main expression: a type with optional key-value pairs
 // Example: TypeName { field1 = "value1", field2 = NestedType { ... }, field3 = rawValue }
@@ -34,6 +35,7 @@ expr
     : IDENT '{' innerExprList? '}'
     ;
 
+// List of key-value assignments inside an expression, optionally comma-separated
 innerExprList
     : innerExpr (',' innerExpr)* ','?
     ;
@@ -53,6 +55,7 @@ fieldAccess
 // 1. A string literal
 // 2. A nested expression
 // 3. A raw value (non-whitespace, non-special characters)
+// 4. An identifier (for simple symbolic values)
 value
     : STRING
     | RAW_VALUE

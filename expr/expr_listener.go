@@ -7,6 +7,9 @@ import "github.com/antlr4-go/antlr/v4"
 type ExprListener interface {
 	antlr.ParseTreeListener
 
+	// EnterRoot is called when entering the root production.
+	EnterRoot(c *RootContext)
+
 	// EnterExpr is called when entering the expr production.
 	EnterExpr(c *ExprContext)
 
@@ -21,6 +24,9 @@ type ExprListener interface {
 
 	// EnterValue is called when entering the value production.
 	EnterValue(c *ValueContext)
+
+	// ExitRoot is called when exiting the root production.
+	ExitRoot(c *RootContext)
 
 	// ExitExpr is called when exiting the expr production.
 	ExitExpr(c *ExprContext)

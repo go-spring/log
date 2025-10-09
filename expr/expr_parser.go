@@ -39,30 +39,32 @@ func exprParserInit() {
 		"WS",
 	}
 	staticData.RuleNames = []string{
-		"expr", "innerExprList", "innerExpr", "fieldAccess", "value",
+		"root", "expr", "innerExprList", "innerExpr", "fieldAccess", "value",
 	}
 	staticData.PredictionContextCache = antlr.NewPredictionContextCache()
 	staticData.serializedATN = []int32{
-		4, 1, 12, 50, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
-		4, 1, 0, 1, 0, 1, 0, 3, 0, 14, 8, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 5, 1,
-		21, 8, 1, 10, 1, 12, 1, 24, 9, 1, 1, 1, 3, 1, 27, 8, 1, 1, 2, 1, 2, 1,
-		2, 1, 2, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 5, 3, 39, 8, 3, 10, 3, 12,
-		3, 42, 9, 3, 1, 4, 1, 4, 1, 4, 1, 4, 3, 4, 48, 8, 4, 1, 4, 0, 0, 5, 0,
-		2, 4, 6, 8, 0, 0, 52, 0, 10, 1, 0, 0, 0, 2, 17, 1, 0, 0, 0, 4, 28, 1, 0,
-		0, 0, 6, 32, 1, 0, 0, 0, 8, 47, 1, 0, 0, 0, 10, 11, 5, 8, 0, 0, 11, 13,
-		5, 1, 0, 0, 12, 14, 3, 2, 1, 0, 13, 12, 1, 0, 0, 0, 13, 14, 1, 0, 0, 0,
-		14, 15, 1, 0, 0, 0, 15, 16, 5, 2, 0, 0, 16, 1, 1, 0, 0, 0, 17, 22, 3, 4,
-		2, 0, 18, 19, 5, 3, 0, 0, 19, 21, 3, 4, 2, 0, 20, 18, 1, 0, 0, 0, 21, 24,
-		1, 0, 0, 0, 22, 20, 1, 0, 0, 0, 22, 23, 1, 0, 0, 0, 23, 26, 1, 0, 0, 0,
-		24, 22, 1, 0, 0, 0, 25, 27, 5, 3, 0, 0, 26, 25, 1, 0, 0, 0, 26, 27, 1,
-		0, 0, 0, 27, 3, 1, 0, 0, 0, 28, 29, 3, 6, 3, 0, 29, 30, 5, 4, 0, 0, 30,
-		31, 3, 8, 4, 0, 31, 5, 1, 0, 0, 0, 32, 40, 5, 8, 0, 0, 33, 34, 5, 5, 0,
-		0, 34, 39, 5, 8, 0, 0, 35, 36, 5, 6, 0, 0, 36, 37, 5, 9, 0, 0, 37, 39,
-		5, 7, 0, 0, 38, 33, 1, 0, 0, 0, 38, 35, 1, 0, 0, 0, 39, 42, 1, 0, 0, 0,
-		40, 38, 1, 0, 0, 0, 40, 41, 1, 0, 0, 0, 41, 7, 1, 0, 0, 0, 42, 40, 1, 0,
-		0, 0, 43, 48, 5, 10, 0, 0, 44, 48, 5, 11, 0, 0, 45, 48, 5, 8, 0, 0, 46,
-		48, 3, 0, 0, 0, 47, 43, 1, 0, 0, 0, 47, 44, 1, 0, 0, 0, 47, 45, 1, 0, 0,
-		0, 47, 46, 1, 0, 0, 0, 48, 9, 1, 0, 0, 0, 6, 13, 22, 26, 38, 40, 47,
+		4, 1, 12, 55, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
+		4, 2, 5, 7, 5, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 3, 1, 19, 8, 1, 1, 1,
+		1, 1, 1, 2, 1, 2, 1, 2, 5, 2, 26, 8, 2, 10, 2, 12, 2, 29, 9, 2, 1, 2, 3,
+		2, 32, 8, 2, 1, 3, 1, 3, 1, 3, 1, 3, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4,
+		5, 4, 44, 8, 4, 10, 4, 12, 4, 47, 9, 4, 1, 5, 1, 5, 1, 5, 1, 5, 3, 5, 53,
+		8, 5, 1, 5, 0, 0, 6, 0, 2, 4, 6, 8, 10, 0, 0, 56, 0, 12, 1, 0, 0, 0, 2,
+		15, 1, 0, 0, 0, 4, 22, 1, 0, 0, 0, 6, 33, 1, 0, 0, 0, 8, 37, 1, 0, 0, 0,
+		10, 52, 1, 0, 0, 0, 12, 13, 3, 2, 1, 0, 13, 14, 5, 0, 0, 1, 14, 1, 1, 0,
+		0, 0, 15, 16, 5, 8, 0, 0, 16, 18, 5, 1, 0, 0, 17, 19, 3, 4, 2, 0, 18, 17,
+		1, 0, 0, 0, 18, 19, 1, 0, 0, 0, 19, 20, 1, 0, 0, 0, 20, 21, 5, 2, 0, 0,
+		21, 3, 1, 0, 0, 0, 22, 27, 3, 6, 3, 0, 23, 24, 5, 3, 0, 0, 24, 26, 3, 6,
+		3, 0, 25, 23, 1, 0, 0, 0, 26, 29, 1, 0, 0, 0, 27, 25, 1, 0, 0, 0, 27, 28,
+		1, 0, 0, 0, 28, 31, 1, 0, 0, 0, 29, 27, 1, 0, 0, 0, 30, 32, 5, 3, 0, 0,
+		31, 30, 1, 0, 0, 0, 31, 32, 1, 0, 0, 0, 32, 5, 1, 0, 0, 0, 33, 34, 3, 8,
+		4, 0, 34, 35, 5, 4, 0, 0, 35, 36, 3, 10, 5, 0, 36, 7, 1, 0, 0, 0, 37, 45,
+		5, 8, 0, 0, 38, 39, 5, 5, 0, 0, 39, 44, 5, 8, 0, 0, 40, 41, 5, 6, 0, 0,
+		41, 42, 5, 9, 0, 0, 42, 44, 5, 7, 0, 0, 43, 38, 1, 0, 0, 0, 43, 40, 1,
+		0, 0, 0, 44, 47, 1, 0, 0, 0, 45, 43, 1, 0, 0, 0, 45, 46, 1, 0, 0, 0, 46,
+		9, 1, 0, 0, 0, 47, 45, 1, 0, 0, 0, 48, 53, 5, 10, 0, 0, 49, 53, 5, 11,
+		0, 0, 50, 53, 5, 8, 0, 0, 51, 53, 3, 2, 1, 0, 52, 48, 1, 0, 0, 0, 52, 49,
+		1, 0, 0, 0, 52, 50, 1, 0, 0, 0, 52, 51, 1, 0, 0, 0, 53, 11, 1, 0, 0, 0,
+		6, 18, 27, 31, 43, 45, 52,
 	}
 	deserializer := antlr.NewATNDeserializer(nil)
 	staticData.atn = deserializer.Deserialize(staticData.serializedATN)
@@ -117,12 +119,130 @@ const (
 
 // ExprParser rules.
 const (
-	ExprParserRULE_expr          = 0
-	ExprParserRULE_innerExprList = 1
-	ExprParserRULE_innerExpr     = 2
-	ExprParserRULE_fieldAccess   = 3
-	ExprParserRULE_value         = 4
+	ExprParserRULE_root          = 0
+	ExprParserRULE_expr          = 1
+	ExprParserRULE_innerExprList = 2
+	ExprParserRULE_innerExpr     = 3
+	ExprParserRULE_fieldAccess   = 4
+	ExprParserRULE_value         = 5
 )
+
+// IRootContext is an interface to support dynamic dispatch.
+type IRootContext interface {
+	antlr.ParserRuleContext
+
+	// GetParser returns the parser.
+	GetParser() antlr.Parser
+
+	// Getter signatures
+	Expr() IExprContext
+	EOF() antlr.TerminalNode
+
+	// IsRootContext differentiates from other interfaces.
+	IsRootContext()
+}
+
+type RootContext struct {
+	antlr.BaseParserRuleContext
+	parser antlr.Parser
+}
+
+func NewEmptyRootContext() *RootContext {
+	var p = new(RootContext)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = ExprParserRULE_root
+	return p
+}
+
+func InitEmptyRootContext(p *RootContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = ExprParserRULE_root
+}
+
+func (*RootContext) IsRootContext() {}
+
+func NewRootContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *RootContext {
+	var p = new(RootContext)
+
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
+
+	p.parser = parser
+	p.RuleIndex = ExprParserRULE_root
+
+	return p
+}
+
+func (s *RootContext) GetParser() antlr.Parser { return s.parser }
+
+func (s *RootContext) Expr() IExprContext {
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IExprContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(IExprContext)
+}
+
+func (s *RootContext) EOF() antlr.TerminalNode {
+	return s.GetToken(ExprParserEOF, 0)
+}
+
+func (s *RootContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *RootContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
+}
+
+func (s *RootContext) EnterRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(ExprListener); ok {
+		listenerT.EnterRoot(s)
+	}
+}
+
+func (s *RootContext) ExitRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(ExprListener); ok {
+		listenerT.ExitRoot(s)
+	}
+}
+
+func (p *ExprParser) Root() (localctx IRootContext) {
+	localctx = NewRootContext(p, p.GetParserRuleContext(), p.GetState())
+	p.EnterRule(localctx, 0, ExprParserRULE_root)
+	p.EnterOuterAlt(localctx, 1)
+	{
+		p.SetState(12)
+		p.Expr()
+	}
+	{
+		p.SetState(13)
+		p.Match(ExprParserEOF)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
+	}
+
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
+	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
+}
 
 // IExprContext is an interface to support dynamic dispatch.
 type IExprContext interface {
@@ -213,12 +333,12 @@ func (s *ExprContext) ExitRule(listener antlr.ParseTreeListener) {
 
 func (p *ExprParser) Expr() (localctx IExprContext) {
 	localctx = NewExprContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 0, ExprParserRULE_expr)
+	p.EnterRule(localctx, 2, ExprParserRULE_expr)
 	var _la int
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(10)
+		p.SetState(15)
 		p.Match(ExprParserIDENT)
 		if p.HasError() {
 			// Recognition error - abort rule
@@ -226,14 +346,14 @@ func (p *ExprParser) Expr() (localctx IExprContext) {
 		}
 	}
 	{
-		p.SetState(11)
+		p.SetState(16)
 		p.Match(ExprParserT__0)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
 		}
 	}
-	p.SetState(13)
+	p.SetState(18)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
@@ -242,13 +362,13 @@ func (p *ExprParser) Expr() (localctx IExprContext) {
 
 	if _la == ExprParserIDENT {
 		{
-			p.SetState(12)
+			p.SetState(17)
 			p.InnerExprList()
 		}
 
 	}
 	{
-		p.SetState(15)
+		p.SetState(20)
 		p.Match(ExprParserT__1)
 		if p.HasError() {
 			// Recognition error - abort rule
@@ -379,17 +499,17 @@ func (s *InnerExprListContext) ExitRule(listener antlr.ParseTreeListener) {
 
 func (p *ExprParser) InnerExprList() (localctx IInnerExprListContext) {
 	localctx = NewInnerExprListContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 2, ExprParserRULE_innerExprList)
+	p.EnterRule(localctx, 4, ExprParserRULE_innerExprList)
 	var _la int
 
 	var _alt int
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(17)
+		p.SetState(22)
 		p.InnerExpr()
 	}
-	p.SetState(22)
+	p.SetState(27)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
@@ -401,7 +521,7 @@ func (p *ExprParser) InnerExprList() (localctx IInnerExprListContext) {
 	for _alt != 2 && _alt != antlr.ATNInvalidAltNumber {
 		if _alt == 1 {
 			{
-				p.SetState(18)
+				p.SetState(23)
 				p.Match(ExprParserT__2)
 				if p.HasError() {
 					// Recognition error - abort rule
@@ -409,12 +529,12 @@ func (p *ExprParser) InnerExprList() (localctx IInnerExprListContext) {
 				}
 			}
 			{
-				p.SetState(19)
+				p.SetState(24)
 				p.InnerExpr()
 			}
 
 		}
-		p.SetState(24)
+		p.SetState(29)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
@@ -424,7 +544,7 @@ func (p *ExprParser) InnerExprList() (localctx IInnerExprListContext) {
 			goto errorExit
 		}
 	}
-	p.SetState(26)
+	p.SetState(31)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
@@ -433,7 +553,7 @@ func (p *ExprParser) InnerExprList() (localctx IInnerExprListContext) {
 
 	if _la == ExprParserT__2 {
 		{
-			p.SetState(25)
+			p.SetState(30)
 			p.Match(ExprParserT__2)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -557,14 +677,14 @@ func (s *InnerExprContext) ExitRule(listener antlr.ParseTreeListener) {
 
 func (p *ExprParser) InnerExpr() (localctx IInnerExprContext) {
 	localctx = NewInnerExprContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 4, ExprParserRULE_innerExpr)
+	p.EnterRule(localctx, 6, ExprParserRULE_innerExpr)
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(28)
+		p.SetState(33)
 		p.FieldAccess()
 	}
 	{
-		p.SetState(29)
+		p.SetState(34)
 		p.Match(ExprParserT__3)
 		if p.HasError() {
 			// Recognition error - abort rule
@@ -572,7 +692,7 @@ func (p *ExprParser) InnerExpr() (localctx IInnerExprContext) {
 		}
 	}
 	{
-		p.SetState(30)
+		p.SetState(35)
 		p.Value()
 	}
 
@@ -676,19 +796,19 @@ func (s *FieldAccessContext) ExitRule(listener antlr.ParseTreeListener) {
 
 func (p *ExprParser) FieldAccess() (localctx IFieldAccessContext) {
 	localctx = NewFieldAccessContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 6, ExprParserRULE_fieldAccess)
+	p.EnterRule(localctx, 8, ExprParserRULE_fieldAccess)
 	var _la int
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(32)
+		p.SetState(37)
 		p.Match(ExprParserIDENT)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
 		}
 	}
-	p.SetState(40)
+	p.SetState(45)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
@@ -696,7 +816,7 @@ func (p *ExprParser) FieldAccess() (localctx IFieldAccessContext) {
 	_la = p.GetTokenStream().LA(1)
 
 	for _la == ExprParserT__4 || _la == ExprParserT__5 {
-		p.SetState(38)
+		p.SetState(43)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
@@ -705,7 +825,7 @@ func (p *ExprParser) FieldAccess() (localctx IFieldAccessContext) {
 		switch p.GetTokenStream().LA(1) {
 		case ExprParserT__4:
 			{
-				p.SetState(33)
+				p.SetState(38)
 				p.Match(ExprParserT__4)
 				if p.HasError() {
 					// Recognition error - abort rule
@@ -713,7 +833,7 @@ func (p *ExprParser) FieldAccess() (localctx IFieldAccessContext) {
 				}
 			}
 			{
-				p.SetState(34)
+				p.SetState(39)
 				p.Match(ExprParserIDENT)
 				if p.HasError() {
 					// Recognition error - abort rule
@@ -723,7 +843,7 @@ func (p *ExprParser) FieldAccess() (localctx IFieldAccessContext) {
 
 		case ExprParserT__5:
 			{
-				p.SetState(35)
+				p.SetState(40)
 				p.Match(ExprParserT__5)
 				if p.HasError() {
 					// Recognition error - abort rule
@@ -731,7 +851,7 @@ func (p *ExprParser) FieldAccess() (localctx IFieldAccessContext) {
 				}
 			}
 			{
-				p.SetState(36)
+				p.SetState(41)
 				p.Match(ExprParserINDEX)
 				if p.HasError() {
 					// Recognition error - abort rule
@@ -739,7 +859,7 @@ func (p *ExprParser) FieldAccess() (localctx IFieldAccessContext) {
 				}
 			}
 			{
-				p.SetState(37)
+				p.SetState(42)
 				p.Match(ExprParserT__6)
 				if p.HasError() {
 					// Recognition error - abort rule
@@ -752,7 +872,7 @@ func (p *ExprParser) FieldAccess() (localctx IFieldAccessContext) {
 			goto errorExit
 		}
 
-		p.SetState(42)
+		p.SetState(47)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
@@ -872,8 +992,8 @@ func (s *ValueContext) ExitRule(listener antlr.ParseTreeListener) {
 
 func (p *ExprParser) Value() (localctx IValueContext) {
 	localctx = NewValueContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 8, ExprParserRULE_value)
-	p.SetState(47)
+	p.EnterRule(localctx, 10, ExprParserRULE_value)
+	p.SetState(52)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
@@ -883,7 +1003,7 @@ func (p *ExprParser) Value() (localctx IValueContext) {
 	case 1:
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(43)
+			p.SetState(48)
 			p.Match(ExprParserSTRING)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -894,7 +1014,7 @@ func (p *ExprParser) Value() (localctx IValueContext) {
 	case 2:
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(44)
+			p.SetState(49)
 			p.Match(ExprParserRAW_VALUE)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -905,7 +1025,7 @@ func (p *ExprParser) Value() (localctx IValueContext) {
 	case 3:
 		p.EnterOuterAlt(localctx, 3)
 		{
-			p.SetState(45)
+			p.SetState(50)
 			p.Match(ExprParserIDENT)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -916,7 +1036,7 @@ func (p *ExprParser) Value() (localctx IValueContext) {
 	case 4:
 		p.EnterOuterAlt(localctx, 4)
 		{
-			p.SetState(46)
+			p.SetState(51)
 			p.Expr()
 		}
 
