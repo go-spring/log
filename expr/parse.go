@@ -46,7 +46,7 @@ func Parse(data string) (ret map[string]string, err error) {
 	if e.Error != nil {
 		return nil, e.Error
 	}
-	return l.Expr, nil
+	return l.Result, nil
 }
 
 // ErrorListener implements a custom ANTLR error listener that records syntax errors.
@@ -69,4 +69,36 @@ func (l *ErrorListener) SyntaxError(_ antlr.Recognizer, _ any, line, column int,
 type ParseTreeListener struct {
 	BaseExprListener
 	Tokens *antlr.CommonTokenStream
+	Result map[string]string
+}
+
+func (l *ParseTreeListener) ExitExpr(ctx *ExprContext) {
+	l.parseExpr("", ctx)
+}
+
+func (l *ParseTreeListener) parseExpr(key string, ctx IExprContext) {
+	typeKey := "type"
+	if key != "" {
+		typeKey = key + ".type"
+	}
+	l.Result[typeKey] = ctx.IDENT().GetText()
+	for _, innerExpr := range ctx.AllInnerExpr() {
+		l.parseInnerExpr(key, innerExpr)
+	}
+}
+
+func (l *ParseTreeListener) parseInnerExpr(key string, ctx IInnerExprContext) {
+	fieldKey := ctx.FieldAccess().GetText()
+	if key != "" {
+		fieldKey = key + "." + fieldKey
+	}
+	switch {
+	case ctx.Value().STRING() != nil:
+		l.Result[fieldKey] = ctx.Value().STRING().GetText()
+	case ctx.Value().RAW_VALUE() != nil:
+		l.Result[fieldKey] = ctx.Value().RAW_VALUE().GetText()
+	case ctx.Value().Expr() != nil:
+		l.parseExpr(fieldKey, ctx.Value().Expr())
+	default: // for linter
+	}
 }
