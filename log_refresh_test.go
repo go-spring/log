@@ -210,7 +210,7 @@ func TestRefreshConfig(t *testing.T) {
 			logger.myLogger.appenderRef.ref=console
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
-		assert.Error(t, err).Matches("`\\*\\*` regexp compile error")
+		assert.Error(t, err).String(`create logger myLogger error << tag '**' is invalid`)
 	})
 
 	t.Run("logger start error", func(t *testing.T) {
@@ -223,7 +223,7 @@ func TestRefreshConfig(t *testing.T) {
 			appender.console.layout.type=TextLayout
 			logger.myLogger.type=AsyncLogger
 			logger.myLogger.minLevel=info
-			logger.myLogger.tags=.*
+			logger.myLogger.tags=_app_*
 			logger.myLogger.bufferSize=10
 			logger.myLogger.appenderRef.ref=console
 		`
@@ -242,7 +242,7 @@ func TestRefreshConfig(t *testing.T) {
 			appender.console.layout.type=TextLayout
 			logger.myLogger.type=AsyncLogger
 			logger.myLogger.minLevel=info
-			logger.myLogger.tags=.*
+			logger.myLogger.tags=_app_*
 			logger.myLogger.appenderRef.ref=console
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")

@@ -19,7 +19,6 @@ package log
 import (
 	"io"
 	"reflect"
-	"regexp"
 	"strings"
 	"sync/atomic"
 
@@ -153,6 +152,12 @@ func RefreshConfig(s *barky.Storage) error {
 			if tag = strings.TrimSpace(tag); tag == "" {
 				continue
 			}
+			if strings.Contains(tag, "*") {
+				if !strings.HasSuffix(tag, "_*") {
+					err = util.FormatError(nil, "tag '%s' is invalid", tag)
+					return util.WrapError(err, "create logger %s error", name)
+				}
+			}
 			tags = append(tags, tag)
 		}
 		if len(tags) == 0 {
@@ -166,16 +171,6 @@ func RefreshConfig(s *barky.Storage) error {
 			}
 			cTags[strTag] = logger
 		}
-	}
-
-	// Precompile regexp patterns for tag matching
-	tagRegexpMap := map[string]*regexp.Regexp{}
-	for tag := range cTags {
-		r, err := regexp.Compile(tag)
-		if err != nil {
-			return util.FormatError(err, "`%s` regexp compile error", tag)
-		}
-		tagRegexpMap[tag] = r
 	}
 
 	// Start all appenders
@@ -201,24 +196,24 @@ func RefreshConfig(s *barky.Storage) error {
 		l.setLogger(v)
 	}
 
+	// Find logger for tag
+	var findLoggerForTag func(tag string) Logger
+	findLoggerForTag = func(tag string) Logger {
+		if l, ok := cTags[tag]; ok {
+			return l
+		}
+		tag, _ = strings.CutSuffix(tag, "_*")
+		i := strings.LastIndex(tag, "_")
+		if i <= 0 {
+			return cRoot
+		}
+		tag = strings.TrimSuffix(tag[:i], "_") + "_*"
+		return findLoggerForTag(tag)
+	}
+
 	// Update tagMap with corresponding loggers
 	for tag, obj := range tagRegistry {
-		if l, ok := cTags[tag]; ok {
-			obj.setLogger(l)
-			continue
-		}
-		found := false
-		for k, r := range tagRegexpMap {
-			if r.MatchString(tag) {
-				obj.setLogger(cTags[k])
-				found = true
-				break
-			}
-		}
-		if found {
-			continue
-		}
-		obj.setLogger(cRoot)
+		obj.setLogger(findLoggerForTag(tag))
 	}
 
 	// Inject properties
