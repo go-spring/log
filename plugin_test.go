@@ -67,7 +67,7 @@ func TestInjectAttribute(t *testing.T) {
 
 	t.Run("converter error", func(t *testing.T) {
 		type ErrorPlugin struct {
-			Level Level `PluginAttribute:"level,default=NOT-EXIST-LEVEL"`
+			Level LevelRange `PluginAttribute:"level,default=NOT-EXIST-LEVEL"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
 		s := barky.NewStorage()

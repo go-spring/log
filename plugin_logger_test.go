@@ -83,9 +83,11 @@ func TestLoggerConfig(t *testing.T) {
 
 		l := &SyncLogger{
 			LoggerBase: LoggerBase{
-				MinLevel: InfoLevel,
-				MaxLevel: MaxLevel,
-				Tags:     "_com_*",
+				Level: LevelRange{
+					MinLevel: InfoLevel,
+					MaxLevel: MaxLevel,
+				},
+				Tags: "_com_*",
 			},
 			AppenderRefs: []*AppenderRef{
 				{Appender: a},
@@ -95,13 +97,13 @@ func TestLoggerConfig(t *testing.T) {
 		err = l.Start()
 		assert.Error(t, err).Nil()
 
-		assert.That(t, l.EnableLevel(TraceLevel)).False()
-		assert.That(t, l.EnableLevel(DebugLevel)).False()
-		assert.That(t, l.EnableLevel(InfoLevel)).True()
-		assert.That(t, l.EnableLevel(WarnLevel)).True()
-		assert.That(t, l.EnableLevel(ErrorLevel)).True()
-		assert.That(t, l.EnableLevel(PanicLevel)).True()
-		assert.That(t, l.EnableLevel(FatalLevel)).True()
+		assert.That(t, l.Level.Enable(TraceLevel)).False()
+		assert.That(t, l.Level.Enable(DebugLevel)).False()
+		assert.That(t, l.Level.Enable(InfoLevel)).True()
+		assert.That(t, l.Level.Enable(WarnLevel)).True()
+		assert.That(t, l.Level.Enable(ErrorLevel)).True()
+		assert.That(t, l.Level.Enable(PanicLevel)).True()
+		assert.That(t, l.Level.Enable(FatalLevel)).True()
 
 		for range 5 {
 			l.Append(&Event{})
@@ -119,18 +121,20 @@ func TestAsyncLoggerConfig(t *testing.T) {
 	t.Run("enable level", func(t *testing.T) {
 		l := &AsyncLogger{
 			LoggerBase: LoggerBase{
-				MinLevel: InfoLevel,
-				MaxLevel: MaxLevel,
+				Level: LevelRange{
+					MinLevel: InfoLevel,
+					MaxLevel: MaxLevel,
+				},
 			},
 		}
 
-		assert.That(t, l.EnableLevel(TraceLevel)).False()
-		assert.That(t, l.EnableLevel(DebugLevel)).False()
-		assert.That(t, l.EnableLevel(InfoLevel)).True()
-		assert.That(t, l.EnableLevel(WarnLevel)).True()
-		assert.That(t, l.EnableLevel(ErrorLevel)).True()
-		assert.That(t, l.EnableLevel(PanicLevel)).True()
-		assert.That(t, l.EnableLevel(FatalLevel)).True()
+		assert.That(t, l.Level.Enable(TraceLevel)).False()
+		assert.That(t, l.Level.Enable(DebugLevel)).False()
+		assert.That(t, l.Level.Enable(InfoLevel)).True()
+		assert.That(t, l.Level.Enable(WarnLevel)).True()
+		assert.That(t, l.Level.Enable(ErrorLevel)).True()
+		assert.That(t, l.Level.Enable(PanicLevel)).True()
+		assert.That(t, l.Level.Enable(FatalLevel)).True()
 	})
 
 	t.Run("error BufferSize", func(t *testing.T) {
@@ -155,9 +159,11 @@ func TestAsyncLoggerConfig(t *testing.T) {
 
 		l := &AsyncLogger{
 			LoggerBase: LoggerBase{
-				MinLevel: InfoLevel,
-				MaxLevel: MaxLevel,
-				Tags:     "_com_*",
+				Level: LevelRange{
+					MinLevel: InfoLevel,
+					MaxLevel: MaxLevel,
+				},
+				Tags: "_com_*",
 			},
 			AppenderRefs: []*AppenderRef{
 				{Appender: a},
@@ -197,9 +203,11 @@ func TestAsyncLoggerConfig(t *testing.T) {
 
 		l := &AsyncLogger{
 			LoggerBase: LoggerBase{
-				MinLevel: InfoLevel,
-				MaxLevel: MaxLevel,
-				Tags:     "_com_*",
+				Level: LevelRange{
+					MinLevel: InfoLevel,
+					MaxLevel: MaxLevel,
+				},
+				Tags: "_com_*",
 			},
 			AppenderRefs: []*AppenderRef{
 				{Appender: a},
@@ -239,9 +247,11 @@ func TestAsyncLoggerConfig(t *testing.T) {
 
 		l := &AsyncLogger{
 			LoggerBase: LoggerBase{
-				MinLevel: InfoLevel,
-				MaxLevel: MaxLevel,
-				Tags:     "_com_*",
+				Level: LevelRange{
+					MinLevel: InfoLevel,
+					MaxLevel: MaxLevel,
+				},
+				Tags: "_com_*",
 			},
 			AppenderRefs: []*AppenderRef{
 				{Appender: a},
@@ -281,9 +291,11 @@ func TestAsyncLoggerConfig(t *testing.T) {
 
 		l := &AsyncLogger{
 			LoggerBase: LoggerBase{
-				MinLevel: InfoLevel,
-				MaxLevel: MaxLevel,
-				Tags:     "_com_*",
+				Level: LevelRange{
+					MinLevel: InfoLevel,
+					MaxLevel: MaxLevel,
+				},
+				Tags: "_com_*",
 			},
 			AppenderRefs: []*AppenderRef{
 				{Appender: a},

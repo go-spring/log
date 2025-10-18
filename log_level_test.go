@@ -68,7 +68,7 @@ func TestParseLevel(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		got, err := ParseLevel(tt.str)
+		got, err := ParseLevelRange(tt.str)
 		assert.That(t, got).Equal(tt.want)
 		assert.That(t, err).Equal(tt.wantErr)
 		assert.Number(t, got.Code()).Equal(tt.want.Code())
@@ -90,15 +90,15 @@ func TestRegisterLevel(t *testing.T) {
 	assert.Number(t, customLevel.Code()).Equal(int32(800))
 	assert.String(t, customLevel.String()).Equal("CUSTOM")
 
-	parsed, err := ParseLevel("custom")
+	parsed, err := ParseLevelRange("custom")
 	assert.Error(t, err).Nil()
 	assert.That(t, parsed).Equal(customLevel)
 
-	parsed, err = ParseLevel("Custom")
+	parsed, err = ParseLevelRange("Custom")
 	assert.Error(t, err).Nil()
 	assert.That(t, parsed).Equal(customLevel)
 
-	parsed, err = ParseLevel("CUSTOM")
+	parsed, err = ParseLevelRange("CUSTOM")
 	assert.Error(t, err).Nil()
 	assert.That(t, parsed).Equal(customLevel)
 }

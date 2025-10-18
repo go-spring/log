@@ -23,7 +23,7 @@ import (
 )
 
 func init() {
-	RegisterConverter(ParseLevel)
+	RegisterConverter(ParseLevelRange)
 }
 
 var (
@@ -67,9 +67,9 @@ func RegisterLevel(code int32, name string) Level {
 	return l
 }
 
-// ParseLevel converts a string into a Level (case-insensitive).
+// ParseLevelRange converts a string into a Level (case-insensitive).
 // Returns an error if the string does not match any registered Level.
-func ParseLevel(s string) (Level, error) {
+func ParseLevelRange(s string) (LevelRange, error) {
 	l, ok := levelRegistry[strings.ToUpper(s)]
 	if !ok {
 		return NoneLevel, util.FormatError(nil, "invalid log level: %q", s)

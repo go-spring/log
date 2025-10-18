@@ -116,8 +116,10 @@ func init() {
 // before custom loggers are fully configured.
 var defaultLogger Logger = &SyncLogger{
 	LoggerBase: LoggerBase{
-		MinLevel: InfoLevel,
-		MaxLevel: MaxLevel,
+		Level: LevelRange{
+			MinLevel: InfoLevel,
+			MaxLevel: MaxLevel,
+		},
 	},
 	AppenderRefs: []*AppenderRef{
 		{
@@ -157,7 +159,7 @@ var (
 // Trace logs at TraceLevel using a tag and a lazy field generator function.
 // The function fn() is only executed if TraceLevel logging is enabled.
 func Trace(ctx context.Context, tag *Tag, fn func() []Field) {
-	if tag.logger.EnableLevel(TraceLevel) {
+	if tag.logger.GetLevel().Enable(TraceLevel) {
 		Record(ctx, TraceLevel, tag, 2, fn()...)
 	}
 }
@@ -165,7 +167,7 @@ func Trace(ctx context.Context, tag *Tag, fn func() []Field) {
 // Tracef logs at TraceLevel using a tag and a formatted message.
 // Message formatting is only performed if TraceLevel logging is enabled.
 func Tracef(ctx context.Context, tag *Tag, format string, args ...any) {
-	if tag.logger.EnableLevel(TraceLevel) {
+	if tag.logger.GetLevel().Enable(TraceLevel) {
 		Record(ctx, TraceLevel, tag, 2, Msgf(format, args...))
 	}
 }
@@ -173,7 +175,7 @@ func Tracef(ctx context.Context, tag *Tag, format string, args ...any) {
 // Debug logs at DebugLevel using a tag and a lazy field generator function.
 // The function fn() is only executed if DebugLevel logging is enabled.
 func Debug(ctx context.Context, tag *Tag, fn func() []Field) {
-	if tag.logger.EnableLevel(DebugLevel) {
+	if tag.logger.GetLevel().Enable(DebugLevel) {
 		Record(ctx, DebugLevel, tag, 2, fn()...)
 	}
 }
@@ -181,7 +183,7 @@ func Debug(ctx context.Context, tag *Tag, fn func() []Field) {
 // Debugf logs at DebugLevel using a tag and a formatted message.
 // Message formatting is only performed if DebugLevel logging is enabled.
 func Debugf(ctx context.Context, tag *Tag, format string, args ...any) {
-	if tag.logger.EnableLevel(DebugLevel) {
+	if tag.logger.GetLevel().Enable(DebugLevel) {
 		Record(ctx, DebugLevel, tag, 2, Msgf(format, args...))
 	}
 }
@@ -249,7 +251,7 @@ func Fatalf(ctx context.Context, tag *Tag, format string, args ...any) {
 func Record(ctx context.Context, level Level, tag *Tag, skip int, fields ...Field) {
 
 	// Step 1: check if logging is enabled for this level.
-	if !tag.logger.EnableLevel(level) {
+	if !tag.logger.GetLevel().Enable(level) {
 		return
 	}
 

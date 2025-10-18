@@ -37,28 +37,31 @@ func init() {
 type Logger interface {
 	Appender
 	GetTags() string
-	GetMinLevel() Level
-	GetMaxLevel() Level
-	EnableLevel(level Level) bool
+	GetLevel() LevelRange
+}
+
+// LevelRange represents a range of log levels.
+type LevelRange struct {
+	MinLevel Level
+	MaxLevel Level
+}
+
+// Enable checks if the given log level is enabled for this appender.
+func (c LevelRange) Enable(level Level) bool {
+	return level.code >= c.MinLevel.code && level.code <= c.MaxLevel.code
 }
 
 // AppenderRef represents a reference to an appender by name.
 // The actual Appender is resolved and injected later during configuration.
 type AppenderRef struct {
 	Appender
-	Ref      string `PluginAttribute:"ref"`
-	MinLevel Level  `PluginAttribute:"minLevel,default=None"`
-	MaxLevel Level  `PluginAttribute:"maxLevel,default=Max"`
-}
-
-// EnableLevel checks if the given log level is enabled for this appender.
-func (c *AppenderRef) EnableLevel(level Level) bool {
-	return level.code >= c.MinLevel.code && level.code <= c.MaxLevel.code
+	Ref   string     `PluginAttribute:"ref"`
+	Level LevelRange `PluginAttribute:"level,default=None"`
 }
 
 // Append forwards the event to each child appender.
 func (c *AppenderRef) Append(e *Event) {
-	if c.EnableLevel(e.Level) {
+	if c.Level.Enable(e.Level) {
 		c.Appender.Append(e)
 	}
 }
@@ -70,11 +73,10 @@ func (c *AppenderRef) Write(b []byte) {
 
 // LoggerBase contains fields shared by all logger configurations.
 type LoggerBase struct {
-	Name     string `PluginAttribute:"name"`          // Logger name
-	Tags     string `PluginAttribute:"tags,default="` // Optional tags
-	MinLevel Level  `PluginAttribute:"minLevel,default=None"`
-	MaxLevel Level  `PluginAttribute:"maxLevel,default=Max"`
-	Layout   Layout `PluginElement:"Layout?"`
+	Name   string     `PluginAttribute:"name"`          // Logger name
+	Tags   string     `PluginAttribute:"tags,default="` // Optional tags
+	Level  LevelRange `PluginAttribute:"level,default=None"`
+	Layout Layout     `PluginElement:"Layout?"`
 }
 
 // GetName returns the name of the logger.
@@ -87,19 +89,9 @@ func (c *LoggerBase) GetTags() string {
 	return c.Tags
 }
 
-// GetMinLevel returns the minimum log level for this logger.
-func (c *LoggerBase) GetMinLevel() Level {
-	return c.MinLevel
-}
-
-// GetMaxLevel returns the maximum log level for this logger.
-func (c *LoggerBase) GetMaxLevel() Level {
-	return c.MaxLevel
-}
-
-// EnableLevel checks if the given log level is enabled for this logger.
-func (c *LoggerBase) EnableLevel(level Level) bool {
-	return level.code >= c.MinLevel.code && level.code <= c.MaxLevel.code
+// GetLevel returns the level range of the logger.
+func (c *LoggerBase) GetLevel() LevelRange {
+	return c.Level
 }
 
 var (
@@ -122,7 +114,7 @@ type ConsoleLogger struct {
 }
 
 func (c *ConsoleLogger) Append(e *Event) {
-	if c.EnableLevel(e.Level) {
+	if c.Level.Enable(e.Level) {
 		c.ConsoleAppender.Append(e)
 	}
 }
@@ -133,7 +125,7 @@ type FileLogger struct {
 }
 
 func (c *FileLogger) Append(e *Event) {
-	if c.EnableLevel(e.Level) {
+	if c.Level.Enable(e.Level) {
 		c.FileAppender.Append(e)
 	}
 }
@@ -149,11 +141,13 @@ func (c *SyncLogger) Stop()        {}
 
 // Append sends the event directly to appenders (blocking).
 func (c *SyncLogger) Append(e *Event) {
-	for _, r := range c.AppenderRefs {
-		if c.Layout == nil {
-			r.Append(e)
-		} else {
-			r.Write(c.Layout.ToBytes(e))
+	if c.Level.Enable(e.Level) {
+		for _, r := range c.AppenderRefs {
+			if c.Layout == nil {
+				r.Append(e)
+			} else {
+				r.Write(c.Layout.ToBytes(e))
+			}
 		}
 	}
 	PutEvent(e) // Return event to the pool
@@ -250,10 +244,14 @@ func (c *AsyncLogger) Start() error {
 // Append enqueues a log event into the buffer.
 // Behavior on full buffer depends on BufferFullPolicy.
 func (c *AsyncLogger) Append(e *Event) {
-	select {
-	case c.buf <- e:
-	default:
-		c.onBufferFull(e)
+	if c.Level.Enable(e.Level) {
+		select {
+		case c.buf <- e:
+		default:
+			c.onBufferFull(e)
+		}
+	} else {
+		PutEvent(e)
 	}
 }
 
@@ -388,8 +386,10 @@ func initRollingFileLogger(
 				ClearHours:    f.ClearHours,
 				RollingPolicy: f.RollingPolicy,
 			},
-			MinLevel: f.MinLevel,
-			MaxLevel: normalMaxLevel,
+			Level: LevelRange{
+				MinLevel: f.Level.MinLevel,
+				MaxLevel: normalMaxLevel,
+			},
 		},
 	}
 
@@ -402,8 +402,10 @@ func initRollingFileLogger(
 				ClearHours:    f.ClearHours,
 				RollingPolicy: f.RollingPolicy,
 			},
-			MinLevel: normalMaxLevel,
-			MaxLevel: f.MaxLevel,
+			Level: LevelRange{
+				MinLevel: normalMaxLevel,
+				MaxLevel: f.Level.MaxLevel,
+			},
 		})
 	}
 
