@@ -35,11 +35,8 @@ func init() {
 
 // Logger is the interface implemented by all loggers.
 type Logger interface {
-	Lifecycle                          // Start/Stop methods
-	GetName() string                   // Returns the appender name
-	Publish(e *Event)                  // Send events to appenders
-	EnableLevel(level Level) bool      // Whether a log level is enabled
-	Write(b []byte) (n int, err error) // Write raw bytes to appenders
+	Appender
+	EnableLevel(level Level) bool
 }
 
 // AppenderRef represents a reference to an appender by name.
@@ -110,6 +107,28 @@ func (c *LoggerBase) writeToAppenders(b []byte) {
 // common loggers
 // ----------------------------------------------------------------------------
 
+var (
+	_ Logger = (*DiscardLogger)(nil)
+	_ Logger = (*SyncLogger)(nil)
+	_ Logger = (*AsyncLogger)(nil)
+	_ Logger = (*FileLogger)(nil)
+)
+
+type DiscardLogger struct {
+	LoggerBase
+	DiscardAppender
+}
+
+type ConsoleLogger struct {
+	LoggerBase
+	ConsoleAppender
+}
+
+type FileLogger struct {
+	LoggerBase
+	FileAppender
+}
+
 // SyncLogger is a synchronous logger that immediately forwards events to appenders.
 type SyncLogger struct {
 	LoggerBase
@@ -118,16 +137,15 @@ type SyncLogger struct {
 func (c *SyncLogger) Start() error { return nil }
 func (c *SyncLogger) Stop()        {}
 
-// Publish sends the event directly to appenders (blocking).
-func (c *SyncLogger) Publish(e *Event) {
+// Append sends the event directly to appenders (blocking).
+func (c *SyncLogger) Append(e *Event) {
 	c.sendToAppenders(e)
 	PutEvent(e) // Return event to the pool
 }
 
 // Write writes raw bytes directly to appenders.
-func (c *SyncLogger) Write(b []byte) (n int, err error) {
+func (c *SyncLogger) Write(b []byte) {
 	c.writeToAppenders(b)
-	return len(b), nil
 }
 
 // BufferFullPolicy specifies what to do when an async buffer is full.
@@ -202,9 +220,9 @@ func (c *AsyncLogger) Start() error {
 	return nil
 }
 
-// Publish enqueues a log event into the buffer.
+// Append enqueues a log event into the buffer.
 // Behavior on full buffer depends on BufferFullPolicy.
-func (c *AsyncLogger) Publish(e *Event) {
+func (c *AsyncLogger) Append(e *Event) {
 	select {
 	case c.buf <- e:
 	default:
@@ -214,13 +232,12 @@ func (c *AsyncLogger) Publish(e *Event) {
 
 // Write enqueues raw bytes into the buffer.
 // Behavior on full buffer depends on BufferFullPolicy.
-func (c *AsyncLogger) Write(b []byte) (n int, err error) {
+func (c *AsyncLogger) Write(b []byte) {
 	select {
 	case c.buf <- b:
 	default:
 		c.onBufferFull(b)
 	}
-	return len(b), nil
 }
 
 // onBufferFull handles the case when the async buffer is full.
@@ -271,15 +288,15 @@ func (c *AsyncLogger) Stop() {
 }
 
 // ----------------------------------------------------------------------------
-// file logger
+// rolling file logger
 // ----------------------------------------------------------------------------
 
-// FileLogger is a logger implementation that writes log events to files.
+// RollingFileLogger is a logger implementation that writes log events to files.
 // It can work in either synchronous or asynchronous mode depending on AsyncWrite.
 // It also supports splitting warning/error logs into a separate file.
-type FileLogger struct {
+type RollingFileLogger struct {
 	LoggerBase
-	Logger
+	logger Logger
 
 	// File output configuration
 	FileDir  string `PluginAttribute:"fileDir,default=./logs"`
@@ -300,10 +317,10 @@ type FileLogger struct {
 
 // Start initializes the FileLogger according to AsyncWrite flag
 // and then starts the underlying logger and its appenders.
-func (f *FileLogger) Start() error {
+func (f *RollingFileLogger) Start() error {
 	if f.AsyncWrite {
 		// Async mode: use AsyncLogger and AsyncRotateFileWriter
-		return initFileLogger(f, func(f *FileLogger) Logger {
+		return initRollingFileLogger(f, func(f *RollingFileLogger) Logger {
 			return &AsyncLogger{
 				LoggerBase:       f.LoggerBase,
 				BufferSize:       f.BufferSize,
@@ -312,7 +329,7 @@ func (f *FileLogger) Start() error {
 		})
 	} else {
 		// Sync mode: use SyncLogger and SyncRotateFileWriter
-		return initFileLogger(f, func(f *FileLogger) Logger {
+		return initRollingFileLogger(f, func(f *RollingFileLogger) Logger {
 			return &SyncLogger{
 				LoggerBase: f.LoggerBase,
 			}
@@ -320,12 +337,12 @@ func (f *FileLogger) Start() error {
 	}
 }
 
-// initFileLogger is a generic helper to configure both synchronous and asynchronous FileLogger.
+// initRollingFileLogger is a generic helper to configure both synchronous and asynchronous FileLogger.
 //   - fnAppender creates either SyncRotateFileWriter or AsyncRotateFileWriter.
 //   - fnLogger creates either SyncLogger or AsyncLogger.
-func initFileLogger(
-	f *FileLogger,
-	fnLogger func(f *FileLogger) Logger,
+func initRollingFileLogger(
+	f *RollingFileLogger,
+	fnLogger func(f *RollingFileLogger) Logger,
 ) error {
 
 	// Decide the maximum level for the normal log file.
@@ -363,10 +380,10 @@ func initFileLogger(
 		})
 	}
 
-	f.Logger = fnLogger(f)
+	f.logger = fnLogger(f)
 
 	// Attach the final appender to the logger
-	switch x := f.Logger.(type) {
+	switch x := f.logger.(type) {
 	case *SyncLogger:
 		x.AppenderRefs = appenders
 	case *AsyncLogger:
@@ -375,5 +392,17 @@ func initFileLogger(
 	}
 
 	// Start the underlying logger (and all appenders)
-	return f.Logger.Start()
+	return f.logger.Start()
+}
+
+func (f *RollingFileLogger) Append(e *Event) {
+	f.logger.Append(e)
+}
+
+func (f *RollingFileLogger) Write(b []byte) {
+	f.logger.Write(b)
+}
+
+func (f *RollingFileLogger) Stop() {
+
 }

@@ -66,9 +66,7 @@ func TestLoggerConfig(t *testing.T) {
 			},
 		}}
 
-		n, err := l.Write([]byte("test"))
-		assert.Error(t, err).Nil()
-		assert.That(t, n).Equal(4)
+		l.Write([]byte("test"))
 		assert.That(t, a.count).Equal(0)
 
 		l.Stop()
@@ -104,7 +102,7 @@ func TestLoggerConfig(t *testing.T) {
 		assert.That(t, l.EnableLevel(FatalLevel)).True()
 
 		for range 5 {
-			l.Publish(&Event{})
+			l.Append(&Event{})
 		}
 
 		assert.That(t, a.count).Equal(5)
@@ -171,12 +169,12 @@ func TestAsyncLoggerConfig(t *testing.T) {
 
 		go func() {
 			for range 100 {
-				_, _ = l.Write([]byte("hello"))
+				l.Write([]byte("hello"))
 			}
 		}()
 
 		for range 5000 {
-			l.Publish(GetEvent())
+			l.Append(GetEvent())
 		}
 
 		time.Sleep(200 * time.Millisecond)
@@ -213,12 +211,12 @@ func TestAsyncLoggerConfig(t *testing.T) {
 
 		go func() {
 			for range 100 {
-				_, _ = l.Write([]byte("hello"))
+				l.Write([]byte("hello"))
 			}
 		}()
 
 		for range 5000 {
-			l.Publish(GetEvent())
+			l.Append(GetEvent())
 		}
 
 		time.Sleep(200 * time.Millisecond)
@@ -255,12 +253,12 @@ func TestAsyncLoggerConfig(t *testing.T) {
 
 		go func() {
 			for range 100 {
-				_, _ = l.Write([]byte("hello"))
+				l.Write([]byte("hello"))
 			}
 		}()
 
 		for range 5000 {
-			l.Publish(GetEvent())
+			l.Append(GetEvent())
 		}
 
 		time.Sleep(200 * time.Millisecond)
@@ -295,7 +293,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		assert.Error(t, err).Nil()
 
 		for range 5 {
-			l.Publish(GetEvent())
+			l.Append(GetEvent())
 		}
 
 		time.Sleep(100 * time.Millisecond)
@@ -328,7 +326,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 
 		// Rapidly write large amount of data to fill the buffer
 		for range 500 {
-			_, _ = l.Write([]byte("test data"))
+			l.Write([]byte("test data"))
 		}
 
 		time.Sleep(100 * time.Millisecond)

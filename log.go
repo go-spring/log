@@ -286,5 +286,5 @@ func Record(ctx context.Context, level Level, tag *Tag, skip int, fields ...Fiel
 	e.CtxFields = ctxFields
 
 	// Step 6: publish the event.
-	l.Publish(e)
+	l.Append(e)
 }

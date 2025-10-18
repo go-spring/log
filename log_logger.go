@@ -36,7 +36,8 @@ type LoggerWrapper struct {
 // Write forwards the given byte slice to the currently active Logger.
 // Implements the io.Writer interface.
 func (m *LoggerWrapper) Write(b []byte) (n int, err error) {
-	return m.getLogger().Write(b)
+	m.getLogger().Write(b)
+	return len(b), nil
 }
 
 // getLogger retrieves the currently stored Logger instance in a thread-safe way.
