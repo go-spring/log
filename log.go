@@ -96,18 +96,18 @@ import (
 	"github.com/go-spring/spring-base/util"
 )
 
-// fastCaller controls whether to use a faster but less accurate
+// FastCaller controls whether to use a faster but less accurate
 // implementation of caller lookup (file/line).
-var fastCaller atomic.Bool
+var FastCaller atomic.Bool
 
 func init() {
-	fastCaller.Store(true)
+	FastCaller.Store(true)
 	RegisterProperty("fastCaller", func(s string) error {
 		b, err := strconv.ParseBool(s)
 		if err != nil {
 			return util.WrapError(err, "invalid fastCaller: %q", s)
 		}
-		fastCaller.Store(b)
+		FastCaller.Store(b)
 		return nil
 	})
 }
@@ -240,7 +240,7 @@ func Fatalf(ctx context.Context, tag *Tag, format string, args ...any) {
 //
 // Responsibilities:
 //  1. Check whether the logger is enabled for the given level.
-//  2. Capture caller information (file, line). When fastCaller is enabled,
+//  2. Capture caller information (file, line). When FastCaller is enabled,
 //     a faster but less precise lookup is used.
 //  3. Determine the log timestamp, either via TimeNow (if set) or time.Now().
 //  4. Extract context-based metadata via StringFromContext and FieldsFromContext.
@@ -254,7 +254,7 @@ func Record(ctx context.Context, level Level, tag *Tag, skip int, fields ...Fiel
 	}
 
 	// Step 2: resolve caller information.
-	file, line := Caller(skip, fastCaller.Load())
+	file, line := Caller(skip, FastCaller.Load())
 
 	// Step 3: determine log timestamp.
 	now := time.Now()

@@ -29,18 +29,18 @@ import (
 
 var (
 	bufferPool sync.Pool    // Pool to reuse byte buffers for layouts
-	bufferCap  atomic.Int32 // Maximum buffer capacity allowed for reuse
+	BufferCap  atomic.Int32 // Maximum buffer capacity allowed for reuse
 )
 
 func init() {
 	// Default buffer capacity is 10KB
-	bufferCap.Store(10 * 1024)
+	BufferCap.Store(10 * 1024)
 	RegisterProperty("bufferCap", func(s string) error {
 		n, err := ParseHumanizeBytes(s)
 		if err != nil {
 			return util.WrapError(err, "invalid bufferCap: %q", s)
 		}
-		bufferCap.Store(int32(n))
+		BufferCap.Store(int32(n))
 		return nil
 	})
 }
@@ -103,7 +103,7 @@ func (c *BaseLayout) GetBuffer() *bytes.Buffer {
 // PutBuffer resets and returns a buffer to the pool,
 // but only if it does not exceed the configured capacity.
 func (c *BaseLayout) PutBuffer(buf *bytes.Buffer) {
-	if buf.Cap() <= int(bufferCap.Load()) {
+	if buf.Cap() <= int(BufferCap.Load()) {
 		buf.Reset()
 		bufferPool.Put(buf)
 	}

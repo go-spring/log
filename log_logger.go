@@ -43,7 +43,7 @@ func (m *LoggerWrapper) Write(b []byte) (n int, err error) {
 // It panics if called after global.init is set, indicating that
 // the logging system has already been finalized.
 func GetLogger(name string) *LoggerWrapper {
-	if global.init.Load() {
+	if global.init {
 		panic("log refresh already done")
 	}
 	m, ok := loggerMap[name]

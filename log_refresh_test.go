@@ -53,13 +53,13 @@ func TestRefreshConfig(t *testing.T) {
 	})
 
 	t.Run("unsupported file", func(t *testing.T) {
-		defer func() { global.init.Store(false) }()
+		defer func() { global.init = false }()
 		err := RefreshReader(nil, ".toml")
 		assert.Error(t, err).Matches("RefreshReader error: unsupported file type .toml")
 	})
 
 	t.Run("appenders section not found", func(t *testing.T) {
-		defer func() { global.init.Store(false) }()
+		defer func() { global.init = false }()
 		content := `
 			logger.root.type=Logger
 		`
@@ -68,7 +68,7 @@ func TestRefreshConfig(t *testing.T) {
 	})
 
 	t.Run("read appenders error", func(t *testing.T) {
-		defer func() { global.init.Store(false) }()
+		defer func() { global.init = false }()
 		content := `
 			logger.root.type=Logger
 			appender=ERROR_PROPERTY
@@ -78,7 +78,7 @@ func TestRefreshConfig(t *testing.T) {
 	})
 
 	t.Run("read loggers error", func(t *testing.T) {
-		defer func() { global.init.Store(false) }()
+		defer func() { global.init = false }()
 		content := `
 			logger.root.type=Logger
 			appender.console.type=Console
@@ -89,7 +89,7 @@ func TestRefreshConfig(t *testing.T) {
 	})
 
 	t.Run("plugin not found - appender", func(t *testing.T) {
-		defer func() { global.init.Store(false) }()
+		defer func() { global.init = false }()
 		content := `
 			logger.root.type=Logger
 			appender.console.type=NonExistentAppender
@@ -100,7 +100,7 @@ func TestRefreshConfig(t *testing.T) {
 	})
 
 	t.Run("plugin not found - logger.root", func(t *testing.T) {
-		defer func() { global.init.Store(false) }()
+		defer func() { global.init = false }()
 		content := `
 			logger.root.type=NonExistentLogger
 			appender.console.type=Console
@@ -112,7 +112,7 @@ func TestRefreshConfig(t *testing.T) {
 	})
 
 	t.Run("logger.root no type", func(t *testing.T) {
-		defer func() { global.init.Store(false) }()
+		defer func() { global.init = false }()
 		content := `
 			logger.root.minLevel=debug
 			appender.console.type=Console
@@ -124,7 +124,7 @@ func TestRefreshConfig(t *testing.T) {
 	})
 
 	t.Run("init AppenderRefs error - logger.root", func(t *testing.T) {
-		defer func() { global.init.Store(false) }()
+		defer func() { global.init = false }()
 		content := `
 			logger.root.type=Logger
 			logger.root.minLevel=debug
@@ -137,7 +137,7 @@ func TestRefreshConfig(t *testing.T) {
 	})
 
 	t.Run("plugin not found - loggers", func(t *testing.T) {
-		defer func() { global.init.Store(false) }()
+		defer func() { global.init = false }()
 		content := `
 			logger.root.type=Logger
 			logger.root.minLevel=debug
@@ -151,7 +151,7 @@ func TestRefreshConfig(t *testing.T) {
 	})
 
 	t.Run("loggers no type", func(t *testing.T) {
-		defer func() { global.init.Store(false) }()
+		defer func() { global.init = false }()
 		content := `
 			logger.root.type=Logger
 			logger.root.minLevel=debug
@@ -165,7 +165,7 @@ func TestRefreshConfig(t *testing.T) {
 	})
 
 	t.Run("plugin not found - loggers", func(t *testing.T) {
-		defer func() { global.init.Store(false) }()
+		defer func() { global.init = false }()
 		content := `
 			logger.root.type=Logger
 			logger.root.minLevel=debug
@@ -181,7 +181,7 @@ func TestRefreshConfig(t *testing.T) {
 	})
 
 	t.Run("loggers no tags", func(t *testing.T) {
-		defer func() { global.init.Store(false) }()
+		defer func() { global.init = false }()
 		content := `
 			logger.root.type=Logger
 			logger.root.minLevel=debug
@@ -197,7 +197,7 @@ func TestRefreshConfig(t *testing.T) {
 	})
 
 	t.Run("loggers tags error", func(t *testing.T) {
-		defer func() { global.init.Store(false) }()
+		defer func() { global.init = false }()
 		content := `
 			logger.root.type=Logger
 			logger.root.minLevel=debug
@@ -214,7 +214,7 @@ func TestRefreshConfig(t *testing.T) {
 	})
 
 	t.Run("logger start error", func(t *testing.T) {
-		defer func() { global.init.Store(false) }()
+		defer func() { global.init = false }()
 		content := `
 			logger.root.type=Logger
 			logger.root.minLevel=debug
@@ -232,7 +232,7 @@ func TestRefreshConfig(t *testing.T) {
 	})
 
 	t.Run("logger start error", func(t *testing.T) {
-		defer func() { global.init.Store(false) }()
+		defer func() { global.init = false }()
 		content := `
 			bufferCap=1GB
 			logger.root.type=Logger

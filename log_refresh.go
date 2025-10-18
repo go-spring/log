@@ -20,7 +20,6 @@ import (
 	"io"
 	"reflect"
 	"strings"
-	"sync/atomic"
 
 	"github.com/go-spring/spring-base/barky"
 	"github.com/go-spring/spring-base/util"
@@ -30,7 +29,7 @@ const RootLoggerName = "root"
 
 // global holds the global state of loggers and appenders.
 var global struct {
-	init      atomic.Bool
+	init      bool
 	loggers   []Logger
 	appenders []Appender
 }
@@ -72,9 +71,10 @@ func RefreshConfig(s *barky.Storage) error {
 	}
 
 	// Ensure this refresh is executed only once
-	if !global.init.CompareAndSwap(false, true) {
+	if global.init {
 		return util.FormatError(nil, "log refresh already done")
 	}
+	global.init = true
 
 	// Factory function to create plugin instances
 	newPlugin := func(typ PluginType, typeKey string) (reflect.Value, error) {
@@ -243,7 +243,7 @@ func RefreshConfig(s *barky.Storage) error {
 
 // Destroy stops all loggers and appenders and resets global state.
 func Destroy() {
-	if !global.init.Load() {
+	if !global.init {
 		return
 	}
 	for _, l := range global.loggers {
@@ -254,5 +254,5 @@ func Destroy() {
 	}
 	global.loggers = nil
 	global.appenders = nil
-	global.init.Store(false)
+	global.init = false
 }
