@@ -26,7 +26,7 @@ import (
 func TestRefreshFile(t *testing.T) {
 	t.Cleanup(func() {
 		for _, tag := range tagRegistry {
-			tag.setLogger(defaultLogger)
+			tag.logger = defaultLogger
 		}
 	})
 
@@ -48,7 +48,7 @@ func TestRefreshFile(t *testing.T) {
 func TestRefreshConfig(t *testing.T) {
 	t.Cleanup(func() {
 		for _, tag := range tagRegistry {
-			tag.setLogger(defaultLogger)
+			tag.logger = defaultLogger
 		}
 	})
 

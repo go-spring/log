@@ -19,7 +19,6 @@ package log
 import (
 	"slices"
 	"strings"
-	"sync/atomic"
 
 	"github.com/go-spring/spring-base/util"
 )
@@ -28,28 +27,12 @@ import (
 // Note: Not concurrency-safe; intended for use during initialization.
 var tagRegistry = map[string]*Tag{}
 
-// LoggerHolder wraps a Logger in order to store it in atomic.Value.
-// This ensures type safety while using atomic operations.
-type LoggerHolder struct {
-	Logger
-}
-
 // Tag represents a named log tag, used to categorize logs by
 // subsystem, business domain, or RPC interaction, and so on.
 // Each Tag holds a reference to a Logger, which can be atomically replaced.
 type Tag struct {
-	logger atomic.Value // stores LoggerHolder
-	name   string       // tag identifier
-}
-
-// getLogger returns the Logger associated with this Tag.
-func (m *Tag) getLogger() Logger {
-	return m.logger.Load().(LoggerHolder).Logger
-}
-
-// setLogger replaces the Logger associated with this Tag atomically.
-func (m *Tag) setLogger(logger Logger) {
-	m.logger.Store(LoggerHolder{logger})
+	tag    string // tag identifier
+	logger Logger // stores LoggerHolder
 }
 
 // GetAllTags returns the names of all registered tags.
@@ -92,12 +75,11 @@ func RegisterTag(tag string) *Tag {
 		panic("log refresh already done")
 	}
 	if !isValidTag(tag) {
-		panic("invalid tag name")
+		panic("invalid log tag")
 	}
 	m, ok := tagRegistry[tag]
 	if !ok {
-		m = &Tag{name: tag}
-		m.setLogger(defaultLogger)
+		m = &Tag{tag: tag}
 		tagRegistry[tag] = m
 	}
 	return m

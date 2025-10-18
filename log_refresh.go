@@ -198,7 +198,7 @@ func RefreshConfig(s *barky.Storage) error {
 		if !ok {
 			return util.FormatError(nil, "logger %s not found", l.name)
 		}
-		l.setLogger(v)
+		l.logger = v
 	}
 
 	// Find logger for tag
@@ -218,7 +218,7 @@ func RefreshConfig(s *barky.Storage) error {
 
 	// Update tagMap with corresponding loggers
 	for tag, obj := range tagRegistry {
-		obj.setLogger(findLoggerForTag(tag))
+		obj.logger = findLoggerForTag(tag)
 	}
 
 	// Inject properties
