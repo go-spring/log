@@ -70,9 +70,27 @@ func RegisterLevel(code int32, name string) Level {
 // ParseLevelRange converts a string into a Level (case-insensitive).
 // Returns an error if the string does not match any registered Level.
 func ParseLevelRange(s string) (LevelRange, error) {
-	l, ok := levelRegistry[strings.ToUpper(s)]
-	if !ok {
-		return NoneLevel, util.FormatError(nil, "invalid log level: %q", s)
+	if s = strings.TrimSpace(s); s == "" {
+		return LevelRange{
+			MinLevel: NoneLevel,
+			MaxLevel: MaxLevel,
+		}, nil
 	}
-	return l, nil
+	var (
+		ok       bool
+		minLevel = NoneLevel
+		maxLevel = MaxLevel
+	)
+	ss := strings.Split(s, "~")
+	minLevel, ok = levelRegistry[strings.ToUpper(ss[0])]
+	if !ok {
+		return LevelRange{}, util.FormatError(nil, "invalid log level: %q", ss[0])
+	}
+	if len(ss) == 2 {
+		maxLevel, ok = levelRegistry[strings.ToUpper(ss[1])]
+		if !ok {
+			return LevelRange{}, util.FormatError(nil, "invalid log level: %q", ss[1])
+		}
+	}
+	return LevelRange{MinLevel: minLevel, MaxLevel: maxLevel}, nil
 }

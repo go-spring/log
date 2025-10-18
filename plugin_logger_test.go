@@ -90,7 +90,13 @@ func TestLoggerConfig(t *testing.T) {
 				Tags: "_com_*",
 			},
 			AppenderRefs: []*AppenderRef{
-				{Appender: a},
+				{
+					Appender: a,
+					Level: LevelRange{
+						MinLevel: NoneLevel,
+						MaxLevel: MaxLevel,
+					},
+				},
 			},
 		}
 
@@ -106,7 +112,7 @@ func TestLoggerConfig(t *testing.T) {
 		assert.That(t, l.Level.Enable(FatalLevel)).True()
 
 		for range 5 {
-			l.Append(&Event{})
+			l.Append(&Event{Level: InfoLevel})
 		}
 
 		assert.That(t, a.count).Equal(5)
@@ -166,7 +172,13 @@ func TestAsyncLoggerConfig(t *testing.T) {
 				Tags: "_com_*",
 			},
 			AppenderRefs: []*AppenderRef{
-				{Appender: a},
+				{
+					Appender: a,
+					Level: LevelRange{
+						MinLevel: NoneLevel,
+						MaxLevel: MaxLevel,
+					},
+				},
 			},
 			BufferSize:       100,
 			BufferFullPolicy: BufferFullPolicyDiscard,
@@ -182,7 +194,9 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		}()
 
 		for range 5000 {
-			l.Append(GetEvent())
+			e := GetEvent()
+			e.Level = InfoLevel
+			l.Append(e)
 		}
 
 		time.Sleep(200 * time.Millisecond)
@@ -210,7 +224,13 @@ func TestAsyncLoggerConfig(t *testing.T) {
 				Tags: "_com_*",
 			},
 			AppenderRefs: []*AppenderRef{
-				{Appender: a},
+				{
+					Appender: a,
+					Level: LevelRange{
+						MinLevel: NoneLevel,
+						MaxLevel: MaxLevel,
+					},
+				},
 			},
 			BufferSize:       100,
 			BufferFullPolicy: BufferFullPolicyDiscardOldest,
@@ -226,7 +246,9 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		}()
 
 		for range 5000 {
-			l.Append(GetEvent())
+			e := GetEvent()
+			e.Level = InfoLevel
+			l.Append(e)
 		}
 
 		time.Sleep(200 * time.Millisecond)
@@ -298,7 +320,13 @@ func TestAsyncLoggerConfig(t *testing.T) {
 				Tags: "_com_*",
 			},
 			AppenderRefs: []*AppenderRef{
-				{Appender: a},
+				{
+					Appender: a,
+					Level: LevelRange{
+						MinLevel: NoneLevel,
+						MaxLevel: MaxLevel,
+					},
+				},
 			},
 			BufferSize: 100,
 		}
@@ -307,7 +335,9 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		assert.Error(t, err).Nil()
 
 		for range 5 {
-			l.Append(GetEvent())
+			e := GetEvent()
+			e.Level = InfoLevel
+			l.Append(e)
 		}
 
 		time.Sleep(100 * time.Millisecond)
