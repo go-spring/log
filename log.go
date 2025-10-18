@@ -116,15 +116,14 @@ func init() {
 // before custom loggers are fully configured.
 var defaultLogger Logger = &SyncLogger{
 	LoggerBase: LoggerBase{
-		Level: InfoLevel,
+		MinLevel: InfoLevel,
+		MaxLevel: MaxLevel,
 		AppenderRefs: []*AppenderRef{
 			{
-				appender: &ConsoleAppender{
-					AppenderBase: AppenderBase{
-						Layout: &TextLayout{
-							BaseLayout: BaseLayout{
-								FileLineLength: 48,
-							},
+				Appender: &ConsoleAppender{
+					Layout: &TextLayout{
+						BaseLayout: BaseLayout{
+							FileLineLength: 48,
 						},
 					},
 				},

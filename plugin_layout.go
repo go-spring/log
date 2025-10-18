@@ -53,8 +53,8 @@ var bytesSizeTable = map[string]int64{
 }
 
 func init() {
-	RegisterPlugin[TextLayout]("TextLayout")
-	RegisterPlugin[JSONLayout]("JSONLayout")
+	RegisterPlugin[TextLayout]("TextLayout", PluginTypeLayout)
+	RegisterPlugin[JSONLayout]("JSONLayout", PluginTypeLayout)
 }
 
 // HumanizeBytes represents a human-readable byte size

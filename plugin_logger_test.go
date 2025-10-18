@@ -62,7 +62,7 @@ func TestLoggerConfig(t *testing.T) {
 
 		l := &SyncLogger{LoggerBase{
 			AppenderRefs: []*AppenderRef{
-				{appender: a},
+				{Appender: a},
 			},
 		}}
 
@@ -84,10 +84,11 @@ func TestLoggerConfig(t *testing.T) {
 		assert.Error(t, err).Nil()
 
 		l := &SyncLogger{LoggerBase{
-			Level: InfoLevel,
-			Tags:  "_com_*",
+			MinLevel: InfoLevel,
+			MaxLevel: MaxLevel,
+			Tags:     "_com_*",
 			AppenderRefs: []*AppenderRef{
-				{appender: a},
+				{Appender: a},
 			},
 		}}
 
@@ -118,7 +119,8 @@ func TestAsyncLoggerConfig(t *testing.T) {
 	t.Run("enable level", func(t *testing.T) {
 		l := &AsyncLogger{
 			LoggerBase: LoggerBase{
-				Level: InfoLevel,
+				MinLevel: InfoLevel,
+				MaxLevel: MaxLevel,
 			},
 		}
 
@@ -153,10 +155,11 @@ func TestAsyncLoggerConfig(t *testing.T) {
 
 		l := &AsyncLogger{
 			LoggerBase: LoggerBase{
-				Level: InfoLevel,
-				Tags:  "_com_*",
+				MinLevel: InfoLevel,
+				MaxLevel: MaxLevel,
+				Tags:     "_com_*",
 				AppenderRefs: []*AppenderRef{
-					{appender: a},
+					{Appender: a},
 				},
 			},
 			BufferSize:       100,
@@ -194,10 +197,11 @@ func TestAsyncLoggerConfig(t *testing.T) {
 
 		l := &AsyncLogger{
 			LoggerBase: LoggerBase{
-				Level: InfoLevel,
-				Tags:  "_com_*",
+				MinLevel: InfoLevel,
+				MaxLevel: MaxLevel,
+				Tags:     "_com_*",
 				AppenderRefs: []*AppenderRef{
-					{appender: a},
+					{Appender: a},
 				},
 			},
 			BufferSize:       100,
@@ -235,10 +239,11 @@ func TestAsyncLoggerConfig(t *testing.T) {
 
 		l := &AsyncLogger{
 			LoggerBase: LoggerBase{
-				Level: InfoLevel,
-				Tags:  "_com_*",
+				MinLevel: InfoLevel,
+				MaxLevel: MaxLevel,
+				Tags:     "_com_*",
 				AppenderRefs: []*AppenderRef{
-					{appender: a},
+					{Appender: a},
 				},
 			},
 			BufferSize:       100,
@@ -276,10 +281,11 @@ func TestAsyncLoggerConfig(t *testing.T) {
 
 		l := &AsyncLogger{
 			LoggerBase: LoggerBase{
-				Level: InfoLevel,
-				Tags:  "_com_*",
+				MinLevel: InfoLevel,
+				MaxLevel: MaxLevel,
+				Tags:     "_com_*",
 				AppenderRefs: []*AppenderRef{
-					{appender: a},
+					{Appender: a},
 				},
 			},
 			BufferSize: 100,
@@ -310,7 +316,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		l := &AsyncLogger{
 			LoggerBase: LoggerBase{
 				AppenderRefs: []*AppenderRef{
-					{appender: a},
+					{Appender: a},
 				},
 			},
 			BufferSize:       100,

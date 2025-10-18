@@ -122,12 +122,12 @@ appender.file.layout.type=JSONLayout
 appender.console.type=Console
 appender.console.layout.type=TextLayout
 
-rootLogger.type=Root
-rootLogger.level=warn
-rootLogger.appenderRef.ref=console
+logger.root.type=Logger
+logger.root.minLevel=warn
+logger.root.appenderRef.ref=console
 
 logger.myLogger.type=AsyncLogger
-logger.myLogger.level=trace
+logger.myLogger.minLevel=trace
 logger.myLogger.tags=_com_request_in,_com_request_*
 logger.myLogger.bufferSize=${bufferSize}
 logger.myLogger.appenderRef[0].ref=file

@@ -66,8 +66,3 @@ func GetLogger(name string) *LoggerWrapper {
 	}
 	return m
 }
-
-// GetRootLogger retrieves the root LoggerWrapper instance.
-func GetRootLogger() *LoggerWrapper {
-	return GetLogger(RootLoggerName)
-}

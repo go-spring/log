@@ -61,7 +61,7 @@ func TestRefreshConfig(t *testing.T) {
 	t.Run("appenders section not found", func(t *testing.T) {
 		defer func() { global.init.Store(false) }()
 		content := `
-			rootLogger.type=Root
+			logger.root.type=Logger
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
 		assert.Error(t, err).Matches("appenders section not found")
@@ -70,7 +70,7 @@ func TestRefreshConfig(t *testing.T) {
 	t.Run("read appenders error", func(t *testing.T) {
 		defer func() { global.init.Store(false) }()
 		content := `
-			rootLogger.type=Root
+			logger.root.type=Logger
 			appender=ERROR_PROPERTY
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
@@ -80,18 +80,18 @@ func TestRefreshConfig(t *testing.T) {
 	t.Run("read loggers error", func(t *testing.T) {
 		defer func() { global.init.Store(false) }()
 		content := `
-			rootLogger.type=Root
+			logger.root.type=Logger
 			appender.console.type=Console
 			logger=ERROR_PROPERTY
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
-		assert.Error(t, err).String("read loggers section error << property conflict at path logger")
+		assert.Error(t, err).Matches("RefreshReader error: toStorage error: property conflict at path logger.*")
 	})
 
 	t.Run("plugin not found - appender", func(t *testing.T) {
 		defer func() { global.init.Store(false) }()
 		content := `
-			rootLogger.type=Root
+			logger.root.type=Logger
 			appender.console.type=NonExistentAppender
 			logger.test.type=AsyncLogger
 		`
@@ -99,22 +99,22 @@ func TestRefreshConfig(t *testing.T) {
 		assert.Error(t, err).Matches("plugin NonExistentAppender not found")
 	})
 
-	t.Run("plugin not found - rootLogger", func(t *testing.T) {
+	t.Run("plugin not found - logger.root", func(t *testing.T) {
 		defer func() { global.init.Store(false) }()
 		content := `
-			rootLogger.type=NonExistentRoot
+			logger.root.type=NonExistentLogger
 			appender.console.type=Console
 			appender.console.layout.type=TextLayout
 			logger.test.type=AsyncLogger
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
-		assert.Error(t, err).Matches("plugin NonExistentRoot not found")
+		assert.Error(t, err).Matches("plugin NonExistentLogger not found")
 	})
 
-	t.Run("rootLogger no type", func(t *testing.T) {
+	t.Run("logger.root no type", func(t *testing.T) {
 		defer func() { global.init.Store(false) }()
 		content := `
-			rootLogger.level=debug
+			logger.root.minLevel=debug
 			appender.console.type=Console
 			appender.console.layout.type=TextLayout
 			logger.test.type=AsyncLogger
@@ -123,12 +123,12 @@ func TestRefreshConfig(t *testing.T) {
 		assert.Error(t, err).Matches("attribute 'type' not found")
 	})
 
-	t.Run("init AppenderRefs error - rootLogger", func(t *testing.T) {
+	t.Run("init AppenderRefs error - logger.root", func(t *testing.T) {
 		defer func() { global.init.Store(false) }()
 		content := `
-			rootLogger.type=Root
-			rootLogger.level=debug
-			rootLogger.appenderRef.ref=file
+			logger.root.type=Logger
+			logger.root.minLevel=debug
+			logger.root.appenderRef.ref=file
 			appender.console.type=Console
 			appender.console.layout.type=TextLayout
 		`
@@ -139,9 +139,9 @@ func TestRefreshConfig(t *testing.T) {
 	t.Run("plugin not found - loggers", func(t *testing.T) {
 		defer func() { global.init.Store(false) }()
 		content := `
-			rootLogger.type=Root
-			rootLogger.level=debug
-			rootLogger.appenderRef.ref=console
+			logger.root.type=Logger
+			logger.root.minLevel=debug
+			logger.root.appenderRef.ref=console
 			appender.console.type=Console
 			appender.console.layout.type=TextLayout
 			logger.myLogger.type=NonExistentLogger
@@ -153,12 +153,12 @@ func TestRefreshConfig(t *testing.T) {
 	t.Run("loggers no type", func(t *testing.T) {
 		defer func() { global.init.Store(false) }()
 		content := `
-			rootLogger.type=Root
-			rootLogger.level=debug
-			rootLogger.appenderRef.ref=console
+			logger.root.type=Logger
+			logger.root.minLevel=debug
+			logger.root.appenderRef.ref=console
 			appender.console.type=Console
 			appender.console.layout.type=TextLayout
-			logger.myLogger.level=info
+			logger.myLogger.minLevel=info
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
 		assert.Error(t, err).Matches("attribute 'type' not found")
@@ -167,13 +167,13 @@ func TestRefreshConfig(t *testing.T) {
 	t.Run("plugin not found - loggers", func(t *testing.T) {
 		defer func() { global.init.Store(false) }()
 		content := `
-			rootLogger.type=Root
-			rootLogger.level=debug
-			rootLogger.appenderRef.ref=console
+			logger.root.type=Logger
+			logger.root.minLevel=debug
+			logger.root.appenderRef.ref=console
 			appender.console.type=Console
 			appender.console.layout.type=TextLayout
 			logger.myLogger.type=Logger
-			logger.myLogger.level=info
+			logger.myLogger.minLevel=info
 			logger.myLogger.appenderRef.ref=file
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
@@ -183,13 +183,13 @@ func TestRefreshConfig(t *testing.T) {
 	t.Run("loggers no tags", func(t *testing.T) {
 		defer func() { global.init.Store(false) }()
 		content := `
-			rootLogger.type=Root
-			rootLogger.level=debug
-			rootLogger.appenderRef.ref=console
+			logger.root.type=Logger
+			logger.root.minLevel=debug
+			logger.root.appenderRef.ref=console
 			appender.console.type=Console
 			appender.console.layout.type=TextLayout
 			logger.myLogger.type=Logger
-			logger.myLogger.level=info
+			logger.myLogger.minLevel=info
 			logger.myLogger.appenderRef.ref=console
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
@@ -199,31 +199,31 @@ func TestRefreshConfig(t *testing.T) {
 	t.Run("loggers tags error", func(t *testing.T) {
 		defer func() { global.init.Store(false) }()
 		content := `
-			rootLogger.type=Root
-			rootLogger.level=debug
-			rootLogger.appenderRef.ref=console
+			logger.root.type=Logger
+			logger.root.minLevel=debug
+			logger.root.appenderRef.ref=console
 			appender.console.type=Console
 			appender.console.layout.type=TextLayout
 			logger.myLogger.type=Logger
-			logger.myLogger.level=info
+			logger.myLogger.minLevel=info
 			logger.myLogger.tags=**
 			logger.myLogger.appenderRef.ref=console
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
-		assert.Error(t, err).Matches("`\\*\\*` regexp compile error")
+		assert.Error(t, err).String(`create logger myLogger error << tag '**' is invalid`)
 	})
 
 	t.Run("logger start error", func(t *testing.T) {
 		defer func() { global.init.Store(false) }()
 		content := `
-			rootLogger.type=Root
-			rootLogger.level=debug
-			rootLogger.appenderRef.ref=console
+			logger.root.type=Logger
+			logger.root.minLevel=debug
+			logger.root.appenderRef.ref=console
 			appender.console.type=Console
 			appender.console.layout.type=TextLayout
 			logger.myLogger.type=AsyncLogger
-			logger.myLogger.level=info
-			logger.myLogger.tags=.*
+			logger.myLogger.minLevel=info
+			logger.myLogger.tags=_app_*
 			logger.myLogger.bufferSize=10
 			logger.myLogger.appenderRef.ref=console
 		`
@@ -235,14 +235,14 @@ func TestRefreshConfig(t *testing.T) {
 		defer func() { global.init.Store(false) }()
 		content := `
 			bufferCap=1GB
-			rootLogger.type=Root
-			rootLogger.level=debug
-			rootLogger.appenderRef.ref=console
+			logger.root.type=Logger
+			logger.root.minLevel=debug
+			logger.root.appenderRef.ref=console
 			appender.console.type=Console
 			appender.console.layout.type=TextLayout
 			logger.myLogger.type=AsyncLogger
-			logger.myLogger.level=info
-			logger.myLogger.tags=.*
+			logger.myLogger.minLevel=info
+			logger.myLogger.tags=_app_*
 			logger.myLogger.appenderRef.ref=console
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")

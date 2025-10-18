@@ -40,13 +40,13 @@ func TestReaders(t *testing.T) {
 		"logger.myLogger.appenderRef[1].ref":  "sample",
 		"logger.myLogger.appenderRef[1].type": "AppenderRef",
 		"logger.myLogger.bufferSize":          "${bufferSize}",
-		"logger.myLogger.level":               "trace",
+		"logger.myLogger.minLevel":            "trace",
 		"logger.myLogger.tags":                "_com_request_in,_com_request_*",
 		"logger.myLogger.type":                "AsyncLogger",
-		"rootLogger.appenderRef.ref":          "console",
-		"rootLogger.appenderRef.type":         "AppenderRef",
-		"rootLogger.level":                    "warn",
-		"rootLogger.type":                     "Root",
+		"logger.root.appenderRef.ref":         "console",
+		"logger.root.appenderRef.type":        "AppenderRef",
+		"logger.root.minLevel":                "warn",
+		"logger.root.type":                    "Logger",
 	}
 	testFiles := []string{
 		"testdata/log.properties",
@@ -56,7 +56,7 @@ func TestReaders(t *testing.T) {
 	for _, fileName := range testFiles {
 		s, err := readConfigFromFile(fileName)
 		require.Error(t, err).Nil()
-		_ = s.Set("rootLogger.appenderRef.type", "AppenderRef", 0)
+		_ = s.Set("logger.root.appenderRef.type", "AppenderRef", 0)
 		_ = s.Set("logger.myLogger.appenderRef[0].type", "AppenderRef", 0)
 		_ = s.Set("logger.myLogger.appenderRef[1].type", "AppenderRef", 0)
 		assert.Map(t, s.Data()).Equal(expected, fileName)
@@ -107,8 +107,8 @@ func TestToCamelKey(t *testing.T) {
 		{"", ""},
 		{"Key", "key"},
 		{"KeyTest", "keyTest"},
-		{"rootLogger.level", "rootLogger.level"},
-		{"rootLogger.appenderRef.ref", "rootLogger.appenderRef.ref"},
+		{"logger.root.minLevel", "logger.root.minLevel"},
+		{"logger.root.appenderRef.ref", "logger.root.appenderRef.ref"},
 		{"appender_ref", "appenderRef"},
 		{"appender_ref_type", "appenderRefType"},
 		{"logger-myLogger", "loggerMyLogger"},

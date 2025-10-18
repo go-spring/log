@@ -17,52 +17,65 @@
 package log
 
 import (
+	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
+	"sync/atomic"
+	"time"
+
+	"github.com/go-spring/spring-base/util"
 )
 
 // Stdout is the standard output stream used by appenders.
 var Stdout io.Writer = os.Stdout
 
 func init() {
-	RegisterPlugin[DiscardAppender]("Discard")
-	RegisterPlugin[ConsoleAppender]("Console")
-	RegisterPlugin[FileAppender]("File")
+	RegisterPlugin[DiscardAppender]("Discard", PluginTypeAppender)
+	RegisterPlugin[ConsoleAppender]("Console", PluginTypeAppender)
+	RegisterPlugin[FileAppender]("File", PluginTypeAppender)
+	RegisterPlugin[RollingFileAppender]("RollingFile", PluginTypeAppender)
 }
 
-// Appender is an interface that defines components that handle log output.
+// Appender defines components that handle log output.
+// 要求所有的 appender 实现都必须是并发安全的。
 type Appender interface {
-	Lifecycle        // Appenders must be startable and stoppable
+	Lifecycle        // Start/Stop methods for resource management
+	GetName() string // Returns the appender's name
 	Append(e *Event) // Handles writing a log event
 	Write(b []byte)  // Directly writes a byte slice
 }
+
+// AppenderBase provides common configuration fields for all appenders.
+type AppenderBase struct {
+	Name string `PluginAttribute:"name"`
+}
+
+// GetName returns the appender's name.
+func (c *AppenderBase) GetName() string { return c.Name }
+func (c *AppenderBase) Start() error    { return nil }
+func (c *AppenderBase) Stop()           {}
 
 var (
 	_ Appender = (*DiscardAppender)(nil)
 	_ Appender = (*ConsoleAppender)(nil)
 	_ Appender = (*FileAppender)(nil)
+	_ Appender = (*RollingFileAppender)(nil)
 )
 
-// AppenderBase provides common configuration and default behavior for appenders.
-type AppenderBase struct {
-	Name   string `PluginAttribute:"name"`
-	Layout Layout `PluginElement:"Layout,default=TextLayout"`
-}
-
-func (c *AppenderBase) String() string  { return c.Name }
-func (c *AppenderBase) Start() error    { return nil }
-func (c *AppenderBase) Stop()           {}
-func (c *AppenderBase) Append(e *Event) {}
-func (c *AppenderBase) Write(b []byte)  {}
-
-// DiscardAppender ignores all log events (no output).
+// DiscardAppender ignores all log events (no-op).
 type DiscardAppender struct {
 	AppenderBase
 }
 
-// ConsoleAppender writes formatted log events to stdout.
+func (c *DiscardAppender) Append(e *Event) {}
+func (c *DiscardAppender) Write(b []byte)  {}
+
+// ConsoleAppender writes formatted log events to standard output.
 type ConsoleAppender struct {
 	AppenderBase
+	Layout Layout `PluginElement:"Layout,default=TextLayout"`
 }
 
 // Append formats the event and writes it to standard output.
@@ -70,7 +83,7 @@ func (c *ConsoleAppender) Append(e *Event) {
 	c.Write(c.Layout.ToBytes(e))
 }
 
-// Write writes a byte slice directly to the stdout.
+// Write writes a byte slice directly to standard output.
 func (c *ConsoleAppender) Write(b []byte) {
 	_, _ = Stdout.Write(b)
 }
@@ -78,6 +91,8 @@ func (c *ConsoleAppender) Write(b []byte) {
 // FileAppender writes formatted log events to a specified file.
 type FileAppender struct {
 	AppenderBase
+	Layout   Layout `PluginElement:"Layout,default=TextLayout"`
+	FileDir  string `PluginAttribute:"fileDir,default=./logs"`
 	FileName string `PluginAttribute:"fileName"`
 
 	file *os.File
@@ -86,7 +101,8 @@ type FileAppender struct {
 // Start opens the log file for appending.
 func (c *FileAppender) Start() error {
 	const fileFlag = os.O_WRONLY | os.O_CREATE | os.O_APPEND
-	f, err := os.OpenFile(c.FileName, fileFlag, os.ModePerm)
+	fileName := filepath.Join(c.FileDir, c.FileName)
+	f, err := os.OpenFile(fileName, fileFlag, 0644)
 	if err != nil {
 		return err
 	}
@@ -112,76 +128,167 @@ func (c *FileAppender) Stop() {
 	}
 }
 
-// -----------------------------------------------------------------------------
-// Appender Utilities
-// -----------------------------------------------------------------------------
-
-// LayoutAppender is an Appender wrapper that applies a Layout
-// to each log event before delegating the formatted output
-// to the underlying Appender.
-type LayoutAppender struct {
-	Appender
-	Layout Layout
+type RollingPolicy struct {
+	Interval time.Duration
 }
 
-// Append formats the given log event using the configured Layout
-// and then writes the formatted bytes to the underlying Appender.
-func (c *LayoutAppender) Append(e *Event) {
-	c.Appender.Write(c.Layout.ToBytes(e))
+func (r RollingPolicy) Time(t time.Time) int64 {
+	seconds := int64(r.Interval.Seconds())
+	return (t.Unix() / seconds) * seconds
 }
 
-// LevelFilterAppender filters log events based on their severity level.
-// Only events with levels between MinLevel and MaxLevel (exclusive)
-// will be passed to the underlying Appender.
-type LevelFilterAppender struct {
-	Appender
-	MinLevel Level
-	MaxLevel Level
+// Format formats the time into a string with the pattern "yyyyMMddHHmmss".
+func (r RollingPolicy) Format(t time.Time) string {
+	return t.Format("20060102150405")
 }
 
-// Append filters the incoming log event according to the defined level range.
-// If the event's level is outside the range [MinLevel, MaxLevel),
-// the event will be ignored. Otherwise, it is forwarded to the underlying Appender.
-func (c *LevelFilterAppender) Append(e *Event) {
-	if e.Level.code >= c.MinLevel.code && e.Level.code < c.MaxLevel.code {
-		c.Appender.Append(e)
+// RollingFileAppender allows **multiple goroutines** to call Write()
+// safely, at the cost of slightly higher overhead and potential
+// (acceptable) log loss during rotation.不支持按文件大小轮转。
+//
+// Usage scenarios:
+//   - High-concurrency applications where logs may be produced
+//     from many goroutines.
+//
+// Risks:
+//   - During rotation, a small number of writes may fail if they
+//     occur after the old file is closed but before the new file is ready.
+//   - During Stop(), concurrent writes may also be lost.
+//   - If zero log loss is required, use AsyncRotateFileWriter
+//     with a dedicated logging goroutine instead.
+type RollingFileAppender struct {
+	AppenderBase
+	Layout        Layout `PluginElement:"Layout,default=TextLayout"`
+	FileDir       string `PluginAttribute:"fileDir,default=./logs"`
+	FileName      string `PluginAttribute:"fileName"`
+	ClearHours    int32
+	RollingPolicy RollingPolicy
+
+	file     atomic.Pointer[os.File]
+	oldFile  atomic.Pointer[os.File]
+	currTime atomic.Int64
+}
+
+// Start opens the initial log file.
+func (c *RollingFileAppender) Start() error {
+	now := time.Now()
+	nowTime := c.RollingPolicy.Time(now)
+	filePath, file, err := c.createFile(c.RollingPolicy.Format(now))
+	if err != nil {
+		return util.WrapError(err, "Failed to create log file %s", filePath)
 	}
-}
-
-// MultiAppender delegates log events to multiple underlying appenders.
-// It is useful when you want to send log events to several outputs.
-type MultiAppender struct {
-	appenders []Appender
-}
-
-// Start initializes all underlying appenders.
-// If any appender fails to start, it returns the corresponding error.
-func (c *MultiAppender) Start() error {
-	for _, appender := range c.appenders {
-		if err := appender.Start(); err != nil {
-			return err
-		}
-	}
+	c.file.Store(file)
+	c.currTime.Store(nowTime)
 	return nil
 }
 
-// Append forwards the given log event to all underlying appenders.
-func (c *MultiAppender) Append(e *Event) {
-	for _, appender := range c.appenders {
-		appender.Append(e)
+// Append formats the log event and writes it to the current file.
+func (c *RollingFileAppender) Append(e *Event) {
+	c.Write(c.Layout.ToBytes(e))
+}
+
+// Write writes bytes to the current log file.
+// May lose a few writes during rotation or Stop().
+// 由于高并发的原因，并没有在日志文件轮转时加锁等待，所以会出现新日志写到旧文件
+// 情况，这种是符合预期的。尤其在整点轮转遭遇整点任务时，往往是出现高并发的场景。
+func (c *RollingFileAppender) Write(b []byte) {
+	c.rotate()
+	if file := c.file.Load(); file != nil {
+		_, _ = file.Write(b)
 	}
 }
 
-// Write writes raw byte data to all underlying appenders.
-func (c *MultiAppender) Write(b []byte) {
-	for _, appender := range c.appenders {
-		appender.Write(b)
+// Stop flushes and closes the current file.
+// 如果执行 stop 时，仍然有新日志写入，那么这些日志往往会丢失。
+func (c *RollingFileAppender) Stop() {
+	// 关闭上一个周期的文件
+	if file := c.oldFile.Swap(nil); file != nil {
+		_ = file.Sync()
+		_ = file.Close()
+	}
+	// 关闭当前周期的文件
+	if file := c.file.Swap(nil); file != nil {
+		_ = file.Sync()
+		_ = file.Close()
 	}
 }
 
-// Stop stops all underlying appenders in order.
-func (c *MultiAppender) Stop() {
-	for _, appender := range c.appenders {
-		appender.Stop()
+// rotate checks if the current time has passed into a new rotation slot.
+// If so, it closes the old file, opens a new one, and triggers cleanup.
+// Risk: If file creation fails during rotation, new logs will be lost
+// until the issue is resolved.
+func (c *RollingFileAppender) rotate() {
+	now := time.Now()
+	nowTime := c.RollingPolicy.Time(now)
+	oldTime := c.currTime.Load()
+	// 说明正在进行或者已经完成轮转过程
+	if nowTime <= oldTime {
+		return
+	}
+	// 只能有一个并发抢到更新文件句柄的机会
+	if !c.currTime.CompareAndSwap(oldTime, nowTime) {
+		return
+	}
+
+	// 关闭上一个周期的文件
+	if file := c.oldFile.Swap(nil); file != nil {
+		_ = file.Sync()
+		_ = file.Close()
+	}
+
+	// 可能有 rename 过程
+
+	// 创建新文件，创建失败的时候尽量保持原状，等待下一个周期的轮转
+	filePath, file, err := c.createFile(c.RollingPolicy.Format(now))
+	if err != nil {
+		err = util.WrapError(err, "Failed to create log file %s", filePath)
+		_, _ = fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	// 保留上一个周期的日志文件，因为还可能有并发写在进行
+	oldFile := c.file.Load()
+	c.oldFile.Store(oldFile)
+
+	// 更新文件句柄
+	c.file.Store(file)
+	c.currTime.Store(nowTime)
+
+	// trigger cleanup after each rotation for timely housekeeping
+	go c.clearExpiredFiles()
+}
+
+// createFile creates or opens the current log file for appending.
+// The application is responsible for ensuring the directory exists.
+func (c *RollingFileAppender) createFile(formatTime string) (string, *os.File, error) {
+	fileName := c.FileName + "." + formatTime
+	filePath := filepath.Join(c.FileDir, fileName)
+	const fileFlag = os.O_CREATE | os.O_WRONLY | os.O_APPEND
+	file, err := os.OpenFile(filePath, fileFlag, 0644)
+	if err != nil {
+		return filePath, nil, err
+	}
+	return filePath, file, nil
+}
+
+// clearExpiredFiles removes expired log files.
+func (c *RollingFileAppender) clearExpiredFiles() {
+	expiration := time.Now().Add(-time.Duration(c.ClearHours) * time.Hour)
+	entries, _ := os.ReadDir(c.FileDir)
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if !strings.HasPrefix(entry.Name(), c.FileName+".") {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		if info.ModTime().Before(expiration) {
+			filePath := fmt.Sprintf("%s/%s", c.FileDir, entry.Name())
+			_ = os.Remove(filePath)
+		}
 	}
 }

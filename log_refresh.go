@@ -19,7 +19,6 @@ package log
 import (
 	"io"
 	"reflect"
-	"regexp"
 	"strings"
 	"sync/atomic"
 
@@ -27,14 +26,14 @@ import (
 	"github.com/go-spring/spring-base/util"
 )
 
+const RootLoggerName = "root"
+
 // global holds the global state of loggers and appenders.
 var global struct {
 	init      atomic.Bool
 	loggers   []Logger
 	appenders []Appender
 }
-
-const RootLoggerName = "::ROOT::"
 
 // RefreshFile loads a logging configuration from a file by its name.
 func RefreshFile(fileName string) error {
@@ -78,12 +77,12 @@ func RefreshConfig(s *barky.Storage) error {
 	}
 
 	// Factory function to create plugin instances
-	newPlugin := func(typeKey string) (reflect.Value, error) {
+	newPlugin := func(typ PluginType, typeKey string) (reflect.Value, error) {
 		if !s.Has(typeKey) {
 			return reflect.Value{}, util.FormatError(nil, "attribute 'type' not found")
 		}
 		strType := s.Get(typeKey)
-		p, ok := pluginRegistry[strType]
+		p, ok := pluginRegistry[typ][strType]
 		if !ok {
 			return reflect.Value{}, util.FormatError(nil, "plugin %s not found", strType)
 		}
@@ -105,7 +104,7 @@ func RefreshConfig(s *barky.Storage) error {
 			if !ok {
 				return nil, util.FormatError(nil, "appender %s not found", r.Ref)
 			}
-			r.appender = appender
+			r.Appender = appender
 		}
 		return base, nil
 	}
@@ -122,31 +121,16 @@ func RefreshConfig(s *barky.Storage) error {
 
 	// Initialize appenders
 	for _, name := range appenders {
-		v, err := newPlugin("appender." + name + ".type")
+		v, err := newPlugin(PluginTypeAppender, "appender."+name+".type")
 		if err != nil {
 			return util.WrapError(err, "create appender %s error", name)
 		}
 		cAppenders[name] = v.Interface().(Appender)
 	}
 
-	// Initialize root logger
-	if s.Has("rootLogger") {
-		v, err := newPlugin("rootLogger.type")
-		if err != nil {
-			return util.WrapError(err, "create root logger error")
-		}
-		base, err := initAppenderRefs(v, cAppenders)
-		if err != nil {
-			return util.WrapError(err, "init appender refs for root logger error")
-		}
-		base.Name = RootLoggerName
-		cRoot = v.Interface().(Logger)
-		cLoggers[RootLoggerName] = cRoot
-	}
-
 	// Initialize all other loggers
 	for _, name := range loggers {
-		v, err := newPlugin("logger." + name + ".type")
+		v, err := newPlugin(PluginTypeLogger, "logger."+name+".type")
 		if err != nil {
 			return util.WrapError(err, "create logger %s error", name)
 		}
@@ -157,11 +141,22 @@ func RefreshConfig(s *barky.Storage) error {
 		logger := v.Interface().(Logger)
 		cLoggers[name] = logger
 
+		if name == RootLoggerName {
+			cRoot = logger
+			continue
+		}
+
 		// Assign tags to logger
 		var tags []string
 		for tag := range strings.SplitSeq(base.Tags, ",") {
 			if tag = strings.TrimSpace(tag); tag == "" {
 				continue
+			}
+			if strings.Contains(tag, "*") {
+				if !strings.HasSuffix(tag, "_*") {
+					err = util.FormatError(nil, "tag '%s' is invalid", tag)
+					return util.WrapError(err, "create logger %s error", name)
+				}
 			}
 			tags = append(tags, tag)
 		}
@@ -178,20 +173,17 @@ func RefreshConfig(s *barky.Storage) error {
 		}
 	}
 
-	// Precompile regexp patterns for tag matching
-	tagRegexpMap := map[string]*regexp.Regexp{}
-	for tag := range cTags {
-		r, err := regexp.Compile(tag)
-		if err != nil {
-			return util.FormatError(err, "`%s` regexp compile error", tag)
+	// Start all appenders
+	for _, a := range cAppenders {
+		if err := a.Start(); err != nil {
+			return util.WrapError(err, "appender %s start error", a.GetName())
 		}
-		tagRegexpMap[tag] = r
 	}
 
 	// Start all loggers and their appenders
 	for _, l := range cLoggers {
 		if err := l.Start(); err != nil {
-			return util.WrapError(err, "logger %s start error", l)
+			return util.WrapError(err, "logger %s start error", l.GetName())
 		}
 	}
 
@@ -204,24 +196,24 @@ func RefreshConfig(s *barky.Storage) error {
 		l.setLogger(v)
 	}
 
+	// Find logger for tag
+	var findLoggerForTag func(tag string) Logger
+	findLoggerForTag = func(tag string) Logger {
+		if l, ok := cTags[tag]; ok {
+			return l
+		}
+		tag, _ = strings.CutSuffix(tag, "_*")
+		i := strings.LastIndex(tag, "_")
+		if i <= 0 {
+			return cRoot
+		}
+		tag = strings.TrimSuffix(tag[:i], "_") + "_*"
+		return findLoggerForTag(tag)
+	}
+
 	// Update tagMap with corresponding loggers
 	for tag, obj := range tagRegistry {
-		if l, ok := cTags[tag]; ok {
-			obj.setLogger(l)
-			continue
-		}
-		found := false
-		for k, r := range tagRegexpMap {
-			if r.MatchString(tag) {
-				obj.setLogger(cTags[k])
-				found = true
-				break
-			}
-		}
-		if found {
-			continue
-		}
-		obj.setLogger(cRoot)
+		obj.setLogger(findLoggerForTag(tag))
 	}
 
 	// Inject properties
