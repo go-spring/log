@@ -67,12 +67,11 @@ func (c *AppenderRef) Write(b []byte) {
 
 // LoggerBase contains fields shared by all logger configurations.
 type LoggerBase struct {
-	Name         string         `PluginAttribute:"name"`          // Logger name
-	Tags         string         `PluginAttribute:"tags,default="` // Optional tags
-	MinLevel     Level          `PluginAttribute:"minLevel,default=None"`
-	MaxLevel     Level          `PluginAttribute:"maxLevel,default=Max"`
-	AppenderRefs []*AppenderRef `PluginElement:"AppenderRef"`
-	Layout       Layout         `PluginElement:"Layout?"`
+	Name     string `PluginAttribute:"name"`          // Logger name
+	Tags     string `PluginAttribute:"tags,default="` // Optional tags
+	MinLevel Level  `PluginAttribute:"minLevel,default=None"`
+	MaxLevel Level  `PluginAttribute:"maxLevel,default=Max"`
+	Layout   Layout `PluginElement:"Layout?"`
 }
 
 // GetName returns the name of the logger.
@@ -85,8 +84,13 @@ func (c *LoggerBase) EnableLevel(level Level) bool {
 	return level.code >= c.MinLevel.code && level.code <= c.MaxLevel.code
 }
 
+type LoggerOfMultiAppenders struct {
+	LoggerBase
+	AppenderRefs []*AppenderRef `PluginElement:"AppenderRef"`
+}
+
 // sendToAppenders forwards the event to each child appender.
-func (c *LoggerBase) sendToAppenders(e *Event) {
+func (c *LoggerOfMultiAppenders) sendToAppenders(e *Event) {
 	for _, r := range c.AppenderRefs {
 		if c.Layout == nil {
 			r.Append(e)
@@ -97,7 +101,7 @@ func (c *LoggerBase) sendToAppenders(e *Event) {
 }
 
 // writeToAppenders forwards raw bytes to each child appender.
-func (c *LoggerBase) writeToAppenders(b []byte) {
+func (c *LoggerOfMultiAppenders) writeToAppenders(b []byte) {
 	for _, r := range c.AppenderRefs {
 		r.Write(b)
 	}
@@ -132,6 +136,7 @@ type FileLogger struct {
 // SyncLogger is a synchronous logger that immediately forwards events to appenders.
 type SyncLogger struct {
 	LoggerBase
+	LoggerOfMultiAppenders
 }
 
 func (c *SyncLogger) Start() error { return nil }
@@ -175,6 +180,7 @@ func ParseBufferFullPolicy(s string) (BufferFullPolicy, error) {
 // and processes them in a dedicated background goroutine.
 type AsyncLogger struct {
 	LoggerBase
+	LoggerOfMultiAppenders
 
 	BufferSize       int              `PluginAttribute:"bufferSize,default=10000"`
 	BufferFullPolicy BufferFullPolicy `PluginAttribute:"bufferFullPolicy,default=Discard"`
