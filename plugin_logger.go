@@ -47,8 +47,8 @@ type LevelRange struct {
 }
 
 // Enable checks if the given log level is enabled for this appender.
-func (c LevelRange) Enable(level Level) bool {
-	return level.code >= c.MinLevel.code && level.code <= c.MaxLevel.code
+func (c LevelRange) Enable(l Level) bool {
+	return l.code >= c.MinLevel.code && l.code <= c.MaxLevel.code
 }
 
 // AppenderRef represents a reference to an appender by name.
@@ -56,7 +56,7 @@ func (c LevelRange) Enable(level Level) bool {
 type AppenderRef struct {
 	Appender
 	Ref   string     `PluginAttribute:"ref"`
-	Level LevelRange `PluginAttribute:"level,default=None"`
+	Level LevelRange `PluginAttribute:"level,default="`
 }
 
 // Append forwards the event to each child appender.
@@ -75,7 +75,7 @@ func (c *AppenderRef) Write(b []byte) {
 type LoggerBase struct {
 	Name   string     `PluginAttribute:"name"`          // Logger name
 	Tags   string     `PluginAttribute:"tags,default="` // Optional tags
-	Level  LevelRange `PluginAttribute:"level,default=None"`
+	Level  LevelRange `PluginAttribute:"level,default="`
 	Layout Layout     `PluginElement:"Layout?"`
 }
 
