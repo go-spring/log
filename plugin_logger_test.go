@@ -60,11 +60,11 @@ func TestLoggerConfig(t *testing.T) {
 		err := a.Start()
 		assert.Error(t, err).Nil()
 
-		l := &SyncLogger{LoggerBase{
+		l := &SyncLogger{
 			AppenderRefs: []*AppenderRef{
 				{Appender: a},
 			},
-		}}
+		}
 
 		l.Write([]byte("test"))
 		assert.That(t, a.count).Equal(0)
@@ -81,14 +81,16 @@ func TestLoggerConfig(t *testing.T) {
 		err := a.Start()
 		assert.Error(t, err).Nil()
 
-		l := &SyncLogger{LoggerBase{
-			MinLevel: InfoLevel,
-			MaxLevel: MaxLevel,
-			Tags:     "_com_*",
+		l := &SyncLogger{
+			LoggerBase: LoggerBase{
+				MinLevel: InfoLevel,
+				MaxLevel: MaxLevel,
+				Tags:     "_com_*",
+			},
 			AppenderRefs: []*AppenderRef{
 				{Appender: a},
 			},
-		}}
+		}
 
 		err = l.Start()
 		assert.Error(t, err).Nil()
@@ -156,9 +158,9 @@ func TestAsyncLoggerConfig(t *testing.T) {
 				MinLevel: InfoLevel,
 				MaxLevel: MaxLevel,
 				Tags:     "_com_*",
-				AppenderRefs: []*AppenderRef{
-					{Appender: a},
-				},
+			},
+			AppenderRefs: []*AppenderRef{
+				{Appender: a},
 			},
 			BufferSize:       100,
 			BufferFullPolicy: BufferFullPolicyDiscard,
@@ -198,9 +200,9 @@ func TestAsyncLoggerConfig(t *testing.T) {
 				MinLevel: InfoLevel,
 				MaxLevel: MaxLevel,
 				Tags:     "_com_*",
-				AppenderRefs: []*AppenderRef{
-					{Appender: a},
-				},
+			},
+			AppenderRefs: []*AppenderRef{
+				{Appender: a},
 			},
 			BufferSize:       100,
 			BufferFullPolicy: BufferFullPolicyDiscardOldest,
@@ -240,9 +242,9 @@ func TestAsyncLoggerConfig(t *testing.T) {
 				MinLevel: InfoLevel,
 				MaxLevel: MaxLevel,
 				Tags:     "_com_*",
-				AppenderRefs: []*AppenderRef{
-					{Appender: a},
-				},
+			},
+			AppenderRefs: []*AppenderRef{
+				{Appender: a},
 			},
 			BufferSize:       100,
 			BufferFullPolicy: BufferFullPolicyBlock,
@@ -282,9 +284,9 @@ func TestAsyncLoggerConfig(t *testing.T) {
 				MinLevel: InfoLevel,
 				MaxLevel: MaxLevel,
 				Tags:     "_com_*",
-				AppenderRefs: []*AppenderRef{
-					{Appender: a},
-				},
+			},
+			AppenderRefs: []*AppenderRef{
+				{Appender: a},
 			},
 			BufferSize: 100,
 		}
@@ -312,10 +314,8 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		assert.Error(t, err).Nil()
 
 		l := &AsyncLogger{
-			LoggerBase: LoggerBase{
-				AppenderRefs: []*AppenderRef{
-					{Appender: a},
-				},
+			AppenderRefs: []*AppenderRef{
+				{Appender: a},
 			},
 			BufferSize:       100,
 			BufferFullPolicy: BufferFullPolicyDiscard,

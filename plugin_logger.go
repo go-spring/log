@@ -36,6 +36,9 @@ func init() {
 // Logger is the interface implemented by all loggers.
 type Logger interface {
 	Appender
+	GetTags() string
+	GetMinLevel() Level
+	GetMaxLevel() Level
 	EnableLevel(level Level) bool
 }
 
@@ -67,12 +70,11 @@ func (c *AppenderRef) Write(b []byte) {
 
 // LoggerBase contains fields shared by all logger configurations.
 type LoggerBase struct {
-	Name         string         `PluginAttribute:"name"`          // Logger name
-	Tags         string         `PluginAttribute:"tags,default="` // Optional tags
-	MinLevel     Level          `PluginAttribute:"minLevel,default=None"`
-	MaxLevel     Level          `PluginAttribute:"maxLevel,default=Max"`
-	Layout       Layout         `PluginElement:"Layout?"`
-	AppenderRefs []*AppenderRef `PluginElement:"AppenderRef"`
+	Name     string `PluginAttribute:"name"`          // Logger name
+	Tags     string `PluginAttribute:"tags,default="` // Optional tags
+	MinLevel Level  `PluginAttribute:"minLevel,default=None"`
+	MaxLevel Level  `PluginAttribute:"maxLevel,default=Max"`
+	Layout   Layout `PluginElement:"Layout?"`
 }
 
 // GetName returns the name of the logger.
@@ -80,38 +82,33 @@ func (c *LoggerBase) GetName() string {
 	return c.Name
 }
 
+// GetTags returns the tags of the logger.
+func (c *LoggerBase) GetTags() string {
+	return c.Tags
+}
+
+// GetMinLevel returns the minimum log level for this logger.
+func (c *LoggerBase) GetMinLevel() Level {
+	return c.MinLevel
+}
+
+// GetMaxLevel returns the maximum log level for this logger.
+func (c *LoggerBase) GetMaxLevel() Level {
+	return c.MaxLevel
+}
+
 // EnableLevel checks if the given log level is enabled for this logger.
 func (c *LoggerBase) EnableLevel(level Level) bool {
 	return level.code >= c.MinLevel.code && level.code <= c.MaxLevel.code
 }
 
-// sendToAppenders forwards the event to each child appender.
-func (c *LoggerBase) sendToAppenders(e *Event) {
-	for _, r := range c.AppenderRefs {
-		if c.Layout == nil {
-			r.Append(e)
-		} else {
-			r.Write(c.Layout.ToBytes(e))
-		}
-	}
-}
-
-// writeToAppenders forwards raw bytes to each child appender.
-func (c *LoggerBase) writeToAppenders(b []byte) {
-	for _, r := range c.AppenderRefs {
-		r.Write(b)
-	}
-}
-
-// ----------------------------------------------------------------------------
-// common loggers
-// ----------------------------------------------------------------------------
-
 var (
 	_ Logger = (*DiscardLogger)(nil)
+	_ Logger = (*ConsoleLogger)(nil)
 	_ Logger = (*SyncLogger)(nil)
 	_ Logger = (*AsyncLogger)(nil)
 	_ Logger = (*FileLogger)(nil)
+	_ Logger = (*RollingFileLogger)(nil)
 )
 
 type DiscardLogger struct {
@@ -124,14 +121,27 @@ type ConsoleLogger struct {
 	ConsoleAppender
 }
 
+func (c *ConsoleLogger) Append(e *Event) {
+	if c.EnableLevel(e.Level) {
+		c.ConsoleAppender.Append(e)
+	}
+}
+
 type FileLogger struct {
 	LoggerBase
 	FileAppender
 }
 
+func (c *FileLogger) Append(e *Event) {
+	if c.EnableLevel(e.Level) {
+		c.FileAppender.Append(e)
+	}
+}
+
 // SyncLogger is a synchronous logger that immediately forwards events to appenders.
 type SyncLogger struct {
 	LoggerBase
+	AppenderRefs []*AppenderRef `PluginElement:"AppenderRef"`
 }
 
 func (c *SyncLogger) Start() error { return nil }
@@ -139,13 +149,21 @@ func (c *SyncLogger) Stop()        {}
 
 // Append sends the event directly to appenders (blocking).
 func (c *SyncLogger) Append(e *Event) {
-	c.sendToAppenders(e)
+	for _, r := range c.AppenderRefs {
+		if c.Layout == nil {
+			r.Append(e)
+		} else {
+			r.Write(c.Layout.ToBytes(e))
+		}
+	}
 	PutEvent(e) // Return event to the pool
 }
 
 // Write writes raw bytes directly to appenders.
 func (c *SyncLogger) Write(b []byte) {
-	c.writeToAppenders(b)
+	for _, r := range c.AppenderRefs {
+		r.Write(b)
+	}
 }
 
 // BufferFullPolicy specifies what to do when an async buffer is full.
@@ -175,6 +193,7 @@ func ParseBufferFullPolicy(s string) (BufferFullPolicy, error) {
 // and processes them in a dedicated background goroutine.
 type AsyncLogger struct {
 	LoggerBase
+	AppenderRefs []*AppenderRef `PluginElement:"AppenderRef"`
 
 	BufferSize       int              `PluginAttribute:"bufferSize,default=10000"`
 	BufferFullPolicy BufferFullPolicy `PluginAttribute:"bufferFullPolicy,default=Discard"`
@@ -208,10 +227,18 @@ func (c *AsyncLogger) Start() error {
 			}
 			switch x := v.(type) {
 			case *Event:
-				c.sendToAppenders(x)
+				for _, r := range c.AppenderRefs {
+					if c.Layout == nil {
+						r.Append(x)
+					} else {
+						r.Write(c.Layout.ToBytes(x))
+					}
+				}
 				PutEvent(x)
 			case []byte:
-				c.writeToAppenders(x)
+				for _, r := range c.AppenderRefs {
+					r.Write(x)
+				}
 			default: // for linter
 			}
 		}

@@ -118,13 +118,13 @@ var defaultLogger Logger = &SyncLogger{
 	LoggerBase: LoggerBase{
 		MinLevel: InfoLevel,
 		MaxLevel: MaxLevel,
-		AppenderRefs: []*AppenderRef{
-			{
-				Appender: &ConsoleAppender{
-					Layout: &TextLayout{
-						BaseLayout: BaseLayout{
-							FileLineLength: 48,
-						},
+	},
+	AppenderRefs: []*AppenderRef{
+		{
+			Appender: &ConsoleAppender{
+				Layout: &TextLayout{
+					BaseLayout: BaseLayout{
+						FileLineLength: 48,
 					},
 				},
 			},

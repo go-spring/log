@@ -91,15 +91,20 @@ func RefreshConfig(s *barky.Storage) error {
 
 	// Initialize appender references in a logger
 	initAppenderRefs := func(v reflect.Value, cAppenders map[string]Appender) (*LoggerBase, error) {
-		var base *LoggerBase
+		var (
+			base *LoggerBase
+			refs []*AppenderRef
+		)
 		switch config := v.Interface().(type) {
 		case *SyncLogger:
 			base = &config.LoggerBase
+			refs = config.AppenderRefs
 		case *AsyncLogger:
 			base = &config.LoggerBase
+			refs = config.AppenderRefs
 		default: // for linter
 		}
-		for _, r := range base.AppenderRefs {
+		for _, r := range refs {
 			appender, ok := cAppenders[r.Ref]
 			if !ok {
 				return nil, util.FormatError(nil, "appender %s not found", r.Ref)
