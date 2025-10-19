@@ -38,7 +38,7 @@ var TagDefault = log.RegisterTag("_def")
 var TagRequestIn = log.RegisterTag("_com_request_in")
 var TagRequestOut = log.RegisterTag(log.BuildTag("com", "request", "out"))
 
-var rootLogger = log.GetRootLogger()
+var rootLogger = log.GetLogger(log.RootLoggerName)
 
 // Loggers with same name 'myLogger'
 var myLogger = log.GetLogger("myLogger")
@@ -46,10 +46,16 @@ var myLoggerV2 = log.GetLogger("myLogger")
 
 ///////////////////////////////////////////////////////////////////////////////
 
+var _ log.Appender = (*SampleAppender)(nil)
+
 type SampleAppender struct {
 	log.AppenderBase
+	Layout log.Layout `PluginElement:"Layout,default=TextLayout"`
 }
 
+func (a *SampleAppender) Start() error   { return nil }
+func (a *SampleAppender) Stop()          {}
+func (a *SampleAppender) Write(b []byte) {}
 func (a *SampleAppender) Append(e *log.Event) {
 	data := a.Layout.ToBytes(e)
 	_, _ = os.Stdout.Write(data)
@@ -57,7 +63,7 @@ func (a *SampleAppender) Append(e *log.Event) {
 }
 
 func init() {
-	log.RegisterPlugin[SampleAppender]("Sample")
+	log.RegisterPlugin[SampleAppender]("Sample", log.PluginTypeAppender)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -167,12 +173,12 @@ func TestLog(t *testing.T) {
 	_, _ = rootLogger.Write([]byte("this message is written directly\n"))
 
 	expectLog := `
-[INFO][2025-06-01T00:00:00.000][log_test.go:106] _def||trace_id=||span_id=||msg=hello world
-[INFO][2025-06-01T00:00:00.000][log_test.go:107] _com_request_in||trace_id=||span_id=||msg=hello world
-[WARN][2025-06-01T00:00:00.000][log_test.go:156] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||msg=hello world
-[ERROR][2025-06-01T00:00:00.000][log_test.go:157] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||msg=hello world
-[PANIC][2025-06-01T00:00:00.000][log_test.go:158] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||msg=hello world
-[ERROR][2025-06-01T00:00:00.000][log_test.go:161] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||key1=value1||key2=value2
+[INFO][2025-06-01T00:00:00.000][log_test.go:110] _def||trace_id=||span_id=||msg=hello world
+[INFO][2025-06-01T00:00:00.000][log_test.go:111] _com_request_in||trace_id=||span_id=||msg=hello world
+[WARN][2025-06-01T00:00:00.000][log_test.go:160] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||msg=hello world
+[ERROR][2025-06-01T00:00:00.000][log_test.go:161] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||msg=hello world
+[PANIC][2025-06-01T00:00:00.000][log_test.go:162] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||msg=hello world
+[ERROR][2025-06-01T00:00:00.000][log_test.go:165] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||key1=value1||key2=value2
 this message is written directly
 this message is written directly
 `
@@ -187,20 +193,20 @@ this message is written directly
 	_, _ = myLoggerV2.Write([]byte("this message is written directly\n"))
 
 	expectLog = `
-{"level":"trace","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:121","tag":"_com_request_out","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"debug","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:128","tag":"_com_request_out","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"trace","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:135","tag":"_com_request_out","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"debug","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:136","tag":"_com_request_out","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"info","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:139","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"warn","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:140","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"error","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:141","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"panic","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:142","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"fatal","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:143","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"info","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:146","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"warn","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:147","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"error","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:148","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"panic","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:149","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"fatal","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:150","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"trace","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:125","tag":"_com_request_out","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"debug","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:132","tag":"_com_request_out","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"trace","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:139","tag":"_com_request_out","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"debug","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:140","tag":"_com_request_out","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"info","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:143","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"warn","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:144","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"error","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:145","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"panic","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:146","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"fatal","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:147","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"info","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:150","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"warn","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:151","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"error","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:152","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"panic","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:153","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"fatal","time":"2025-06-01T00:00:00.000","fileLine":"log_test.go:154","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
 this message is written directly
 this message is written directly
 `

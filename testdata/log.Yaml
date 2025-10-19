@@ -6,20 +6,14 @@ appender:
     fileName: log.txt
     layout:
       type: JSONLayout
-  console:
-    type: Console
-    layout:
-      type: TextLayout
-  sample:
-    type: Sample
-    layout:
-      type: TextLayout
-rootLogger:
-  type: Root
-  level: warn
-  appenderRef:
-    ref: console
+  console!: Console{layout=TextLayout{}}
+  sample!: Sample{layout.type=TextLayout}
 logger:
+  root:
+    type: Logger
+    level: warn
+    appenderRef:
+      ref: console
   myLogger:
     type: AsyncLogger
     level: trace

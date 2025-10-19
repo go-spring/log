@@ -16,10 +16,6 @@
 
 package log
 
-import (
-	"sync/atomic"
-)
-
 // loggerMap stores LoggerWrapper instances keyed by their names.
 // Note: This map is not concurrency-safe. It is expected to be modified
 // only during the initialization phase.
@@ -29,24 +25,16 @@ var loggerMap = map[string]*LoggerWrapper{}
 // of the underlying Logger at runtime. This ensures that concurrent
 // readers always see a consistent Logger reference without needing locks.
 type LoggerWrapper struct {
-	logger atomic.Value // stores LoggerHolder, which wraps a Logger
-	name   string       // logical name of the logger
+	name   string // Logical name of the logger
+	logger Logger // Underlying Logger instance
 }
 
 // Write forwards the given byte slice to the currently active Logger.
-// Implements the io.Writer interface.
+// It implements the io.Writer interface, allowing LoggerWrapper to be
+// used anywhere an io.Writer is expected.
 func (m *LoggerWrapper) Write(b []byte) (n int, err error) {
-	return m.getLogger().Write(b)
-}
-
-// getLogger retrieves the currently stored Logger instance in a thread-safe way.
-func (m *LoggerWrapper) getLogger() Logger {
-	return m.logger.Load().(LoggerHolder).Logger
-}
-
-// setLogger replaces the Logger instance atomically.
-func (m *LoggerWrapper) setLogger(logger Logger) {
-	m.logger.Store(LoggerHolder{logger})
+	m.logger.Write(b)
+	return len(b), nil
 }
 
 // GetLogger retrieves an existing LoggerWrapper by name,
@@ -56,7 +44,7 @@ func (m *LoggerWrapper) setLogger(logger Logger) {
 // It panics if called after global.init is set, indicating that
 // the logging system has already been finalized.
 func GetLogger(name string) *LoggerWrapper {
-	if global.init.Load() {
+	if global.init {
 		panic("log refresh already done")
 	}
 	m, ok := loggerMap[name]
@@ -65,9 +53,4 @@ func GetLogger(name string) *LoggerWrapper {
 		loggerMap[name] = m
 	}
 	return m
-}
-
-// GetRootLogger retrieves the root LoggerWrapper instance.
-func GetRootLogger() *LoggerWrapper {
-	return GetLogger(RootLoggerName)
 }

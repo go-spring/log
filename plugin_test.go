@@ -26,11 +26,11 @@ import (
 
 func TestRegisterPlugin(t *testing.T) {
 	assert.Panic(t, func() {
-		RegisterPlugin[int]("DummyLayout")
+		RegisterPlugin[int]("DummyLayout", PluginTypeLayout)
 	}, "T must be struct")
 	assert.Panic(t, func() {
-		RegisterPlugin[FileAppender]("File")
-	}, "duplicate plugin name \"File\" in .*/plugin_appender.go:30 and .*/plugin_test.go:32")
+		RegisterPlugin[FileAppender]("File", PluginTypeAppender)
+	}, "duplicate plugin name \"File\" in .*/plugin_appender.go:43 and .*/plugin_test.go:32")
 }
 
 func TestInjectAttribute(t *testing.T) {
@@ -67,7 +67,7 @@ func TestInjectAttribute(t *testing.T) {
 
 	t.Run("converter error", func(t *testing.T) {
 		type ErrorPlugin struct {
-			Level Level `PluginAttribute:"level,default=NOT-EXIST-LEVEL"`
+			Level LevelRange `PluginAttribute:"level,default=NOT-EXIST-LEVEL"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
 		s := barky.NewStorage()

@@ -28,9 +28,9 @@ func fakeGSAppenders() {
 		appender.discard.type=Discard
 		appender.discard.layout.type=JSONLayout
 		
-		rootLogger.type=Root
-		rootLogger.level=warn
-		rootLogger.appenderRef.ref=discard
+		logger.root.type=Logger
+		logger.root.level=warn
+		logger.root.appenderRef.ref=discard
 	`), ".properties")
 	if err != nil {
 		panic(err)

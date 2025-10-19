@@ -31,5 +31,4 @@ go.work.sum
 .idea/
 .vscode/
 
-log.txt
-access.log
+logs/log.txt

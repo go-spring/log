@@ -96,41 +96,37 @@ import (
 	"github.com/go-spring/spring-base/util"
 )
 
-// fastCaller controls whether to use a faster but less accurate
+// FastCaller controls whether to use a faster but less accurate
 // implementation of caller lookup (file/line).
-var fastCaller atomic.Bool
+var FastCaller atomic.Bool
 
 func init() {
-	fastCaller.Store(true)
+	FastCaller.Store(true)
 	RegisterProperty("fastCaller", func(s string) error {
 		b, err := strconv.ParseBool(s)
 		if err != nil {
 			return util.WrapError(err, "invalid fastCaller: %q", s)
 		}
-		fastCaller.Store(b)
+		FastCaller.Store(b)
 		return nil
 	})
 }
 
 // defaultLogger is the default logger associated with tags created
 // before custom loggers are fully configured.
-var defaultLogger Logger = &SyncLogger{
+var defaultLogger Logger = &ConsoleLogger{
 	LoggerBase: LoggerBase{
-		Level: InfoLevel,
-		AppenderRefs: []*AppenderRef{
-			{
-				appender: &ConsoleAppender{
-					AppenderBase: AppenderBase{
-						Layout: &TextLayout{
-							BaseLayout: BaseLayout{
-								FileLineLength: 48,
-							},
-						},
-					},
-				},
+		Level: LevelRange{
+			MinLevel: NoneLevel,
+			MaxLevel: MaxLevel,
+		},
+		Layout: &TextLayout{
+			BaseLayout: BaseLayout{
+				FileLineLength: 48,
 			},
 		},
 	},
+	ConsoleAppender: ConsoleAppender{},
 }
 
 var (
@@ -158,7 +154,7 @@ var (
 // Trace logs at TraceLevel using a tag and a lazy field generator function.
 // The function fn() is only executed if TraceLevel logging is enabled.
 func Trace(ctx context.Context, tag *Tag, fn func() []Field) {
-	if tag.getLogger().EnableLevel(TraceLevel) {
+	if tag.logger.GetLevel().Enable(TraceLevel) {
 		Record(ctx, TraceLevel, tag, 2, fn()...)
 	}
 }
@@ -166,7 +162,7 @@ func Trace(ctx context.Context, tag *Tag, fn func() []Field) {
 // Tracef logs at TraceLevel using a tag and a formatted message.
 // Message formatting is only performed if TraceLevel logging is enabled.
 func Tracef(ctx context.Context, tag *Tag, format string, args ...any) {
-	if tag.getLogger().EnableLevel(TraceLevel) {
+	if tag.logger.GetLevel().Enable(TraceLevel) {
 		Record(ctx, TraceLevel, tag, 2, Msgf(format, args...))
 	}
 }
@@ -174,7 +170,7 @@ func Tracef(ctx context.Context, tag *Tag, format string, args ...any) {
 // Debug logs at DebugLevel using a tag and a lazy field generator function.
 // The function fn() is only executed if DebugLevel logging is enabled.
 func Debug(ctx context.Context, tag *Tag, fn func() []Field) {
-	if tag.getLogger().EnableLevel(DebugLevel) {
+	if tag.logger.GetLevel().Enable(DebugLevel) {
 		Record(ctx, DebugLevel, tag, 2, fn()...)
 	}
 }
@@ -182,7 +178,7 @@ func Debug(ctx context.Context, tag *Tag, fn func() []Field) {
 // Debugf logs at DebugLevel using a tag and a formatted message.
 // Message formatting is only performed if DebugLevel logging is enabled.
 func Debugf(ctx context.Context, tag *Tag, format string, args ...any) {
-	if tag.getLogger().EnableLevel(DebugLevel) {
+	if tag.logger.GetLevel().Enable(DebugLevel) {
 		Record(ctx, DebugLevel, tag, 2, Msgf(format, args...))
 	}
 }
@@ -241,22 +237,21 @@ func Fatalf(ctx context.Context, tag *Tag, format string, args ...any) {
 //
 // Responsibilities:
 //  1. Check whether the logger is enabled for the given level.
-//  2. Capture caller information (file, line). When fastCaller is enabled,
+//  2. Capture caller information (file, line). When FastCaller is enabled,
 //     a faster but less precise lookup is used.
 //  3. Determine the log timestamp, either via TimeNow (if set) or time.Now().
 //  4. Extract context-based metadata via StringFromContext and FieldsFromContext.
 //  5. Populate a pooled Event object with all gathered data.
 //  6. Publish the Event to the logger.
 func Record(ctx context.Context, level Level, tag *Tag, skip int, fields ...Field) {
-	l := tag.getLogger()
 
 	// Step 1: check if logging is enabled for this level.
-	if !l.EnableLevel(level) {
+	if !tag.logger.GetLevel().Enable(level) {
 		return
 	}
 
 	// Step 2: resolve caller information.
-	file, line := Caller(skip, fastCaller.Load())
+	file, line := Caller(skip, FastCaller.Load())
 
 	// Step 3: determine log timestamp.
 	now := time.Now()
@@ -281,11 +276,11 @@ func Record(ctx context.Context, level Level, tag *Tag, skip int, fields ...Fiel
 	e.Time = now
 	e.File = file
 	e.Line = line
-	e.Tag = tag.name
+	e.Tag = tag.tag
 	e.Fields = fields
 	e.CtxString = ctxString
 	e.CtxFields = ctxFields
 
 	// Step 6: publish the event.
-	l.Publish(e)
+	tag.logger.Append(e)
 }

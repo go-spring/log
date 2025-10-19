@@ -23,55 +23,60 @@ import (
 	"github.com/go-spring/spring-base/util"
 )
 
-func TestParseLevel(t *testing.T) {
+func TestRegisterLevel(t *testing.T) {
+	customLevel := RegisterLevel(800, "custom")
+	assert.Number(t, customLevel.Code()).Equal(int32(800))
+	assert.String(t, customLevel.Name()).Equal("CUSTOM")
+}
+
+func TestParseLevelRange(t *testing.T) {
 	tests := []struct {
 		str     string
-		want    Level
+		want    LevelRange
 		wantErr error
 	}{
 		{
 			str:  "none",
-			want: NoneLevel,
+			want: LevelRange{MinLevel: NoneLevel, MaxLevel: MaxLevel},
 		},
 		{
 			str:  "trace",
-			want: TraceLevel,
+			want: LevelRange{MinLevel: TraceLevel, MaxLevel: MaxLevel},
 		},
 		{
 			str:  "debug",
-			want: DebugLevel,
+			want: LevelRange{MinLevel: DebugLevel, MaxLevel: MaxLevel},
 		},
 		{
 			str:  "info",
-			want: InfoLevel,
+			want: LevelRange{MinLevel: InfoLevel, MaxLevel: MaxLevel},
 		},
 		{
 			str:  "warn",
-			want: WarnLevel,
+			want: LevelRange{MinLevel: WarnLevel, MaxLevel: MaxLevel},
 		},
 		{
 			str:  "error",
-			want: ErrorLevel,
+			want: LevelRange{MinLevel: ErrorLevel, MaxLevel: MaxLevel},
 		},
 		{
 			str:  "panic",
-			want: PanicLevel,
+			want: LevelRange{MinLevel: PanicLevel, MaxLevel: MaxLevel},
 		},
 		{
 			str:  "fatal",
-			want: FatalLevel,
+			want: LevelRange{MinLevel: FatalLevel, MaxLevel: MaxLevel},
 		},
 		{
 			str:     "unknown",
-			want:    NoneLevel,
+			want:    LevelRange{},
 			wantErr: util.FormatError(nil, "invalid log level: %q", "unknown"),
 		},
 	}
 	for _, tt := range tests {
-		got, err := ParseLevel(tt.str)
+		got, err := ParseLevelRange(tt.str)
 		assert.That(t, got).Equal(tt.want)
 		assert.That(t, err).Equal(tt.wantErr)
-		assert.Number(t, got.Code()).Equal(tt.want.Code())
 	}
 
 	// Test that levels are properly ordered by code
@@ -82,23 +87,4 @@ func TestParseLevel(t *testing.T) {
 	assert.Number(t, WarnLevel.Code()).LessThan(ErrorLevel.Code())
 	assert.Number(t, ErrorLevel.Code()).LessThan(PanicLevel.Code())
 	assert.Number(t, PanicLevel.Code()).LessThan(FatalLevel.Code())
-}
-
-func TestRegisterLevel(t *testing.T) {
-
-	customLevel := RegisterLevel(800, "custom")
-	assert.Number(t, customLevel.Code()).Equal(int32(800))
-	assert.String(t, customLevel.String()).Equal("CUSTOM")
-
-	parsed, err := ParseLevel("custom")
-	assert.Error(t, err).Nil()
-	assert.That(t, parsed).Equal(customLevel)
-
-	parsed, err = ParseLevel("Custom")
-	assert.Error(t, err).Nil()
-	assert.That(t, parsed).Equal(customLevel)
-
-	parsed, err = ParseLevel("CUSTOM")
-	assert.Error(t, err).Nil()
-	assert.That(t, parsed).Equal(customLevel)
 }

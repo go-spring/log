@@ -19,24 +19,24 @@ package log
 import (
 	"io"
 	"reflect"
-	"regexp"
 	"strings"
-	"sync/atomic"
 
 	"github.com/go-spring/spring-base/barky"
 	"github.com/go-spring/spring-base/util"
 )
 
-// global holds the global state of loggers and appenders.
+// RootLoggerName defines the reserved name for the root logger.
+const RootLoggerName = "root"
+
+// global holds all runtime logger and appender instances.
 var global struct {
-	init      atomic.Bool
+	init      bool
 	loggers   []Logger
 	appenders []Appender
 }
 
-const RootLoggerName = "::ROOT::"
-
-// RefreshFile loads a logging configuration from a file by its name.
+// RefreshFile loads a logging configuration from a file.
+// The file format is automatically detected by its extension.
 func RefreshFile(fileName string) error {
 	s, err := readConfigFromFile(fileName)
 	if err != nil {
@@ -46,6 +46,7 @@ func RefreshFile(fileName string) error {
 }
 
 // RefreshReader loads a logging configuration from an io.Reader.
+// The `ext` specifies the configuration format (e.g., "yaml", "json").
 func RefreshReader(r io.Reader, ext string) error {
 	s, err := readConfigFromReader(r, ext)
 	if err != nil {
@@ -54,7 +55,7 @@ func RefreshReader(r io.Reader, ext string) error {
 	return RefreshConfig(s)
 }
 
-// RefreshConfig loads a logging configuration from a *barky.Storage object.
+// RefreshConfig loads a logging configuration from a *barky.Storage.
 func RefreshConfig(s *barky.Storage) error {
 
 	// Read appenders
@@ -73,17 +74,18 @@ func RefreshConfig(s *barky.Storage) error {
 	}
 
 	// Ensure this refresh is executed only once
-	if !global.init.CompareAndSwap(false, true) {
+	if global.init {
 		return util.FormatError(nil, "log refresh already done")
 	}
+	global.init = true
 
 	// Factory function to create plugin instances
-	newPlugin := func(typeKey string) (reflect.Value, error) {
+	newPlugin := func(typ PluginType, typeKey string) (reflect.Value, error) {
 		if !s.Has(typeKey) {
 			return reflect.Value{}, util.FormatError(nil, "attribute 'type' not found")
 		}
 		strType := s.Get(typeKey)
-		p, ok := pluginRegistry[strType]
+		p, ok := pluginRegistry[typ][strType]
 		if !ok {
 			return reflect.Value{}, util.FormatError(nil, "plugin %s not found", strType)
 		}
@@ -92,21 +94,27 @@ func RefreshConfig(s *barky.Storage) error {
 
 	// Initialize appender references in a logger
 	initAppenderRefs := func(v reflect.Value, cAppenders map[string]Appender) (*LoggerBase, error) {
-		var base *LoggerBase
+		var (
+			base *LoggerBase
+			ref  *AppenderRefs
+		)
 		switch config := v.Interface().(type) {
 		case *SyncLogger:
 			base = &config.LoggerBase
+			ref = &config.AppenderRefs
 		case *AsyncLogger:
 			base = &config.LoggerBase
+			ref = &config.AppenderRefs
 		default: // for linter
 		}
-		for _, r := range base.AppenderRefs {
+		for _, r := range ref.AppenderRefs {
 			appender, ok := cAppenders[r.Ref]
 			if !ok {
 				return nil, util.FormatError(nil, "appender %s not found", r.Ref)
 			}
-			r.appender = appender
+			r.Appender = appender
 		}
+		ref.sortByLevel()
 		return base, nil
 	}
 
@@ -122,31 +130,16 @@ func RefreshConfig(s *barky.Storage) error {
 
 	// Initialize appenders
 	for _, name := range appenders {
-		v, err := newPlugin("appender." + name + ".type")
+		v, err := newPlugin(PluginTypeAppender, "appender."+name+".type")
 		if err != nil {
 			return util.WrapError(err, "create appender %s error", name)
 		}
 		cAppenders[name] = v.Interface().(Appender)
 	}
 
-	// Initialize root logger
-	if s.Has("rootLogger") {
-		v, err := newPlugin("rootLogger.type")
-		if err != nil {
-			return util.WrapError(err, "create root logger error")
-		}
-		base, err := initAppenderRefs(v, cAppenders)
-		if err != nil {
-			return util.WrapError(err, "init appender refs for root logger error")
-		}
-		base.Name = RootLoggerName
-		cRoot = v.Interface().(Logger)
-		cLoggers[RootLoggerName] = cRoot
-	}
-
 	// Initialize all other loggers
 	for _, name := range loggers {
-		v, err := newPlugin("logger." + name + ".type")
+		v, err := newPlugin(PluginTypeLogger, "logger."+name+".type")
 		if err != nil {
 			return util.WrapError(err, "create logger %s error", name)
 		}
@@ -157,18 +150,36 @@ func RefreshConfig(s *barky.Storage) error {
 		logger := v.Interface().(Logger)
 		cLoggers[name] = logger
 
-		// Assign tags to logger
+		// Skip the root logger
+		if name == RootLoggerName {
+			if base.Tags != "" {
+				err = util.FormatError(nil, "root logger must not define any tags")
+				return util.WrapError(err, "create logger %s error", name)
+			}
+			cRoot = logger
+			continue
+		}
+
+		// Parse and validate tag list
 		var tags []string
 		for tag := range strings.SplitSeq(base.Tags, ",") {
 			if tag = strings.TrimSpace(tag); tag == "" {
 				continue
 			}
+			if strings.Contains(tag, "*") {
+				if !strings.HasSuffix(tag, "_*") {
+					err = util.FormatError(nil, "tag '%s' is invalid", tag)
+					return util.WrapError(err, "create logger %s error", name)
+				}
+			}
 			tags = append(tags, tag)
 		}
+
 		if len(tags) == 0 {
 			err = util.FormatError(nil, "logger must have attribute 'tags'")
 			return util.WrapError(err, "create logger %s error", name)
 		}
+
 		for _, strTag := range tags {
 			if l, ok := cTags[strTag]; ok && l != logger {
 				err = util.FormatError(nil, "tag '%s' already config in logger %s", strTag, l)
@@ -178,50 +189,47 @@ func RefreshConfig(s *barky.Storage) error {
 		}
 	}
 
-	// Precompile regexp patterns for tag matching
-	tagRegexpMap := map[string]*regexp.Regexp{}
-	for tag := range cTags {
-		r, err := regexp.Compile(tag)
-		if err != nil {
-			return util.FormatError(err, "`%s` regexp compile error", tag)
+	// Start all appenders
+	for _, a := range cAppenders {
+		if err := a.Start(); err != nil {
+			return util.WrapError(err, "appender %s start error", a.GetName())
 		}
-		tagRegexpMap[tag] = r
 	}
 
-	// Start all loggers and their appenders
+	// Start all loggers
 	for _, l := range cLoggers {
 		if err := l.Start(); err != nil {
-			return util.WrapError(err, "logger %s start error", l)
+			return util.WrapError(err, "logger %s start error", l.GetName())
 		}
 	}
 
-	// Update logger references in loggerMap
+	// Update logger references in `loggerMap`
 	for _, l := range loggerMap {
 		v, ok := cLoggers[l.name]
 		if !ok {
 			return util.FormatError(nil, "logger %s not found", l.name)
 		}
-		l.setLogger(v)
+		l.logger = v
 	}
 
-	// Update tagMap with corresponding loggers
-	for tag, obj := range tagRegistry {
+	// Helper to find the most appropriate logger for a given tag.
+	var findLoggerForTag func(tag string) Logger
+	findLoggerForTag = func(tag string) Logger {
 		if l, ok := cTags[tag]; ok {
-			obj.setLogger(l)
-			continue
+			return l
 		}
-		found := false
-		for k, r := range tagRegexpMap {
-			if r.MatchString(tag) {
-				obj.setLogger(cTags[k])
-				found = true
-				break
-			}
+		tag, _ = strings.CutSuffix(tag, "_*")
+		i := strings.LastIndex(tag, "_")
+		if i <= 0 {
+			return cRoot
 		}
-		if found {
-			continue
-		}
-		obj.setLogger(cRoot)
+		tag = strings.TrimSuffix(tag[:i], "_") + "_*"
+		return findLoggerForTag(tag)
+	}
+
+	// Update `tagMap` with corresponding loggers
+	for tag, obj := range tagRegistry {
+		obj.logger = findLoggerForTag(tag)
 	}
 
 	// Inject properties
@@ -244,9 +252,10 @@ func RefreshConfig(s *barky.Storage) error {
 	return nil
 }
 
-// Destroy stops all loggers and appenders and resets global state.
+// Destroy gracefully shuts down all loggers and appenders,
+// releasing resources and resetting the global state.
 func Destroy() {
-	if !global.init.Load() {
+	if !global.init {
 		return
 	}
 	for _, l := range global.loggers {
@@ -257,5 +266,5 @@ func Destroy() {
 	}
 	global.loggers = nil
 	global.appenders = nil
-	global.init.Store(false)
+	global.init = false
 }

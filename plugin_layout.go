@@ -29,18 +29,18 @@ import (
 
 var (
 	bufferPool sync.Pool    // Pool to reuse byte buffers for layouts
-	bufferCap  atomic.Int32 // Maximum buffer capacity allowed for reuse
+	BufferCap  atomic.Int32 // Maximum buffer capacity allowed for reuse
 )
 
 func init() {
 	// Default buffer capacity is 10KB
-	bufferCap.Store(10 * 1024)
+	BufferCap.Store(10 * 1024)
 	RegisterProperty("bufferCap", func(s string) error {
 		n, err := ParseHumanizeBytes(s)
 		if err != nil {
 			return util.WrapError(err, "invalid bufferCap: %q", s)
 		}
-		bufferCap.Store(int32(n))
+		BufferCap.Store(int32(n))
 		return nil
 	})
 }
@@ -53,8 +53,8 @@ var bytesSizeTable = map[string]int64{
 }
 
 func init() {
-	RegisterPlugin[TextLayout]("TextLayout")
-	RegisterPlugin[JSONLayout]("JSONLayout")
+	RegisterPlugin[TextLayout]("TextLayout", PluginTypeLayout)
+	RegisterPlugin[JSONLayout]("JSONLayout", PluginTypeLayout)
 }
 
 // HumanizeBytes represents a human-readable byte size
@@ -103,7 +103,7 @@ func (c *BaseLayout) GetBuffer() *bytes.Buffer {
 // PutBuffer resets and returns a buffer to the pool,
 // but only if it does not exceed the configured capacity.
 func (c *BaseLayout) PutBuffer(buf *bytes.Buffer) {
-	if buf.Cap() <= int(bufferCap.Load()) {
+	if buf.Cap() <= int(BufferCap.Load()) {
 		buf.Reset()
 		bufferPool.Put(buf)
 	}
@@ -132,7 +132,7 @@ func (c *TextLayout) ToBytes(e *Event) []byte {
 	defer c.PutBuffer(buf)
 
 	buf.WriteString("[")
-	buf.WriteString(strings.ToUpper(e.Level.String()))
+	buf.WriteString(strings.ToUpper(e.Level.Name()))
 	buf.WriteString("][")
 	buf.WriteString(e.Time.Format("2006-01-02T15:04:05.000"))
 	buf.WriteString("][")
@@ -167,7 +167,7 @@ func (c *JSONLayout) ToBytes(e *Event) []byte {
 	defer c.PutBuffer(buf)
 
 	headers := make([]Field, 0, 5)
-	headers = append(headers, String("level", strings.ToLower(e.Level.String())))
+	headers = append(headers, String("level", strings.ToLower(e.Level.Name())))
 	headers = append(headers, String("time", e.Time.Format("2006-01-02T15:04:05.000")))
 	headers = append(headers, String("fileLine", c.GetFileLine(e)))
 	headers = append(headers, String("tag", e.Tag))

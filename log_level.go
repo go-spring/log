@@ -23,12 +23,12 @@ import (
 )
 
 func init() {
-	RegisterConverter(ParseLevel)
+	RegisterConverter(ParseLevelRange)
 }
 
 var (
 	NoneLevel  = RegisterLevel(0, "NONE")    // No logging
-	TraceLevel = RegisterLevel(100, "TRACE") // Very detailed logging, typically used for debugging at a granular level
+	TraceLevel = RegisterLevel(100, "TRACE") // Very detailed logging, typically used for debugging
 	DebugLevel = RegisterLevel(200, "DEBUG") // Debugging information useful during development
 	InfoLevel  = RegisterLevel(300, "INFO")  // General informational messages about application progress
 	WarnLevel  = RegisterLevel(400, "WARN")  // Warnings about potential issues or unusual situations
@@ -53,8 +53,8 @@ func (l Level) Code() int32 {
 	return l.code
 }
 
-// String returns the string representation of the Level (e.g., "INFO").
-func (l Level) String() string {
+// Name returns the string name of the Level.
+func (l Level) Name() string {
 	return l.name
 }
 
@@ -67,12 +67,52 @@ func RegisterLevel(code int32, name string) Level {
 	return l
 }
 
-// ParseLevel converts a string into a Level (case-insensitive).
-// Returns an error if the string does not match any registered Level.
-func ParseLevel(s string) (Level, error) {
-	l, ok := levelRegistry[strings.ToUpper(s)]
-	if !ok {
-		return NoneLevel, util.FormatError(nil, "invalid log level: %q", s)
+// LevelRange represents a range of log levels [MinLevel, MaxLevel).
+type LevelRange struct {
+	MinLevel Level
+	MaxLevel Level
+}
+
+// Enable returns true if the given Level 'l' falls within the LevelRange.
+// The check is inclusive of MinLevel and exclusive of MaxLevel.
+func (c LevelRange) Enable(l Level) bool {
+	return l.code >= c.MinLevel.code && l.code < c.MaxLevel.code
+}
+
+// ParseLevelRange parses a string into a LevelRange.
+//
+// Supported formats:
+//
+//	""           → [NONE, MAX)
+//	"INFO"       → [INFO, MAX)
+//	"INFO~ERROR" → [INFO, ERROR)
+//
+// The comparison is case-insensitive. Returns an error for unknown levels.
+func ParseLevelRange(s string) (LevelRange, error) {
+	if s = strings.TrimSpace(s); s == "" {
+		return LevelRange{
+			MinLevel: NoneLevel,
+			MaxLevel: MaxLevel,
+		}, nil
 	}
-	return l, nil
+
+	var (
+		ok       bool
+		minLevel = NoneLevel
+		maxLevel = MaxLevel
+	)
+
+	ss := strings.Split(s, "~")
+	minLevel, ok = levelRegistry[strings.ToUpper(ss[0])]
+	if !ok {
+		return LevelRange{}, util.FormatError(nil, "invalid log level: %q", ss[0])
+	}
+	if len(ss) == 2 {
+		maxLevel, ok = levelRegistry[strings.ToUpper(ss[1])]
+		if !ok {
+			return LevelRange{}, util.FormatError(nil, "invalid log level: %q", ss[1])
+		}
+	}
+
+	return LevelRange{MinLevel: minLevel, MaxLevel: maxLevel}, nil
 }

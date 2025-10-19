@@ -26,6 +26,12 @@ import (
 	"github.com/go-spring/spring-base/util"
 )
 
+// typeConverters holds user-defined type conversion functions
+// registered via RegisterConverter. It maps a reflect.Type to a
+// conversion function that transforms a string into that type.
+//
+// This allows dynamic parsing of configuration values (usually from
+// text-based formats like YAML, or properties files) into native Go types.
 var typeConverters = map[reflect.Type]any{}
 
 // Converter defines a function that converts a string to type T.
@@ -37,9 +43,12 @@ func RegisterConverter[T any](fn Converter[T]) {
 	typeConverters[t] = fn
 }
 
+// propertyRegistry holds all registered property injection functions.
+// Each entry associates a configuration key with a function that applies
+// its value at runtime.
 var propertyRegistry = make(map[string]func(string) error)
 
-// RegisterProperty registers a property setter function with a given key.
+// RegisterProperty registers a property setter with a given key.
 func RegisterProperty(key string, val func(string) error) {
 	propertyRegistry[key] = val
 }
@@ -50,29 +59,52 @@ type Lifecycle interface {
 	Stop()
 }
 
-var pluginRegistry = map[string]*Plugin{}
+// PluginType enumerates supported plugin categories.
+type PluginType string
+
+const (
+	PluginTypeLogger      PluginType = "logger"
+	PluginTypeAppender    PluginType = "appender"
+	PluginTypeAppenderRef PluginType = "appenderRef"
+	PluginTypeLayout      PluginType = "layout"
+)
+
+// pluginRegistry maintains a registry of available plugin classes,
+// organized by plugin type and plugin name.
+var pluginRegistry = map[PluginType]map[string]*Plugin{}
 
 // Plugin represents metadata about a plugin type.
 type Plugin struct {
 	Name  string       // Name of the plugin
+	Type  PluginType   // Type of the plugin
 	Class reflect.Type // Underlying struct type
 	File  string       // File where plugin was registered
 	Line  int          // Line number where plugin was registered
 }
 
-// RegisterPlugin registers a plugin type T with a given name and plugin type.
-func RegisterPlugin[T any](name string) {
-	_, file, line, _ := runtime.Caller(1)
-	if p, ok := pluginRegistry[name]; ok {
-		err := util.FormatError(nil, "duplicate plugin name %q in %s:%d and %s:%d", name, p.File, p.Line, file, line)
-		panic(err)
-	}
+// RegisterPlugin registers a plugin struct type with a given name and plugin type.
+func RegisterPlugin[T any](name string, typ PluginType) {
 	t := reflect.TypeFor[T]()
 	if t.Kind() != reflect.Struct {
 		panic("T must be struct")
 	}
-	pluginRegistry[name] = &Plugin{
+
+	m := pluginRegistry[typ]
+	if m == nil {
+		m = make(map[string]*Plugin)
+		pluginRegistry[typ] = m
+	}
+
+	_, file, line, _ := runtime.Caller(1)
+	if p, ok := m[name]; ok {
+		err := util.FormatError(nil, "duplicate plugin name %q in %s:%d and %s:%d",
+			name, p.File, p.Line, file, line)
+		panic(err)
+	}
+
+	m[name] = &Plugin{
 		Name:  name,
+		Type:  typ,
 		Class: t,
 		File:  file,
 		Line:  line,
@@ -146,7 +178,13 @@ func (tag PluginTag) Lookup(key string) (value string, ok bool) {
 	return "", false
 }
 
-// injectAttribute injects a string value into a struct field based on its type.
+// injectAttribute injects a primitive field from configuration storage.
+//
+// Supported field types include string, bool, integer, unsigned integer,
+// and floating-point numbers. Custom converters (registered via
+// RegisterConverter) are used if available.
+//
+// It also supports placeholder syntax `${prop}` for property substitution.
 func injectAttribute(tag string, fv reflect.Value, ft reflect.StructField, prefix string, s *barky.Storage) error {
 
 	attrTag := PluginTag(tag)
@@ -245,17 +283,23 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 		err := util.FormatError(nil, "found no plugin element")
 		return util.WrapError(err, "inject struct field %s error", ft.Name)
 	}
+
+	elemType, nullable := strings.CutSuffix(elemType, "?")
 	elemKey := prefix + "." + toCamelKey(elemType)
 
 	switch fv.Kind() {
 	case reflect.Slice:
-
 		if !s.Has(elemKey) && !s.Has(elemKey+"[0]") {
 			elemDef, ok := elemTag.Lookup("default")
 			if !ok {
+				if nullable {
+					return nil
+				}
 				err := util.FormatError(nil, "found no plugin element")
 				return util.WrapError(err, "inject struct field %s error", ft.Name)
 			}
+
+			// Parse default plugin type sequence (semicolon-separated)
 			index := 0
 			for typeClass := range strings.SplitSeq(elemDef, ";") {
 				typeClass = strings.TrimSpace(typeClass)
@@ -264,7 +308,7 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 				}
 				typeKey := elemKey + "[" + strconv.Itoa(index) + "].type"
 				if err := s.Set(typeKey, typeClass, 0); err != nil {
-					return err // should always no error
+					return err // Should never fail
 				}
 				index++
 			}
@@ -281,19 +325,21 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 				if !s.Has(subKey) {
 					break
 				}
+
+				const def = ":def:"
+				strType := s.Get(subKey+".type", def)
+
 				var (
 					p  *Plugin
 					ok bool
 				)
-				const def = ":def:"
-				strType := s.Get(subKey+".type", def)
 				if strType != def {
-					if p, ok = pluginRegistry[strType]; !ok {
+					if p, ok = pluginRegistry[PluginType(toCamelKey(elemType))][strType]; !ok {
 						err := util.FormatError(nil, "plugin %s not found", strType)
 						return util.WrapError(err, "inject struct field %s error", ft.Name)
 					}
 				} else {
-					if p, ok = pluginRegistry[elemType]; !ok {
+					if p, ok = pluginRegistry[PluginType(toCamelKey(elemType))][elemType]; !ok {
 						err := util.FormatError(nil, "plugin %s not found", elemType)
 						return util.WrapError(err, "inject struct field %s error", ft.Name)
 					}
@@ -304,19 +350,22 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 				}
 				slice = reflect.Append(slice, v)
 			}
+
 		} else if s.Has(elemKey) { // Single element
+			const def = ":def:"
+			strType := s.Get(elemKey+".type", def)
+
 			var (
 				p  *Plugin
 				ok bool
 			)
-			const def = ":def:"
-			if strType := s.Get(elemKey+".type", def); strType != def {
-				if p, ok = pluginRegistry[strType]; !ok {
+			if strType != def {
+				if p, ok = pluginRegistry[PluginType(toCamelKey(elemType))][strType]; !ok {
 					err := util.FormatError(nil, "plugin %s not found", strType)
 					return util.WrapError(err, "inject struct field %s error", ft.Name)
 				}
 			} else {
-				if p, ok = pluginRegistry[elemType]; !ok {
+				if p, ok = pluginRegistry[PluginType(toCamelKey(elemType))][elemType]; !ok {
 					err := util.FormatError(nil, "plugin %s not found", elemType)
 					return util.WrapError(err, "inject struct field %s error", ft.Name)
 				}
@@ -327,6 +376,7 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 			}
 			slice = reflect.Append(slice, v)
 		}
+
 		fv.Set(slice)
 		return nil
 
@@ -343,13 +393,16 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 		} else {
 			elemLabel, ok := elemTag.Lookup("default")
 			if !ok {
+				if nullable {
+					return nil
+				}
 				err := util.FormatError(nil, "found no plugin element")
 				return util.WrapError(err, "inject struct field %s error", ft.Name)
 			}
 			strType = elemLabel
 		}
 
-		p, ok := pluginRegistry[strType]
+		p, ok := pluginRegistry[PluginType(toCamelKey(elemType))][strType]
 		if !ok {
 			err := util.FormatError(nil, "plugin %s not found", strType)
 			return util.WrapError(err, "inject struct field %s error", ft.Name)

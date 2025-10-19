@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/go-spring/log/expr"
 	"github.com/go-spring/spring-base/barky"
 	"github.com/go-spring/spring-base/util"
 	"github.com/magiconair/properties"
@@ -111,12 +112,43 @@ func ReadYAML(b []byte) (map[string]any, error) {
 	return r, nil
 }
 
-// toStorage converts a flattened map into a *barky.Storage instance.
+// toStorage converts a flattened string map into a *barky.Storage instance.
+// It interprets keys with a "!" suffix as nested map structures, parsing their
+// values using expr.Parse() and inserting them under a composite key.
+//
+// Example:
+//
+//	Input:
+//	  map[string]string{
+//	    "app.name": "MyApp",
+//	    "db!": "{host: localhost, port: 5432}",
+//	  }
+//	Output:
+//	  barky.Storage{
+//	    "app.name": "MyApp",
+//	    "db.host":  "localhost",
+//	    "db.port":  "5432",
+//	  }
 func toStorage(m map[string]string) (*barky.Storage, error) {
 	s := barky.NewStorage()
 	for k, v := range m {
-		if err := s.Set(toCamelKey(k), v, 0); err != nil {
-			return nil, util.FormatError(err, "toStorage error")
+		var ok bool
+		// Normalize key to CamelCase and check for "!" suffix,
+		// which indicates that the value represents a nested map expression.
+		if k, ok = strings.CutSuffix(toCamelKey(k), "!"); ok {
+			subMap, err := expr.Parse(v)
+			if err != nil {
+				return nil, util.FormatError(err, "toStorage error")
+			}
+			for k2, v2 := range subMap {
+				if err = s.Set(k+"."+toCamelKey(k2), v2, 0); err != nil {
+					return nil, util.FormatError(err, "toStorage error")
+				}
+			}
+		} else {
+			if err := s.Set(k, v, 0); err != nil {
+				return nil, util.FormatError(err, "toStorage error")
+			}
 		}
 	}
 	return s, nil
