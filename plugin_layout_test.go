@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/go-spring/spring-base/testing/assert"
-	"github.com/go-spring/spring-base/util"
+	"github.com/lvan100/errutil"
 )
 
 func TestParseHumanizeBytes(t *testing.T) {
@@ -64,17 +64,17 @@ func TestParseHumanizeBytes(t *testing.T) {
 		{
 			name:    "invalid number",
 			input:   "abcKB",
-			wantErr: util.FormatError(nil, `strconv.ParseInt: parsing "": invalid syntax`),
+			wantErr: errutil.Explain(nil, `strconv.ParseInt: parsing "": invalid syntax`),
 		},
 		{
 			name:    "missing unit",
 			input:   "1024",
-			wantErr: util.FormatError(nil, `unhandled size name: ""`),
+			wantErr: errutil.Explain(nil, `unhandled size name: ""`),
 		},
 		{
 			name:    "unknown unit",
 			input:   "1GB",
-			wantErr: util.FormatError(nil, `unhandled size name: "GB"`),
+			wantErr: errutil.Explain(nil, `unhandled size name: "GB"`),
 		},
 	}
 

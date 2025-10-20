@@ -25,7 +25,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/go-spring/spring-base/util"
+	"github.com/lvan100/errutil"
 )
 
 // Stdout is the standard output stream used by appenders.
@@ -189,7 +189,7 @@ func (c *RollingFileAppender) Start() error {
 	nowTime := c.Rotation.Time(now)
 	filePath, file, err := c.createFile(c.Rotation.Format(now))
 	if err != nil {
-		return util.WrapError(err, "Failed to create log file %s", filePath)
+		return errutil.Stack(err, "Failed to create log file %s", filePath)
 	}
 	c.file.Store(file)
 	c.currTime.Store(nowTime)
@@ -242,7 +242,7 @@ func (c *RollingFileAppender) rotate() {
 
 	filePath, file, err := c.createFile(c.Rotation.Format(now))
 	if err != nil {
-		err = util.WrapError(err, "Failed to create log file %s", filePath)
+		err = errutil.Stack(err, "Failed to create log file %s", filePath)
 		_, _ = fmt.Fprintln(os.Stderr, err)
 		return
 	}

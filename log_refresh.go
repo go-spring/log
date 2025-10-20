@@ -22,7 +22,7 @@ import (
 	"strings"
 
 	"github.com/go-spring/spring-base/barky"
-	"github.com/go-spring/spring-base/util"
+	"github.com/lvan100/errutil"
 )
 
 // RootLoggerName defines the reserved name for the root logger.
@@ -40,7 +40,7 @@ var global struct {
 func RefreshFile(fileName string) error {
 	s, err := readConfigFromFile(fileName)
 	if err != nil {
-		return util.FormatError(err, "RefreshFile error")
+		return errutil.Explain(err, "RefreshFile error")
 	}
 	return RefreshConfig(s)
 }
@@ -50,7 +50,7 @@ func RefreshFile(fileName string) error {
 func RefreshReader(r io.Reader, ext string) error {
 	s, err := readConfigFromReader(r, ext)
 	if err != nil {
-		return util.FormatError(err, "RefreshReader error")
+		return errutil.Explain(err, "RefreshReader error")
 	}
 	return RefreshConfig(s)
 }
@@ -61,33 +61,33 @@ func RefreshConfig(s *barky.Storage) error {
 	// Read appenders
 	appenders, err := s.SubKeys("appender")
 	if err != nil {
-		return util.WrapError(err, "read appenders section error")
+		return errutil.Stack(err, "read appenders section error")
 	}
 	if len(appenders) == 0 {
-		return util.FormatError(nil, "appenders section not found")
+		return errutil.Explain(nil, "appenders section not found")
 	}
 
 	// Read loggers
 	loggers, err := s.SubKeys("logger")
 	if err != nil {
-		return util.WrapError(err, "read loggers section error")
+		return errutil.Stack(err, "read loggers section error")
 	}
 
 	// Ensure this refresh is executed only once
 	if global.init {
-		return util.FormatError(nil, "log refresh already done")
+		return errutil.Explain(nil, "log refresh already done")
 	}
 	global.init = true
 
 	// Factory function to create plugin instances
 	newPlugin := func(typ PluginType, typeKey string) (reflect.Value, error) {
 		if !s.Has(typeKey) {
-			return reflect.Value{}, util.FormatError(nil, "attribute 'type' not found")
+			return reflect.Value{}, errutil.Explain(nil, "attribute 'type' not found")
 		}
 		strType := s.Get(typeKey)
 		p, ok := pluginRegistry[typ][strType]
 		if !ok {
-			return reflect.Value{}, util.FormatError(nil, "plugin %s not found", strType)
+			return reflect.Value{}, errutil.Explain(nil, "plugin %s not found", strType)
 		}
 		return NewPlugin(p.Class, typeKey[:strings.LastIndex(typeKey, ".")], s)
 	}
@@ -110,7 +110,7 @@ func RefreshConfig(s *barky.Storage) error {
 		for _, r := range ref.AppenderRefs {
 			appender, ok := cAppenders[r.Ref]
 			if !ok {
-				return nil, util.FormatError(nil, "appender %s not found", r.Ref)
+				return nil, errutil.Explain(nil, "appender %s not found", r.Ref)
 			}
 			r.Appender = appender
 		}
@@ -132,7 +132,7 @@ func RefreshConfig(s *barky.Storage) error {
 	for _, name := range appenders {
 		v, err := newPlugin(PluginTypeAppender, "appender."+name+".type")
 		if err != nil {
-			return util.WrapError(err, "create appender %s error", name)
+			return errutil.Stack(err, "create appender %s error", name)
 		}
 		cAppenders[name] = v.Interface().(Appender)
 	}
@@ -141,11 +141,11 @@ func RefreshConfig(s *barky.Storage) error {
 	for _, name := range loggers {
 		v, err := newPlugin(PluginTypeLogger, "logger."+name+".type")
 		if err != nil {
-			return util.WrapError(err, "create logger %s error", name)
+			return errutil.Stack(err, "create logger %s error", name)
 		}
 		base, err := initAppenderRefs(v, cAppenders)
 		if err != nil {
-			return util.WrapError(err, "init appender refs for logger %s error", name)
+			return errutil.Stack(err, "init appender refs for logger %s error", name)
 		}
 		logger := v.Interface().(Logger)
 		cLoggers[name] = logger
@@ -153,8 +153,8 @@ func RefreshConfig(s *barky.Storage) error {
 		// Skip the root logger
 		if name == RootLoggerName {
 			if base.Tags != "" {
-				err = util.FormatError(nil, "root logger must not define any tags")
-				return util.WrapError(err, "create logger %s error", name)
+				err = errutil.Explain(nil, "root logger must not define any tags")
+				return errutil.Stack(err, "create logger %s error", name)
 			}
 			cRoot = logger
 			continue
@@ -168,22 +168,22 @@ func RefreshConfig(s *barky.Storage) error {
 			}
 			if strings.Contains(tag, "*") {
 				if !strings.HasSuffix(tag, "_*") {
-					err = util.FormatError(nil, "tag '%s' is invalid", tag)
-					return util.WrapError(err, "create logger %s error", name)
+					err = errutil.Explain(nil, "tag '%s' is invalid", tag)
+					return errutil.Stack(err, "create logger %s error", name)
 				}
 			}
 			tags = append(tags, tag)
 		}
 
 		if len(tags) == 0 {
-			err = util.FormatError(nil, "logger must have attribute 'tags'")
-			return util.WrapError(err, "create logger %s error", name)
+			err = errutil.Explain(nil, "logger must have attribute 'tags'")
+			return errutil.Stack(err, "create logger %s error", name)
 		}
 
 		for _, strTag := range tags {
 			if l, ok := cTags[strTag]; ok && l != logger {
-				err = util.FormatError(nil, "tag '%s' already config in logger %s", strTag, l)
-				return util.WrapError(err, "create logger %s error", name)
+				err = errutil.Explain(nil, "tag '%s' already config in logger %s", strTag, l)
+				return errutil.Stack(err, "create logger %s error", name)
 			}
 			cTags[strTag] = logger
 		}
@@ -192,14 +192,14 @@ func RefreshConfig(s *barky.Storage) error {
 	// Start all appenders
 	for _, a := range cAppenders {
 		if err := a.Start(); err != nil {
-			return util.WrapError(err, "appender %s start error", a.GetName())
+			return errutil.Stack(err, "appender %s start error", a.GetName())
 		}
 	}
 
 	// Start all loggers
 	for _, l := range cLoggers {
 		if err := l.Start(); err != nil {
-			return util.WrapError(err, "logger %s start error", l.GetName())
+			return errutil.Stack(err, "logger %s start error", l.GetName())
 		}
 	}
 
@@ -207,7 +207,7 @@ func RefreshConfig(s *barky.Storage) error {
 	for _, l := range loggerMap {
 		v, ok := cLoggers[l.name]
 		if !ok {
-			return util.FormatError(nil, "logger %s not found", l.name)
+			return errutil.Explain(nil, "logger %s not found", l.name)
 		}
 		l.logger = v
 	}
@@ -237,7 +237,7 @@ func RefreshConfig(s *barky.Storage) error {
 		if v := s.Get(toCamelKey(k)); v == "" {
 			continue
 		} else if err = f(v); err != nil {
-			return util.WrapError(err, "inject property %s error", k)
+			return errutil.Stack(err, "inject property %s error", k)
 		}
 	}
 

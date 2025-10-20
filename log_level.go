@@ -19,7 +19,7 @@ package log
 import (
 	"strings"
 
-	"github.com/go-spring/spring-base/util"
+	"github.com/lvan100/errutil"
 )
 
 func init() {
@@ -105,12 +105,12 @@ func ParseLevelRange(s string) (LevelRange, error) {
 	ss := strings.Split(s, "~")
 	minLevel, ok = levelRegistry[strings.ToUpper(ss[0])]
 	if !ok {
-		return LevelRange{}, util.FormatError(nil, "invalid log level: %q", ss[0])
+		return LevelRange{}, errutil.Explain(nil, "invalid log level: %q", ss[0])
 	}
 	if len(ss) == 2 {
 		maxLevel, ok = levelRegistry[strings.ToUpper(ss[1])]
 		if !ok {
-			return LevelRange{}, util.FormatError(nil, "invalid log level: %q", ss[1])
+			return LevelRange{}, errutil.Explain(nil, "invalid log level: %q", ss[1])
 		}
 	}
 

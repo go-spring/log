@@ -89,31 +89,46 @@ package log
 
 import (
 	"context"
+	"runtime"
 	"strconv"
-	"sync/atomic"
 	"time"
 
-	"github.com/go-spring/spring-base/util"
+	"github.com/lvan100/errutil"
 )
 
-// FastCaller controls whether to use a faster but less accurate
-// implementation of caller lookup (file/line).
-var FastCaller atomic.Bool
+var (
+	// enableCaller controls whether to enable caller lookup (file/line).
+	enableCaller = true
+
+	// fastCaller controls whether to use a faster but less accurate
+	// implementation of caller lookup (file/line).
+	fastCaller = false
+)
 
 func init() {
-	FastCaller.Store(true)
+	// Property: enableCaller
+	RegisterProperty("enableCaller", func(s string) error {
+		b, err := strconv.ParseBool(s)
+		if err != nil {
+			return errutil.Stack(err, "invalid enableCaller: %q", s)
+		}
+		enableCaller = b
+		return nil
+	})
+
+	// Property: fastCaller
 	RegisterProperty("fastCaller", func(s string) error {
 		b, err := strconv.ParseBool(s)
 		if err != nil {
-			return util.WrapError(err, "invalid fastCaller: %q", s)
+			return errutil.Stack(err, "invalid fastCaller: %q", s)
 		}
-		FastCaller.Store(b)
+		fastCaller = b
 		return nil
 	})
 }
 
-// defaultLogger is the default logger associated with tags created
-// before custom loggers are fully configured.
+// defaultLogger serves as the fallback logger used when no custom logger
+// has been configured for a specific tag.
 var defaultLogger Logger = &ConsoleLogger{
 	LoggerBase: LoggerBase{
 		Level: LevelRange{
@@ -137,6 +152,28 @@ var (
 	TagBizDef = RegisterBizTag("def", "")
 )
 
+// RegisterAppTag registers or retrieves a Tag intended for application-layer logs.
+//   - subType: component or module name
+//   - action: lifecycle phase or behavior (optional)
+func RegisterAppTag(subType, action string) *Tag {
+	return RegisterTag(BuildTag("app", subType, action))
+}
+
+// RegisterBizTag registers or retrieves a Tag intended for business-logic logs.
+//   - subType: business domain or feature name
+//   - action: operation being logged (optional)
+func RegisterBizTag(subType, action string) *Tag {
+	return RegisterTag(BuildTag("biz", subType, action))
+}
+
+// RegisterRPCTag registers or retrieves a Tag intended for RPC logs,
+// covering external/internal dependency interactions.
+//   - subType: protocol or target system (e.g., http, grpc, redis)
+//   - action: RPC phase (e.g., send, retry, fail)
+func RegisterRPCTag(subType, action string) *Tag {
+	return RegisterTag(BuildTag("rpc", subType, action))
+}
+
 var (
 	// TimeNow is an overrideable function to provide custom timestamps.
 	// For example, this can be replaced during testing to return a fixed time.
@@ -151,109 +188,144 @@ var (
 	FieldsFromContext func(ctx context.Context) []Field
 )
 
-// Trace logs at TraceLevel using a tag and a lazy field generator function.
-// The function fn() is only executed if TraceLevel logging is enabled.
+// getLogger returns the logger associated with the given tag.
+// If no logger is bound, the default logger is returned.
+func getLogger(tag *Tag) Logger {
+	if tag.logger != nil {
+		return tag.logger
+	}
+	return defaultLogger
+}
+
+// Trace logs a message at TraceLevel using a lazy field generator.
+// The generator function is only invoked if the level is enabled.
 func Trace(ctx context.Context, tag *Tag, fn func() []Field) {
-	if tag.logger.GetLevel().Enable(TraceLevel) {
-		Record(ctx, TraceLevel, tag, 2, fn()...)
+	if l := getLogger(tag); l.GetLevel().Enable(TraceLevel) {
+		record(ctx, TraceLevel, tag.tag, l, 2, fn()...)
 	}
 }
 
-// Tracef logs at TraceLevel using a tag and a formatted message.
-// Message formatting is only performed if TraceLevel logging is enabled.
+// Tracef logs a formatted message at TraceLevel.
 func Tracef(ctx context.Context, tag *Tag, format string, args ...any) {
-	if tag.logger.GetLevel().Enable(TraceLevel) {
-		Record(ctx, TraceLevel, tag, 2, Msgf(format, args...))
+	if l := getLogger(tag); l.GetLevel().Enable(TraceLevel) {
+		record(ctx, TraceLevel, tag.tag, l, 2, Msgf(format, args...))
 	}
 }
 
-// Debug logs at DebugLevel using a tag and a lazy field generator function.
-// The function fn() is only executed if DebugLevel logging is enabled.
+// Debug logs a message at DebugLevel using a lazy field generator.
+// The generator function is only invoked if the level is enabled.
 func Debug(ctx context.Context, tag *Tag, fn func() []Field) {
-	if tag.logger.GetLevel().Enable(DebugLevel) {
-		Record(ctx, DebugLevel, tag, 2, fn()...)
+	if l := getLogger(tag); l.GetLevel().Enable(DebugLevel) {
+		record(ctx, DebugLevel, tag.tag, l, 2, fn()...)
 	}
 }
 
-// Debugf logs at DebugLevel using a tag and a formatted message.
-// Message formatting is only performed if DebugLevel logging is enabled.
+// Debugf logs a formatted message at DebugLevel.
 func Debugf(ctx context.Context, tag *Tag, format string, args ...any) {
-	if tag.logger.GetLevel().Enable(DebugLevel) {
-		Record(ctx, DebugLevel, tag, 2, Msgf(format, args...))
+	if l := getLogger(tag); l.GetLevel().Enable(DebugLevel) {
+		record(ctx, DebugLevel, tag.tag, l, 2, Msgf(format, args...))
 	}
 }
 
-// Info logs at InfoLevel with structured fields.
+// Info logs structured fields at InfoLevel.
 func Info(ctx context.Context, tag *Tag, fields ...Field) {
-	Record(ctx, InfoLevel, tag, 2, fields...)
+	if l := getLogger(tag); l.GetLevel().Enable(InfoLevel) {
+		record(ctx, InfoLevel, tag.tag, l, 2, fields...)
+	}
 }
 
-// Infof logs at InfoLevel using a formatted message.
+// Infof logs a formatted message at InfoLevel.
 func Infof(ctx context.Context, tag *Tag, format string, args ...any) {
-	Record(ctx, InfoLevel, tag, 2, Msgf(format, args...))
+	if l := getLogger(tag); l.GetLevel().Enable(InfoLevel) {
+		record(ctx, InfoLevel, tag.tag, l, 2, Msgf(format, args...))
+	}
 }
 
-// Warn logs at WarnLevel with structured fields.
+// Warn logs structured fields at WarnLevel.
 func Warn(ctx context.Context, tag *Tag, fields ...Field) {
-	Record(ctx, WarnLevel, tag, 2, fields...)
+	if l := getLogger(tag); l.GetLevel().Enable(WarnLevel) {
+		record(ctx, WarnLevel, tag.tag, l, 2, fields...)
+	}
 }
 
-// Warnf logs at WarnLevel using a formatted message.
+// Warnf logs a formatted message at WarnLevel.
 func Warnf(ctx context.Context, tag *Tag, format string, args ...any) {
-	Record(ctx, WarnLevel, tag, 2, Msgf(format, args...))
+	if l := getLogger(tag); l.GetLevel().Enable(WarnLevel) {
+		record(ctx, WarnLevel, tag.tag, l, 2, Msgf(format, args...))
+	}
 }
 
-// Error logs at ErrorLevel with structured fields.
+// Error logs structured fields at ErrorLevel.
 func Error(ctx context.Context, tag *Tag, fields ...Field) {
-	Record(ctx, ErrorLevel, tag, 2, fields...)
+	if l := getLogger(tag); l.GetLevel().Enable(ErrorLevel) {
+		record(ctx, ErrorLevel, tag.tag, l, 2, fields...)
+	}
 }
 
-// Errorf logs at ErrorLevel using a formatted message.
+// Errorf logs a formatted message at ErrorLevel.
 func Errorf(ctx context.Context, tag *Tag, format string, args ...any) {
-	Record(ctx, ErrorLevel, tag, 2, Msgf(format, args...))
+	if l := getLogger(tag); l.GetLevel().Enable(ErrorLevel) {
+		record(ctx, ErrorLevel, tag.tag, l, 2, Msgf(format, args...))
+	}
 }
 
-// Panic logs at PanicLevel with structured fields.
+// Panic logs structured fields at PanicLevel.
 func Panic(ctx context.Context, tag *Tag, fields ...Field) {
-	Record(ctx, PanicLevel, tag, 2, fields...)
+	if l := getLogger(tag); l.GetLevel().Enable(PanicLevel) {
+		record(ctx, PanicLevel, tag.tag, l, 2, fields...)
+	}
 }
 
-// Panicf logs at PanicLevel using a formatted message.
+// Panicf logs a formatted message at PanicLevel.
 func Panicf(ctx context.Context, tag *Tag, format string, args ...any) {
-	Record(ctx, PanicLevel, tag, 2, Msgf(format, args...))
+	if l := getLogger(tag); l.GetLevel().Enable(PanicLevel) {
+		record(ctx, PanicLevel, tag.tag, l, 2, Msgf(format, args...))
+	}
 }
 
-// Fatal logs at FatalLevel with structured fields.
+// Fatal logs structured fields at FatalLevel.
 func Fatal(ctx context.Context, tag *Tag, fields ...Field) {
-	Record(ctx, FatalLevel, tag, 2, fields...)
+	if l := getLogger(tag); l.GetLevel().Enable(FatalLevel) {
+		record(ctx, FatalLevel, tag.tag, l, 2, fields...)
+	}
 }
 
-// Fatalf logs at FatalLevel using a formatted message.
+// Fatalf logs a formatted message at FatalLevel.
 func Fatalf(ctx context.Context, tag *Tag, format string, args ...any) {
-	Record(ctx, FatalLevel, tag, 2, Msgf(format, args...))
+	if l := getLogger(tag); l.GetLevel().Enable(FatalLevel) {
+		record(ctx, FatalLevel, tag.tag, l, 2, Msgf(format, args...))
+	}
 }
 
-// Record is the core logging function.
-//
-// Responsibilities:
-//  1. Check whether the logger is enabled for the given level.
-//  2. Capture caller information (file, line). When FastCaller is enabled,
-//     a faster but less precise lookup is used.
-//  3. Determine the log timestamp, either via TimeNow (if set) or time.Now().
-//  4. Extract context-based metadata via StringFromContext and FieldsFromContext.
-//  5. Populate a pooled Event object with all gathered data.
-//  6. Publish the Event to the logger.
+// Record logs a message at the given level for the given tag.
 func Record(ctx context.Context, level Level, tag *Tag, skip int, fields ...Field) {
+	if l := getLogger(tag); l.GetLevel().Enable(level) {
+		record(ctx, level, tag.tag, l, skip, fields...)
+	}
+}
+
+// record performs the actual logging logic after level checking.
+func record(ctx context.Context, level Level, tag string, logger Logger, skip int, fields ...Field) {
 
 	// Step 1: check if logging is enabled for this level.
-	if !tag.logger.GetLevel().Enable(level) {
+	if !logger.GetLevel().Enable(level) {
 		return
 	}
 
-	// Step 2: resolve caller information.
-	file, line := Caller(skip, FastCaller.Load())
+	// Step 2: capture caller information.
+	var (
+		file string
+		line int
+	)
+	if enableCaller {
+		if fastCaller {
+			file, line = FastCaller(skip)
+		} else {
+			_, file, line, _ = runtime.Caller(skip + 1)
+		}
+	}
 
-	// Step 3: determine log timestamp.
+	// Step 3: get log timestamp.
 	now := time.Now()
 	if TimeNow != nil {
 		now = TimeNow(ctx)
@@ -276,11 +348,11 @@ func Record(ctx context.Context, level Level, tag *Tag, skip int, fields ...Fiel
 	e.Time = now
 	e.File = file
 	e.Line = line
-	e.Tag = tag.tag
+	e.Tag = tag
 	e.Fields = fields
 	e.CtxString = ctxString
 	e.CtxFields = ctxFields
 
 	// Step 6: publish the event.
-	tag.logger.Append(e)
+	logger.Append(e)
 }

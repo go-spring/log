@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"context"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -71,15 +70,6 @@ func init() {
 func TestLog(t *testing.T) {
 	ctx := t.Context()
 	_ = os.Remove("log.txt")
-
-	oldCaller := log.Caller
-	defer func() { log.Caller = oldCaller }()
-
-	log.Caller = func(skip int, fast bool) (file string, line int) {
-		file, line = oldCaller(skip+1, fast)
-		file = filepath.Base(file)
-		return
-	}
 
 	logBuf := bytes.NewBuffer(nil)
 	log.Stdout = logBuf

@@ -24,7 +24,7 @@ import (
 	"sync/atomic"
 	"unicode"
 
-	"github.com/go-spring/spring-base/util"
+	"github.com/lvan100/errutil"
 )
 
 var (
@@ -38,7 +38,7 @@ func init() {
 	RegisterProperty("bufferCap", func(s string) error {
 		n, err := ParseHumanizeBytes(s)
 		if err != nil {
-			return util.WrapError(err, "invalid bufferCap: %q", s)
+			return errutil.Stack(err, "invalid bufferCap: %q", s)
 		}
 		BufferCap.Store(int32(n))
 		return nil
@@ -79,7 +79,7 @@ func ParseHumanizeBytes(s string) (HumanizeBytes, error) {
 		f *= m
 		return HumanizeBytes(f), nil
 	}
-	return 0, util.FormatError(nil, "unhandled size name: %q", extra)
+	return 0, errutil.Explain(nil, "unhandled size name: %q", extra)
 }
 
 // Layout defines how a log event is formatted into bytes.

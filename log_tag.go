@@ -103,25 +103,3 @@ func BuildTag(mainType, subType, action string) string {
 	}
 	return "_" + mainType + "_" + subType + "_" + action
 }
-
-// RegisterAppTag registers or retrieves a Tag intended for application-layer logs.
-//   - subType: component or module name
-//   - action: lifecycle phase or behavior (optional)
-func RegisterAppTag(subType, action string) *Tag {
-	return RegisterTag(BuildTag("app", subType, action))
-}
-
-// RegisterBizTag registers or retrieves a Tag intended for business-logic logs.
-//   - subType: business domain or feature name
-//   - action: operation being logged (optional)
-func RegisterBizTag(subType, action string) *Tag {
-	return RegisterTag(BuildTag("biz", subType, action))
-}
-
-// RegisterRPCTag registers or retrieves a Tag intended for RPC logs,
-// covering external/internal dependency interactions.
-//   - subType: protocol or target system (e.g., http, grpc, redis)
-//   - action: RPC phase (e.g., send, retry, fail)
-func RegisterRPCTag(subType, action string) *Tag {
-	return RegisterTag(BuildTag("rpc", subType, action))
-}

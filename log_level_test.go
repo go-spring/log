@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/go-spring/spring-base/testing/assert"
-	"github.com/go-spring/spring-base/util"
+	"github.com/lvan100/errutil"
 )
 
 func TestRegisterLevel(t *testing.T) {
@@ -70,7 +70,7 @@ func TestParseLevelRange(t *testing.T) {
 		{
 			str:     "unknown",
 			want:    LevelRange{},
-			wantErr: util.FormatError(nil, "invalid log level: %q", "unknown"),
+			wantErr: errutil.Explain(nil, "invalid log level: %q", "unknown"),
 		},
 	}
 	for _, tt := range tests {

@@ -88,10 +88,10 @@ type ErrorListener struct {
 // SyntaxError is called by ANTLR when a syntax error occurs.
 func (l *ErrorListener) SyntaxError(_ antlr.Recognizer, _ any, line, column int, msg string, e antlr.RecognitionException) {
 	if l.Error == nil {
-		l.Error = fmt.Errorf("line %d:%d %s << text: %q", line, column, msg, l.Data)
+		l.Error = fmt.Errorf("line %d:%d %s >> text: %q", line, column, msg, l.Data)
 		return
 	}
-	l.Error = fmt.Errorf("%w\nline %d:%d %s << text: %q", l.Error, line, column, msg, l.Data)
+	l.Error = fmt.Errorf("%w\nline %d:%d %s >> text: %q", l.Error, line, column, msg, l.Data)
 }
 
 // ParseTreeListener walks the parse tree and builds the key-value map.

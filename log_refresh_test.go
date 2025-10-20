@@ -74,7 +74,7 @@ func TestRefreshConfig(t *testing.T) {
 			appender=ERROR_PROPERTY
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
-		assert.Error(t, err).String("read appenders section error << property conflict at path appender")
+		assert.Error(t, err).String("read appenders section error >> property conflict at path appender")
 	})
 
 	t.Run("read loggers error", func(t *testing.T) {
@@ -210,7 +210,7 @@ func TestRefreshConfig(t *testing.T) {
 			logger.myLogger.appenderRef.ref=console
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
-		assert.Error(t, err).String(`create logger myLogger error << tag '**' is invalid`)
+		assert.Error(t, err).String(`create logger myLogger error >> tag '**' is invalid`)
 	})
 
 	t.Run("logger start error", func(t *testing.T) {
@@ -228,7 +228,7 @@ func TestRefreshConfig(t *testing.T) {
 			logger.myLogger.appenderRef.ref=console
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
-		assert.Error(t, err).String("logger myLogger start error << bufferSize is too small")
+		assert.Error(t, err).String("logger myLogger start error >> bufferSize is too small")
 	})
 
 	t.Run("logger start error", func(t *testing.T) {
@@ -246,7 +246,7 @@ func TestRefreshConfig(t *testing.T) {
 			logger.myLogger.appenderRef.ref=console
 		`
 		err := RefreshReader(strings.NewReader(content), ".properties")
-		assert.Error(t, err).String(`inject property bufferCap error << invalid bufferCap: "1GB" << unhandled size name: "GB"`)
+		assert.Error(t, err).String(`inject property bufferCap error >> invalid bufferCap: "1GB" >> unhandled size name: "GB"`)
 	})
 
 }

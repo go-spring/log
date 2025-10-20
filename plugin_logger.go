@@ -20,7 +20,7 @@ import (
 	"sort"
 	"sync/atomic"
 
-	"github.com/go-spring/spring-base/util"
+	"github.com/lvan100/errutil"
 )
 
 func init() {
@@ -214,7 +214,7 @@ func ParseBufferFullPolicy(s string) (BufferFullPolicy, error) {
 	case "DiscardOldest":
 		return BufferFullPolicyDiscardOldest, nil
 	default:
-		return -1, util.FormatError(nil, "invalid BufferFullPolicy %s", s)
+		return -1, errutil.Explain(nil, "invalid BufferFullPolicy %s", s)
 	}
 }
 
@@ -242,7 +242,7 @@ func (c *AsyncLogger) GetDiscardCounter() int64 {
 // Start initializes the AsyncLogger and launches the worker goroutine.
 func (c *AsyncLogger) Start() error {
 	if c.BufferSize < 100 {
-		return util.FormatError(nil, "bufferSize is too small")
+		return errutil.Explain(nil, "bufferSize is too small")
 	}
 
 	c.buf = make(chan any, c.BufferSize)

@@ -25,15 +25,9 @@ import (
 // Benchmarking shows that using this cache improves performance by about 50%.
 var frameCache sync.Map
 
-// Caller returns the file name and line number of the calling function.
-// If 'fast' is true, it uses a cache to speed up the lookup.
-var Caller = func(skip int, fast bool) (file string, line int) {
-
-	if !fast {
-		_, file, line, _ = runtime.Caller(skip + 1)
-		return
-	}
-
+// FastCaller returns the file name and line number of the calling function.
+// It uses a cache to speed up the lookup.
+func FastCaller(skip int) (file string, line int) {
 	rpc := make([]uintptr, 1)
 	n := runtime.Callers(skip+2, rpc[:])
 	if n < 1 {

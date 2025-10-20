@@ -17,6 +17,7 @@
 package log
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/go-spring/spring-base/testing/assert"
@@ -25,35 +26,35 @@ import (
 func TestCaller(t *testing.T) {
 
 	t.Run("error skip", func(t *testing.T) {
-		file, line := Caller(100, true)
+		file, line := FastCaller(100)
 		assert.String(t, file).Equal("")
 		assert.That(t, line).Equal(0)
 	})
 
 	t.Run("fast false", func(t *testing.T) {
-		file, line := Caller(0, false)
+		_, file, line, _ := runtime.Caller(0)
 		assert.String(t, file).Matches(".*/caller_test.go")
-		assert.That(t, line).Equal(34)
+		assert.That(t, line).Equal(35)
 	})
 
 	t.Run("fast true", func(t *testing.T) {
 		for range 2 {
-			file, line := Caller(0, true)
+			file, line := FastCaller(0)
 			assert.String(t, file).Matches(".*/caller_test.go")
-			assert.That(t, line).Equal(41)
+			assert.That(t, line).Equal(42)
 		}
 	})
 
 	t.Run("cache behavior", func(t *testing.T) {
-		file1, line1 := Caller(0, true)
-		file2, line2 := Caller(0, true)
+		file1, line1 := FastCaller(0)
+		file2, line2 := FastCaller(0)
 		assert.String(t, file1).Equal(file2)
 		assert.Number(t, line1).Equal(line2 - 1)
 	})
 
 	t.Run("fast vs slow consistency", func(t *testing.T) {
-		fileFast, lineFast := Caller(0, true)
-		fileSlow, lineSlow := Caller(0, false)
+		fileFast, lineFast := FastCaller(0)
+		_, fileSlow, lineSlow, _ := runtime.Caller(0)
 		assert.String(t, fileFast).Equal(fileSlow)
 		assert.Number(t, lineFast).Equal(lineSlow - 1)
 	})
@@ -69,33 +70,35 @@ func BenchmarkCaller(b *testing.B) {
 
 	b.Run("fast skip 0", func(b *testing.B) {
 		for b.Loop() {
-			Caller(0, true)
+			FastCaller(0)
 		}
 	})
 
 	b.Run("slow skip 0", func(b *testing.B) {
 		for b.Loop() {
-			Caller(0, false)
+			_, file, line, _ := runtime.Caller(0)
+			_, _ = file, line
 		}
 	})
 
 	b.Run("fast skip 1", func(b *testing.B) {
 		for b.Loop() {
-			Caller(1, true)
+			FastCaller(1)
 		}
 	})
 
 	b.Run("slow skip 1", func(b *testing.B) {
 		for b.Loop() {
-			Caller(1, false)
+			_, file, line, _ := runtime.Caller(0)
+			_, _ = file, line
 		}
 	})
 
 	b.Run("fast cache hit", func(b *testing.B) {
-		Caller(0, true)
+		FastCaller(0)
 		b.ResetTimer()
 		for b.Loop() {
-			Caller(0, true)
+			FastCaller(0)
 		}
 	})
 }

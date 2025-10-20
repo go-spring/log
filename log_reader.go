@@ -25,7 +25,7 @@ import (
 
 	"github.com/go-spring/log/expr"
 	"github.com/go-spring/spring-base/barky"
-	"github.com/go-spring/spring-base/util"
+	"github.com/lvan100/errutil"
 	"github.com/magiconair/properties"
 	"gopkg.in/yaml.v2"
 )
@@ -63,7 +63,7 @@ func readConfigFromFile(fileName string) (*barky.Storage, error) {
 func readConfigFromReader(reader io.Reader, ext string) (*barky.Storage, error) {
 	r, ok := fileReaders[ext]
 	if !ok {
-		return nil, util.FormatError(nil, "unsupported file type %s", ext)
+		return nil, errutil.Explain(nil, "unsupported file type %s", ext)
 	}
 
 	data, err := io.ReadAll(reader)
@@ -85,7 +85,7 @@ func ReadProperties(b []byte) (map[string]any, error) {
 	p := properties.NewProperties()
 	p.DisableExpansion = true
 	if err := p.Load(b, properties.UTF8); err != nil {
-		return nil, util.FormatError(err, "ReadProperties error")
+		return nil, errutil.Explain(err, "ReadProperties error")
 	}
 	r := make(map[string]any)
 	for k, v := range p.Map() {
@@ -98,7 +98,7 @@ func ReadProperties(b []byte) (map[string]any, error) {
 func ReadJSON(b []byte) (map[string]any, error) {
 	var r map[string]any
 	if err := json.Unmarshal(b, &r); err != nil {
-		return nil, util.FormatError(err, "ReadJSON error")
+		return nil, errutil.Explain(err, "ReadJSON error")
 	}
 	return r, nil
 }
@@ -107,7 +107,7 @@ func ReadJSON(b []byte) (map[string]any, error) {
 func ReadYAML(b []byte) (map[string]any, error) {
 	var r map[string]any
 	if err := yaml.Unmarshal(b, &r); err != nil {
-		return nil, util.FormatError(err, "ReadYAML error")
+		return nil, errutil.Explain(err, "ReadYAML error")
 	}
 	return r, nil
 }
@@ -138,16 +138,16 @@ func toStorage(m map[string]string) (*barky.Storage, error) {
 		if k, ok = strings.CutSuffix(toCamelKey(k), "!"); ok {
 			subMap, err := expr.Parse(v)
 			if err != nil {
-				return nil, util.FormatError(err, "toStorage error")
+				return nil, errutil.Explain(err, "toStorage error")
 			}
 			for k2, v2 := range subMap {
 				if err = s.Set(k+"."+toCamelKey(k2), v2, 0); err != nil {
-					return nil, util.FormatError(err, "toStorage error")
+					return nil, errutil.Explain(err, "toStorage error")
 				}
 			}
 		} else {
 			if err := s.Set(k, v, 0); err != nil {
-				return nil, util.FormatError(err, "toStorage error")
+				return nil, errutil.Explain(err, "toStorage error")
 			}
 		}
 	}
