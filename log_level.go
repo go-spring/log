@@ -19,7 +19,7 @@ package log
 import (
 	"strings"
 
-	"github.com/lvan100/errutil"
+	"github.com/lvan100/golib/errutil"
 )
 
 func init() {

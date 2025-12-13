@@ -21,7 +21,7 @@ import (
 
 	"github.com/go-spring/log/expr"
 	"github.com/go-spring/spring-base/barky"
-	"github.com/lvan100/errutil"
+	"github.com/lvan100/golib/errutil"
 )
 
 // toStorage converts a flattened string map into a *barky.Storage instance.

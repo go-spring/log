@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	"github.com/go-spring/spring-base/barky"
-	"github.com/lvan100/errutil"
+	"github.com/lvan100/golib/errutil"
 )
 
 // RootLoggerName defines the reserved name for the root logger.

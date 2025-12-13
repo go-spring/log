@@ -20,7 +20,7 @@ import (
 	"sort"
 	"sync/atomic"
 
-	"github.com/lvan100/errutil"
+	"github.com/lvan100/golib/errutil"
 )
 
 func init() {

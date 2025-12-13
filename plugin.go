@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	"github.com/go-spring/spring-base/barky"
-	"github.com/lvan100/errutil"
+	"github.com/lvan100/golib/errutil"
 )
 
 // typeConverters holds user-defined type conversion functions

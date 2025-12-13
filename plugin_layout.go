@@ -24,7 +24,7 @@ import (
 	"sync/atomic"
 	"unicode"
 
-	"github.com/lvan100/errutil"
+	"github.com/lvan100/golib/errutil"
 )
 
 var (

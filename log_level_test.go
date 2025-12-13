@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/go-spring/spring-base/testing/assert"
-	"github.com/lvan100/errutil"
+	"github.com/lvan100/golib/errutil"
 )
 
 func TestRegisterLevel(t *testing.T) {
