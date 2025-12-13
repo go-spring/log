@@ -17,100 +17,12 @@
 package log
 
 import (
-	"encoding/json"
-	"io"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/go-spring/log/expr"
 	"github.com/go-spring/spring-base/barky"
 	"github.com/lvan100/errutil"
-	"github.com/magiconair/properties"
-	"gopkg.in/yaml.v2"
 )
-
-var fileReaders = map[string]Reader{}
-
-func init() {
-	RegisterReader(ReadJSON, ".json")
-	RegisterReader(ReadYAML, ".yml", ".yaml")
-	RegisterReader(ReadProperties, ".properties")
-}
-
-// Reader defines a function that converts a byte slice into a map.
-type Reader func([]byte) (map[string]any, error)
-
-// RegisterReader registers a Reader function for one or more file extensions.
-func RegisterReader(r Reader, ext ...string) {
-	for _, s := range ext {
-		fileReaders[strings.ToLower(s)] = r
-	}
-}
-
-// readConfigFromFile reads a configuration file and returns a *barky.Storage.
-func readConfigFromFile(fileName string) (*barky.Storage, error) {
-	file, err := os.Open(fileName)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = file.Close() }()
-	ext := strings.ToLower(filepath.Ext(fileName))
-	return readConfigFromReader(file, ext)
-}
-
-// readConfigFromReader reads configuration from an io.Reader given a file extension.
-func readConfigFromReader(reader io.Reader, ext string) (*barky.Storage, error) {
-	r, ok := fileReaders[ext]
-	if !ok {
-		return nil, errutil.Explain(nil, "unsupported file type %s", ext)
-	}
-
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, err
-	}
-
-	m, err := r(data)
-	if err != nil {
-		return nil, err
-	}
-
-	// Flatten nested maps and convert to *barky.Storage
-	return toStorage(barky.FlattenMap(m))
-}
-
-// ReadProperties parses a properties file into a map.
-func ReadProperties(b []byte) (map[string]any, error) {
-	p := properties.NewProperties()
-	p.DisableExpansion = true
-	if err := p.Load(b, properties.UTF8); err != nil {
-		return nil, errutil.Explain(err, "ReadProperties error")
-	}
-	r := make(map[string]any)
-	for k, v := range p.Map() {
-		r[k] = v
-	}
-	return r, nil
-}
-
-// ReadJSON parses a JSON file into a map.
-func ReadJSON(b []byte) (map[string]any, error) {
-	var r map[string]any
-	if err := json.Unmarshal(b, &r); err != nil {
-		return nil, errutil.Explain(err, "ReadJSON error")
-	}
-	return r, nil
-}
-
-// ReadYAML parses a YAML file into a map.
-func ReadYAML(b []byte) (map[string]any, error) {
-	var r map[string]any
-	if err := yaml.Unmarshal(b, &r); err != nil {
-		return nil, errutil.Explain(err, "ReadYAML error")
-	}
-	return r, nil
-}
 
 // toStorage converts a flattened string map into a *barky.Storage instance.
 // It interprets keys with a "!" suffix as nested map structures, parsing their

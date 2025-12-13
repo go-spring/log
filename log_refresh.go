@@ -17,7 +17,6 @@
 package log
 
 import (
-	"io"
 	"reflect"
 	"strings"
 
@@ -35,28 +34,13 @@ var global struct {
 	appenders []Appender
 }
 
-// RefreshFile loads a logging configuration from a file.
-// The file format is automatically detected by its extension.
-func RefreshFile(fileName string) error {
-	s, err := readConfigFromFile(fileName)
-	if err != nil {
-		return errutil.Explain(err, "RefreshFile error")
-	}
-	return RefreshConfig(s)
-}
+// Refresh loads a logging configuration from a *barky.Storage.
+func Refresh(s *barky.Storage) error {
 
-// RefreshReader loads a logging configuration from an io.Reader.
-// The `ext` specifies the configuration format (e.g., "yaml", "json").
-func RefreshReader(r io.Reader, ext string) error {
-	s, err := readConfigFromReader(r, ext)
+	s, err := toStorage(s.Data())
 	if err != nil {
-		return errutil.Explain(err, "RefreshReader error")
+		return errutil.Stack(err, "toStorage error")
 	}
-	return RefreshConfig(s)
-}
-
-// RefreshConfig loads a logging configuration from a *barky.Storage.
-func RefreshConfig(s *barky.Storage) error {
 
 	// Read appenders
 	appenders, err := s.SubKeys("appender")
