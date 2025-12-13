@@ -19,8 +19,8 @@ package log
 import (
 	"testing"
 
-	"github.com/go-spring/spring-base/testing/assert"
 	"github.com/lvan100/golib/errutil"
+	"github.com/lvan100/golib/testing/assert"
 )
 
 func TestRegisterLevel(t *testing.T) {

@@ -20,11 +20,11 @@ import (
 	"strings"
 
 	"github.com/go-spring/log/expr"
-	"github.com/go-spring/spring-base/barky"
 	"github.com/lvan100/golib/errutil"
+	"github.com/lvan100/golib/flatten"
 )
 
-// toStorage converts a flattened string map into a *barky.Storage instance.
+// toStorage converts a flattened string map into a *flatten.Storage instance.
 // It interprets keys with a "!" suffix as nested map structures, parsing their
 // values using expr.Parse() and inserting them under a composite key.
 //
@@ -36,13 +36,13 @@ import (
 //	    "db!": "{host: localhost, port: 5432}",
 //	  }
 //	Output:
-//	  barky.Storage{
+//	  flatten.Storage{
 //	    "app.name": "MyApp",
 //	    "db.host":  "localhost",
 //	    "db.port":  "5432",
 //	  }
-func toStorage(m map[string]string) (*barky.Storage, error) {
-	s := barky.NewStorage()
+func toStorage(m map[string]string) (*flatten.Storage, error) {
+	s := flatten.NewStorage()
 	for k, v := range m {
 		var ok bool
 		// Normalize key to CamelCase and check for "!" suffix,

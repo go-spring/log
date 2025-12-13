@@ -25,7 +25,7 @@ package log_test
 //	"time"
 //
 //	"github.com/go-spring/log"
-//	"github.com/go-spring/spring-base/testing/assert"
+//	"github.com/lvan100/golib/testing/assert"
 //)
 //
 //var (

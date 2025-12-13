@@ -20,8 +20,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/go-spring/spring-base/barky"
 	"github.com/lvan100/golib/errutil"
+	"github.com/lvan100/golib/flatten"
 )
 
 // RootLoggerName defines the reserved name for the root logger.
@@ -34,8 +34,8 @@ var global struct {
 	appenders []Appender
 }
 
-// Refresh loads a logging configuration from a *barky.Storage.
-func Refresh(s *barky.Storage) error {
+// Refresh loads a logging configuration from a *flatten.Storage.
+func Refresh(s *flatten.Storage) error {
 
 	s, err := toStorage(s.Data())
 	if err != nil {

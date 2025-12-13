@@ -20,8 +20,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-spring/spring-base/testing/assert"
 	"github.com/lvan100/golib/errutil"
+	"github.com/lvan100/golib/testing/assert"
 )
 
 func TestParseHumanizeBytes(t *testing.T) {

@@ -20,9 +20,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/go-spring/spring-base/barky"
-	"github.com/go-spring/spring-base/testing/assert"
-	"github.com/go-spring/spring-base/testing/require"
+	"github.com/lvan100/golib/flatten"
+	"github.com/lvan100/golib/testing/assert"
+	"github.com/lvan100/golib/testing/require"
 )
 
 func TestReaders(t *testing.T) {
@@ -93,7 +93,7 @@ func TestReaders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p, err := toStorage(barky.FlattenMap(m))
+	p, err := toStorage(flatten.Flatten(m))
 	require.Error(t, err).Nil()
 	_ = p.Set("logger.root.appenderRef.type", "AppenderRef", 0)
 	_ = p.Set("logger.myLogger.appenderRef[0].type", "AppenderRef", 0)

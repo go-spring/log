@@ -20,8 +20,8 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/go-spring/spring-base/testing/assert"
 	"github.com/go-spring/spring-base/util"
+	"github.com/lvan100/golib/testing/assert"
 )
 
 var testFields = []Field{

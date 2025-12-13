@@ -22,8 +22,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/go-spring/spring-base/barky"
 	"github.com/lvan100/golib/errutil"
+	"github.com/lvan100/golib/flatten"
 )
 
 // typeConverters holds user-defined type conversion functions
@@ -112,7 +112,7 @@ func RegisterPlugin[T any](name string, typ PluginType) {
 }
 
 // NewPlugin creates a new plugin instance and injects configuration values.
-func NewPlugin(t reflect.Type, prefix string, s *barky.Storage) (reflect.Value, error) {
+func NewPlugin(t reflect.Type, prefix string, s *flatten.Storage) (reflect.Value, error) {
 	v := reflect.New(t)
 	if err := inject(v.Elem(), t, prefix, s); err != nil {
 		return reflect.Value{}, errutil.Stack(err, "create plugin %s error", t.String())
@@ -121,7 +121,7 @@ func NewPlugin(t reflect.Type, prefix string, s *barky.Storage) (reflect.Value, 
 }
 
 // inject recursively sets struct fields based on `PluginAttribute` and `PluginElement` tags.
-func inject(v reflect.Value, t reflect.Type, prefix string, s *barky.Storage) error {
+func inject(v reflect.Value, t reflect.Type, prefix string, s *flatten.Storage) error {
 	for i := range v.NumField() {
 		ft := t.Field(i)
 		fv := v.Field(i)
@@ -185,7 +185,7 @@ func (tag PluginTag) Lookup(key string) (value string, ok bool) {
 // RegisterConverter) are used if available.
 //
 // It also supports placeholder syntax `${prop}` for property substitution.
-func injectAttribute(tag string, fv reflect.Value, ft reflect.StructField, prefix string, s *barky.Storage) error {
+func injectAttribute(tag string, fv reflect.Value, ft reflect.StructField, prefix string, s *flatten.Storage) error {
 
 	attrTag := PluginTag(tag)
 	attrName := attrTag.Get("")
@@ -275,7 +275,7 @@ func injectAttribute(tag string, fv reflect.Value, ft reflect.StructField, prefi
 }
 
 // injectElement injects child plugin elements into a struct field.
-func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix string, s *barky.Storage) error {
+func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix string, s *flatten.Storage) error {
 
 	elemTag := PluginTag(tag)
 	elemType := elemTag.Get("")
