@@ -25,31 +25,7 @@ import (
 	"github.com/lvan100/golib/testing/require"
 )
 
-func TestReaders(t *testing.T) {
-	expected := map[string]string{
-		"appender.console.layout.type":        "TextLayout",
-		"appender.console.type":               "Console",
-		"appender.file.fileName":              "log.txt",
-		"appender.file.layout.type":           "JSONLayout",
-		"appender.file.type":                  "File",
-		"appender.sample.layout.type":         "TextLayout",
-		"appender.sample.type":                "Sample",
-		"bufferCap":                           "1KB",
-		"bufferSize":                          "1000",
-		"logger.myLogger.appenderRef[0].ref":  "file",
-		"logger.myLogger.appenderRef[0].type": "AppenderRef",
-		"logger.myLogger.appenderRef[1].ref":  "sample",
-		"logger.myLogger.appenderRef[1].type": "AppenderRef",
-		"logger.myLogger.bufferSize":          "${bufferSize}",
-		"logger.myLogger.level":               "trace",
-		"logger.myLogger.tags":                "_com_request_in,_com_request_*",
-		"logger.myLogger.type":                "AsyncLogger",
-		"logger.root.appenderRef.ref":         "console",
-		"logger.root.appenderRef.type":        "AppenderRef",
-		"logger.root.level":                   "warn",
-		"logger.root.type":                    "Logger",
-	}
-
+func readConfig() map[string]string {
 	s := `
 	{
 	  "bufferCap": "1KB",
@@ -90,10 +66,37 @@ func TestReaders(t *testing.T) {
 
 	var m map[string]any
 	if err := json.Unmarshal([]byte(s), &m); err != nil {
-		t.Fatal(err)
+		panic(err)
+	}
+	return flatten.Flatten(m)
+}
+
+func TestReaders(t *testing.T) {
+	expected := map[string]string{
+		"appender.console.layout.type":        "TextLayout",
+		"appender.console.type":               "Console",
+		"appender.file.fileName":              "log.txt",
+		"appender.file.layout.type":           "JSONLayout",
+		"appender.file.type":                  "File",
+		"appender.sample.layout.type":         "TextLayout",
+		"appender.sample.type":                "Sample",
+		"bufferCap":                           "1KB",
+		"bufferSize":                          "1000",
+		"logger.myLogger.appenderRef[0].ref":  "file",
+		"logger.myLogger.appenderRef[0].type": "AppenderRef",
+		"logger.myLogger.appenderRef[1].ref":  "sample",
+		"logger.myLogger.appenderRef[1].type": "AppenderRef",
+		"logger.myLogger.bufferSize":          "${bufferSize}",
+		"logger.myLogger.level":               "trace",
+		"logger.myLogger.tags":                "_com_request_in,_com_request_*",
+		"logger.myLogger.type":                "AsyncLogger",
+		"logger.root.appenderRef.ref":         "console",
+		"logger.root.appenderRef.type":        "AppenderRef",
+		"logger.root.level":                   "warn",
+		"logger.root.type":                    "Logger",
 	}
 
-	p, err := toStorage(flatten.Flatten(m))
+	p, err := toStorage(readConfig())
 	require.Error(t, err).Nil()
 	_ = p.Set("logger.root.appenderRef.type", "AppenderRef", 0)
 	_ = p.Set("logger.myLogger.appenderRef[0].type", "AppenderRef", 0)

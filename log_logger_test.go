@@ -16,10 +16,16 @@
 
 package log
 
-//func TestGetLogger(t *testing.T) {
-//	l := GetLogger("logger-not-exist")
-//	err := RefreshFile("testdata/log.YAML")
-//	assert.Error(t, err).Matches(`logger logger-not-exist not found`)
-//	delete(loggerMap, l.name)
-//	Destroy()
-//}
+import (
+	"testing"
+
+	"github.com/lvan100/golib/testing/assert"
+)
+
+func TestGetLogger(t *testing.T) {
+	l := GetLogger("logger-not-exist")
+	err := Refresh(readConfig())
+	assert.Error(t, err).Matches(`logger logger-not-exist not found`)
+	delete(loggerMap, l.name)
+	Destroy()
+}

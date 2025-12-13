@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	"github.com/lvan100/golib/errutil"
-	"github.com/lvan100/golib/flatten"
 )
 
 // RootLoggerName defines the reserved name for the root logger.
@@ -35,9 +34,9 @@ var global struct {
 }
 
 // Refresh loads a logging configuration from a *flatten.Storage.
-func Refresh(s *flatten.Storage) error {
+func Refresh(data map[string]string) error {
 
-	s, err := toStorage(s.Data())
+	s, err := toStorage(data)
 	if err != nil {
 		return errutil.Stack(err, "toStorage error")
 	}
