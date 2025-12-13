@@ -4,7 +4,6 @@ go 1.24
 
 require (
 	github.com/antlr4-go/antlr/v4 v4.13.1
-	github.com/go-spring/spring-base v1.2.4
 	github.com/lvan100/golib v0.0.1
 )
 

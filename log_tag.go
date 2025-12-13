@@ -20,7 +20,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/go-spring/spring-base/util"
+	"github.com/lvan100/golib/ordered"
 )
 
 // tagRegistry stores Tag instances keyed by their string names.
@@ -37,7 +37,7 @@ type Tag struct {
 
 // GetAllTags returns the names of all registered tags.
 func GetAllTags() []string {
-	return util.OrderedMapKeys(tagRegistry)
+	return ordered.MapKeys(tagRegistry)
 }
 
 // isValidTag validates a tag string according to the following rules:

@@ -21,7 +21,7 @@ import (
 	"math"
 	"unsafe"
 
-	"github.com/go-spring/spring-base/util"
+	"github.com/lvan100/golib/ordered"
 )
 
 const MsgKey = "msg"
@@ -395,7 +395,7 @@ func (f Field) Encode(enc Encoder) {
 		enc.AppendObjectEnd()
 	case ValueTypeFromMap:
 		m := f.Any.(map[string]any)
-		for _, k := range util.OrderedMapKeys(m) {
+		for _, k := range ordered.MapKeys(m) {
 			Any(k, m[k]).Encode(enc)
 		}
 	default: // for linter
