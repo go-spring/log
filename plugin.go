@@ -22,8 +22,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lvan100/golib/errutil"
-	"github.com/lvan100/golib/flatten"
+	"github.com/go-spring/stdlib/errutil"
+	"github.com/go-spring/stdlib/flatten"
 )
 
 // typeConverters holds user-defined type conversion functions

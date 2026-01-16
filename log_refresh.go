@@ -20,7 +20,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/lvan100/golib/errutil"
+	"github.com/go-spring/stdlib/errutil"
 )
 
 // RootLoggerName defines the reserved name for the root logger.

@@ -25,7 +25,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/lvan100/golib/errutil"
+	"github.com/go-spring/stdlib/errutil"
 )
 
 // Stdout is the standard output stream used by appenders.

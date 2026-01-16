@@ -20,8 +20,8 @@ import (
 	"strings"
 
 	"github.com/go-spring/log/expr"
-	"github.com/lvan100/golib/errutil"
-	"github.com/lvan100/golib/flatten"
+	"github.com/go-spring/stdlib/errutil"
+	"github.com/go-spring/stdlib/flatten"
 )
 
 // toStorage converts a flattened string map into a *flatten.Storage instance.

@@ -20,9 +20,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/lvan100/golib/flatten"
-	"github.com/lvan100/golib/testing/assert"
-	"github.com/lvan100/golib/testing/require"
+	"github.com/go-spring/stdlib/flatten"
+	"github.com/go-spring/stdlib/testing/assert"
+	"github.com/go-spring/stdlib/testing/require"
 )
 
 func readConfig() map[string]string {

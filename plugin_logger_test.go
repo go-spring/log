@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lvan100/golib/testing/assert"
+	"github.com/go-spring/stdlib/testing/assert"
 )
 
 func TestParseBufferFullPolicy(t *testing.T) {

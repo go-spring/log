@@ -20,7 +20,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/lvan100/golib/testing/assert"
+	"github.com/go-spring/stdlib/testing/assert"
 )
 
 // ptr returns a pointer to the given value.

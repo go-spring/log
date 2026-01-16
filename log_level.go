@@ -19,7 +19,7 @@ package log
 import (
 	"strings"
 
-	"github.com/lvan100/golib/errutil"
+	"github.com/go-spring/stdlib/errutil"
 )
 
 func init() {

@@ -20,8 +20,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/lvan100/golib/flatten"
-	"github.com/lvan100/golib/testing/assert"
+	"github.com/go-spring/stdlib/flatten"
+	"github.com/go-spring/stdlib/testing/assert"
 )
 
 func TestRegisterPlugin(t *testing.T) {

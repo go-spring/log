@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lvan100/golib/testing/assert"
+	"github.com/go-spring/stdlib/testing/assert"
 )
 
 func TestDiscardAppender(t *testing.T) {

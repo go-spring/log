@@ -20,7 +20,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/lvan100/golib/ordered"
+	"github.com/go-spring/stdlib/ordered"
 )
 
 // tagRegistry stores Tag instances keyed by their string names.
