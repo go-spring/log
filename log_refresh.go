@@ -17,12 +17,10 @@
 package log
 
 import (
-	"io"
 	"reflect"
 	"strings"
 
-	"github.com/go-spring/spring-base/barky"
-	"github.com/lvan100/errutil"
+	"github.com/go-spring/stdlib/errutil"
 )
 
 // RootLoggerName defines the reserved name for the root logger.
@@ -35,28 +33,13 @@ var global struct {
 	appenders []Appender
 }
 
-// RefreshFile loads a logging configuration from a file.
-// The file format is automatically detected by its extension.
-func RefreshFile(fileName string) error {
-	s, err := readConfigFromFile(fileName)
-	if err != nil {
-		return errutil.Explain(err, "RefreshFile error")
-	}
-	return RefreshConfig(s)
-}
+// Refresh loads a logging configuration from a *flatten.Storage.
+func Refresh(data map[string]string) error {
 
-// RefreshReader loads a logging configuration from an io.Reader.
-// The `ext` specifies the configuration format (e.g., "yaml", "json").
-func RefreshReader(r io.Reader, ext string) error {
-	s, err := readConfigFromReader(r, ext)
+	s, err := toStorage(data)
 	if err != nil {
-		return errutil.Explain(err, "RefreshReader error")
+		return errutil.Stack(err, "toStorage error")
 	}
-	return RefreshConfig(s)
-}
-
-// RefreshConfig loads a logging configuration from a *barky.Storage.
-func RefreshConfig(s *barky.Storage) error {
 
 	// Read appenders
 	appenders, err := s.SubKeys("appender")
@@ -80,42 +63,16 @@ func RefreshConfig(s *barky.Storage) error {
 	global.init = true
 
 	// Factory function to create plugin instances
-	newPlugin := func(typ PluginType, typeKey string) (reflect.Value, error) {
+	newPlugin := func(typeKey string) (reflect.Value, error) {
 		if !s.Has(typeKey) {
 			return reflect.Value{}, errutil.Explain(nil, "attribute 'type' not found")
 		}
 		strType := s.Get(typeKey)
-		p, ok := pluginRegistry[typ][strType]
+		p, ok := pluginRegistry[strType]
 		if !ok {
 			return reflect.Value{}, errutil.Explain(nil, "plugin %s not found", strType)
 		}
 		return NewPlugin(p.Class, typeKey[:strings.LastIndex(typeKey, ".")], s)
-	}
-
-	// Initialize appender references in a logger
-	initAppenderRefs := func(v reflect.Value, cAppenders map[string]Appender) (*LoggerBase, error) {
-		var (
-			base *LoggerBase
-			ref  *AppenderRefs
-		)
-		switch config := v.Interface().(type) {
-		case *SyncLogger:
-			base = &config.LoggerBase
-			ref = &config.AppenderRefs
-		case *AsyncLogger:
-			base = &config.LoggerBase
-			ref = &config.AppenderRefs
-		default: // for linter
-		}
-		for _, r := range ref.AppenderRefs {
-			appender, ok := cAppenders[r.Ref]
-			if !ok {
-				return nil, errutil.Explain(nil, "appender %s not found", r.Ref)
-			}
-			r.Appender = appender
-		}
-		ref.sortByLevel()
-		return base, nil
 	}
 
 	var (
@@ -130,7 +87,7 @@ func RefreshConfig(s *barky.Storage) error {
 
 	// Initialize appenders
 	for _, name := range appenders {
-		v, err := newPlugin(PluginTypeAppender, "appender."+name+".type")
+		v, err := newPlugin("appender." + name + ".type")
 		if err != nil {
 			return errutil.Stack(err, "create appender %s error", name)
 		}
@@ -139,7 +96,7 @@ func RefreshConfig(s *barky.Storage) error {
 
 	// Initialize all other loggers
 	for _, name := range loggers {
-		v, err := newPlugin(PluginTypeLogger, "logger."+name+".type")
+		v, err := newPlugin("logger." + name + ".type")
 		if err != nil {
 			return errutil.Stack(err, "create logger %s error", name)
 		}
@@ -191,14 +148,14 @@ func RefreshConfig(s *barky.Storage) error {
 
 	// Start all appenders
 	for _, a := range cAppenders {
-		if err := a.Start(); err != nil {
+		if err = a.Start(); err != nil {
 			return errutil.Stack(err, "appender %s start error", a.GetName())
 		}
 	}
 
 	// Start all loggers
 	for _, l := range cLoggers {
-		if err := l.Start(); err != nil {
+		if err = l.Start(); err != nil {
 			return errutil.Stack(err, "logger %s start error", l.GetName())
 		}
 	}
@@ -267,4 +224,36 @@ func Destroy() {
 	global.loggers = nil
 	global.appenders = nil
 	global.init = false
+}
+
+// initAppenderRefs Initialize appender references in a logger
+func initAppenderRefs(v reflect.Value, cAppenders map[string]Appender) (*LoggerBase, error) {
+	var (
+		sync bool
+		base *LoggerBase
+		ref  *AppenderRefs
+	)
+	switch config := v.Interface().(type) {
+	case *SyncLogger:
+		sync = true
+		base = &config.LoggerBase
+		ref = &config.AppenderRefs
+	case *AsyncLogger:
+		sync = false
+		base = &config.LoggerBase
+		ref = &config.AppenderRefs
+	default: // for linter
+	}
+	for _, r := range ref.AppenderRefs {
+		appender, ok := cAppenders[r.Ref]
+		if !ok {
+			return nil, errutil.Explain(nil, "appender %s not found", r.Ref)
+		}
+		// 同步 logger 必须搭配并发安全的 appender
+		if sync && !appender.ConcurrentSafe() {
+			return nil, errutil.Explain(nil, "appender %s is not concurrent-safe", r.Ref)
+		}
+		r.Appender = appender
+	}
+	return base, nil
 }

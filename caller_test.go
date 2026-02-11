@@ -20,7 +20,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/go-spring/spring-base/testing/assert"
+	"github.com/go-spring/stdlib/testing/assert"
 )
 
 func TestCaller(t *testing.T) {

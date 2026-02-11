@@ -17,22 +17,21 @@
 package log
 
 import (
-	"sort"
 	"sync/atomic"
+	"time"
 
-	"github.com/lvan100/errutil"
+	"github.com/go-spring/stdlib/errutil"
 )
 
 func init() {
 	RegisterConverter[BufferFullPolicy](ParseBufferFullPolicy)
 
-	RegisterPlugin[AppenderRef]("AppenderRef", PluginTypeAppenderRef)
-	RegisterPlugin[SyncLogger]("Logger", PluginTypeLogger)
-	RegisterPlugin[AsyncLogger]("AsyncLogger", PluginTypeLogger)
-	RegisterPlugin[DiscardLogger]("Discard", PluginTypeLogger)
-	RegisterPlugin[ConsoleLogger]("Console", PluginTypeLogger)
-	RegisterPlugin[FileLogger]("File", PluginTypeLogger)
-	RegisterPlugin[RollingFileLogger]("RollingFile", PluginTypeLogger)
+	RegisterPlugin[SyncLogger]("Logger")
+	RegisterPlugin[AsyncLogger]("AsyncLogger")
+	RegisterPlugin[DiscardLogger]("DiscardLogger")
+	RegisterPlugin[ConsoleLogger]("ConsoleLogger")
+	RegisterPlugin[FileLogger]("FileLogger")
+	RegisterPlugin[RollingFileLogger]("RollingFileLogger")
 }
 
 // Logger is the interface implemented by all loggers.
@@ -67,7 +66,7 @@ type LoggerBase struct {
 	Name   string     `PluginAttribute:"name"`           // Logger name
 	Tags   string     `PluginAttribute:"tags,default="`  // Optional tags
 	Level  LevelRange `PluginAttribute:"level,default="` // Logger level range
-	Layout Layout     `PluginElement:"Layout?"`          // Layout for formatting logs
+	Layout Layout     `PluginElement:"layout?"`          // Layout for formatting logs
 }
 
 // GetName returns the name of the logger.
@@ -128,26 +127,7 @@ func (c *FileLogger) Append(e *Event) {
 
 // AppenderRefs represents a collection of AppenderRef objects.
 type AppenderRefs struct {
-	AppenderRefs []*AppenderRef `PluginElement:"AppenderRef"`
-}
-
-// sortByLevel sorts appender references by minimum level,
-// and adjusts MaxLevel for chained ranges.
-func (c *AppenderRefs) sortByLevel() {
-
-	// Sort appender references by MinLevel
-	sort.Slice(c.AppenderRefs, func(i, j int) bool {
-		iCode := c.AppenderRefs[i].Level.MinLevel.code
-		jCode := c.AppenderRefs[j].Level.MinLevel.code
-		return iCode < jCode
-	})
-
-	// Adjust MaxLevel to match the next appender's MinLevel if needed
-	for i := len(c.AppenderRefs) - 1; i >= 1; i-- {
-		if c.AppenderRefs[i-1].Level.MaxLevel == MaxLevel {
-			c.AppenderRefs[i-1].Level.MaxLevel = c.AppenderRefs[i].Level.MinLevel
-		}
-	}
+	AppenderRefs []*AppenderRef `PluginElement:"appenderRef"`
 }
 
 // Append forwards events to each child appender.
@@ -183,8 +163,7 @@ func (c *SyncLogger) Append(e *Event) {
 		if c.Layout == nil {
 			c.sendToAppenders(e)
 		} else {
-			b := c.Layout.ToBytes(e)
-			c.writeToAppenders(e.Level, b)
+			c.writeToAppenders(e.Level, c.Layout.ToBytes(e))
 		}
 	}
 	PutEvent(e) // Return event to the pool
@@ -194,6 +173,8 @@ func (c *SyncLogger) Append(e *Event) {
 func (c *SyncLogger) Write(b []byte) {
 	c.writeToAppenders(MaxLevel, b)
 }
+
+func (c *SyncLogger) ConcurrentSafe() bool { return true }
 
 // BufferFullPolicy specifies what to do when an async buffer is full.
 type BufferFullPolicy int
@@ -340,6 +321,8 @@ func (c *AsyncLogger) Stop() {
 	close(c.buf)
 }
 
+func (c *AsyncLogger) ConcurrentSafe() bool { return true }
+
 // RollingFileLogger writes log events to files with optional rotation, separation, and async behavior.
 type RollingFileLogger struct {
 	LoggerBase
@@ -354,8 +337,8 @@ type RollingFileLogger struct {
 	Separate bool `PluginAttribute:"separate,default=false"`
 
 	// Rotation and retention
-	Rotation TimeRotation `PluginAttribute:"rotation"`
-	MaxAge   int32        `PluginAttribute:"maxAge,default=168"`
+	Interval time.Duration `PluginAttribute:"interval,default=1h"`
+	MaxAge   time.Duration `PluginAttribute:"maxAge,default=168h"`
 
 	// Async logging options
 	AsyncWrite       bool             `PluginAttribute:"async,default=false"`
@@ -373,13 +356,12 @@ func (f *RollingFileLogger) Start() error {
 				BufferFullPolicy: f.BufferFullPolicy,
 			}
 		})
-	} else {
-		return initRollingFileLogger(f, func(f *RollingFileLogger) Logger {
-			return &SyncLogger{
-				LoggerBase: f.LoggerBase,
-			}
-		})
 	}
+	return initRollingFileLogger(f, func(f *RollingFileLogger) Logger {
+		return &SyncLogger{
+			LoggerBase: f.LoggerBase,
+		}
+	})
 }
 
 // initRollingFileLogger is a helper to configure appenders for RollingFileLogger.
@@ -401,8 +383,9 @@ func initRollingFileLogger(
 			Appender: &RollingFileAppender{
 				FileDir:  f.FileDir,
 				FileName: f.FileName,
-				Rotation: f.Rotation,
+				Interval: f.Interval,
 				MaxAge:   f.MaxAge,
+				Lock:     false,
 			},
 			Level: LevelRange{
 				MinLevel: f.Level.MinLevel,
@@ -417,8 +400,9 @@ func initRollingFileLogger(
 			Appender: &RollingFileAppender{
 				FileDir:  f.FileDir,
 				FileName: f.FileName + ".wf",
-				Rotation: f.Rotation,
+				Interval: f.Interval,
 				MaxAge:   f.MaxAge,
+				Lock:     false,
 			},
 			Level: LevelRange{
 				MinLevel: normalMaxLevel,
@@ -432,6 +416,9 @@ func initRollingFileLogger(
 	// Attach the final appender to the logger
 	switch x := f.logger.(type) {
 	case *SyncLogger:
+		for _, a := range appenders {
+			a.Appender.(*RollingFileAppender).Lock = true
+		}
 		x.AppenderRefs = AppenderRefs{AppenderRefs: appenders}
 	case *AsyncLogger:
 		x.AppenderRefs = AppenderRefs{AppenderRefs: appenders}
@@ -439,7 +426,7 @@ func initRollingFileLogger(
 	}
 
 	f.appenders = appenders
-	for _, a := range f.appenders {
+	for _, a := range appenders {
 		if err := a.Start(); err != nil {
 			return err
 		}
@@ -463,3 +450,5 @@ func (f *RollingFileLogger) Stop() {
 		a.Stop()
 	}
 }
+
+func (f *RollingFileLogger) ConcurrentSafe() bool { return true }

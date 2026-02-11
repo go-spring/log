@@ -89,11 +89,12 @@ package log
 
 import (
 	"context"
+	"os"
 	"runtime"
 	"strconv"
 	"time"
 
-	"github.com/lvan100/errutil"
+	"github.com/go-spring/stdlib/errutil"
 )
 
 var (
@@ -103,6 +104,9 @@ var (
 	// fastCaller controls whether to use a faster but less accurate
 	// implementation of caller lookup (file/line).
 	fastCaller = false
+
+	// defaultLoggerLevel is the default log level for the default logger.
+	defaultLoggerLevel = InfoLevel
 )
 
 func init() {
@@ -125,6 +129,12 @@ func init() {
 		fastCaller = b
 		return nil
 	})
+
+	r, err := ParseLevelRange(os.Getenv("GS_DEFAULT_LOGGER_LEVEL"))
+	if err != nil {
+		panic(err)
+	}
+	defaultLoggerLevel = r.MinLevel
 }
 
 // defaultLogger serves as the fallback logger used when no custom logger
@@ -132,16 +142,17 @@ func init() {
 var defaultLogger Logger = &ConsoleLogger{
 	LoggerBase: LoggerBase{
 		Level: LevelRange{
-			MinLevel: NoneLevel,
+			MinLevel: defaultLoggerLevel,
 			MaxLevel: MaxLevel,
 		},
+	},
+	ConsoleAppender: ConsoleAppender{
 		Layout: &TextLayout{
 			BaseLayout: BaseLayout{
 				FileLineLength: 48,
 			},
 		},
 	},
-	ConsoleAppender: ConsoleAppender{},
 }
 
 var (
@@ -201,14 +212,14 @@ func getLogger(tag *Tag) Logger {
 // The generator function is only invoked if the level is enabled.
 func Trace(ctx context.Context, tag *Tag, fn func() []Field) {
 	if l := getLogger(tag); l.GetLevel().Enable(TraceLevel) {
-		record(ctx, TraceLevel, tag.tag, l, 2, fn()...)
+		record(ctx, TraceLevel, tag.tag, l, 1, fn()...)
 	}
 }
 
 // Tracef logs a formatted message at TraceLevel.
 func Tracef(ctx context.Context, tag *Tag, format string, args ...any) {
 	if l := getLogger(tag); l.GetLevel().Enable(TraceLevel) {
-		record(ctx, TraceLevel, tag.tag, l, 2, Msgf(format, args...))
+		record(ctx, TraceLevel, tag.tag, l, 1, Msgf(format, args...))
 	}
 }
 
@@ -216,84 +227,84 @@ func Tracef(ctx context.Context, tag *Tag, format string, args ...any) {
 // The generator function is only invoked if the level is enabled.
 func Debug(ctx context.Context, tag *Tag, fn func() []Field) {
 	if l := getLogger(tag); l.GetLevel().Enable(DebugLevel) {
-		record(ctx, DebugLevel, tag.tag, l, 2, fn()...)
+		record(ctx, DebugLevel, tag.tag, l, 1, fn()...)
 	}
 }
 
 // Debugf logs a formatted message at DebugLevel.
 func Debugf(ctx context.Context, tag *Tag, format string, args ...any) {
 	if l := getLogger(tag); l.GetLevel().Enable(DebugLevel) {
-		record(ctx, DebugLevel, tag.tag, l, 2, Msgf(format, args...))
+		record(ctx, DebugLevel, tag.tag, l, 1, Msgf(format, args...))
 	}
 }
 
 // Info logs structured fields at InfoLevel.
 func Info(ctx context.Context, tag *Tag, fields ...Field) {
 	if l := getLogger(tag); l.GetLevel().Enable(InfoLevel) {
-		record(ctx, InfoLevel, tag.tag, l, 2, fields...)
+		record(ctx, InfoLevel, tag.tag, l, 1, fields...)
 	}
 }
 
 // Infof logs a formatted message at InfoLevel.
 func Infof(ctx context.Context, tag *Tag, format string, args ...any) {
 	if l := getLogger(tag); l.GetLevel().Enable(InfoLevel) {
-		record(ctx, InfoLevel, tag.tag, l, 2, Msgf(format, args...))
+		record(ctx, InfoLevel, tag.tag, l, 1, Msgf(format, args...))
 	}
 }
 
 // Warn logs structured fields at WarnLevel.
 func Warn(ctx context.Context, tag *Tag, fields ...Field) {
 	if l := getLogger(tag); l.GetLevel().Enable(WarnLevel) {
-		record(ctx, WarnLevel, tag.tag, l, 2, fields...)
+		record(ctx, WarnLevel, tag.tag, l, 1, fields...)
 	}
 }
 
 // Warnf logs a formatted message at WarnLevel.
 func Warnf(ctx context.Context, tag *Tag, format string, args ...any) {
 	if l := getLogger(tag); l.GetLevel().Enable(WarnLevel) {
-		record(ctx, WarnLevel, tag.tag, l, 2, Msgf(format, args...))
+		record(ctx, WarnLevel, tag.tag, l, 1, Msgf(format, args...))
 	}
 }
 
 // Error logs structured fields at ErrorLevel.
 func Error(ctx context.Context, tag *Tag, fields ...Field) {
 	if l := getLogger(tag); l.GetLevel().Enable(ErrorLevel) {
-		record(ctx, ErrorLevel, tag.tag, l, 2, fields...)
+		record(ctx, ErrorLevel, tag.tag, l, 1, fields...)
 	}
 }
 
 // Errorf logs a formatted message at ErrorLevel.
 func Errorf(ctx context.Context, tag *Tag, format string, args ...any) {
 	if l := getLogger(tag); l.GetLevel().Enable(ErrorLevel) {
-		record(ctx, ErrorLevel, tag.tag, l, 2, Msgf(format, args...))
+		record(ctx, ErrorLevel, tag.tag, l, 1, Msgf(format, args...))
 	}
 }
 
 // Panic logs structured fields at PanicLevel.
 func Panic(ctx context.Context, tag *Tag, fields ...Field) {
 	if l := getLogger(tag); l.GetLevel().Enable(PanicLevel) {
-		record(ctx, PanicLevel, tag.tag, l, 2, fields...)
+		record(ctx, PanicLevel, tag.tag, l, 1, fields...)
 	}
 }
 
 // Panicf logs a formatted message at PanicLevel.
 func Panicf(ctx context.Context, tag *Tag, format string, args ...any) {
 	if l := getLogger(tag); l.GetLevel().Enable(PanicLevel) {
-		record(ctx, PanicLevel, tag.tag, l, 2, Msgf(format, args...))
+		record(ctx, PanicLevel, tag.tag, l, 1, Msgf(format, args...))
 	}
 }
 
 // Fatal logs structured fields at FatalLevel.
 func Fatal(ctx context.Context, tag *Tag, fields ...Field) {
 	if l := getLogger(tag); l.GetLevel().Enable(FatalLevel) {
-		record(ctx, FatalLevel, tag.tag, l, 2, fields...)
+		record(ctx, FatalLevel, tag.tag, l, 1, fields...)
 	}
 }
 
 // Fatalf logs a formatted message at FatalLevel.
 func Fatalf(ctx context.Context, tag *Tag, format string, args ...any) {
 	if l := getLogger(tag); l.GetLevel().Enable(FatalLevel) {
-		record(ctx, FatalLevel, tag.tag, l, 2, Msgf(format, args...))
+		record(ctx, FatalLevel, tag.tag, l, 1, Msgf(format, args...))
 	}
 }
 

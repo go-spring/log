@@ -20,17 +20,17 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/go-spring/spring-base/barky"
-	"github.com/go-spring/spring-base/testing/assert"
+	"github.com/go-spring/stdlib/flatten"
+	"github.com/go-spring/stdlib/testing/assert"
 )
 
 func TestRegisterPlugin(t *testing.T) {
 	assert.Panic(t, func() {
-		RegisterPlugin[int]("DummyLayout", PluginTypeLayout)
+		RegisterPlugin[int]("DummyLayout")
 	}, "T must be struct")
 	assert.Panic(t, func() {
-		RegisterPlugin[FileAppender]("File", PluginTypeAppender)
-	}, "duplicate plugin name \"File\" in .*/plugin_appender.go:43 and .*/plugin_test.go:32")
+		RegisterPlugin[FileAppender]("FileAppender")
+	}, "duplicate plugin name \"FileAppender\" in .*/plugin_appender.go:.* and .*/plugin_test.go:.*")
 }
 
 func TestInjectAttribute(t *testing.T) {
@@ -49,7 +49,7 @@ func TestInjectAttribute(t *testing.T) {
 			Value string `PluginAttribute:"value"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
-		s := barky.NewStorage()
+		s := flatten.NewStorage()
 		_, err := NewPlugin(typ, "test", s)
 		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field Value error >> found no attribute")
 	})
@@ -59,7 +59,7 @@ func TestInjectAttribute(t *testing.T) {
 			Value string `PluginAttribute:"value"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
-		s := barky.NewStorage()
+		s := flatten.NewStorage()
 		_ = s.Set("test.value", "${nonexistent_prop}", 0)
 		_, err := NewPlugin(typ, "test", s)
 		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error >> inject struct field Value error >> property \${nonexistent_prop} not found`)
@@ -70,7 +70,7 @@ func TestInjectAttribute(t *testing.T) {
 			Level LevelRange `PluginAttribute:"level,default=NOT-EXIST-LEVEL"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
-		s := barky.NewStorage()
+		s := flatten.NewStorage()
 		_, err := NewPlugin(typ, "test", s)
 		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field Level error >> invalid log level: \"NOT-EXIST-LEVEL\"")
 	})
@@ -81,7 +81,7 @@ func TestInjectAttribute(t *testing.T) {
 			N uint64 `PluginAttribute:"n,default=abc"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
-		s := barky.NewStorage()
+		s := flatten.NewStorage()
 		_, err := NewPlugin(typ, "test", s)
 		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error >> inject struct field N error >> strconv.ParseUint: parsing \"abc\": invalid syntax`)
 	})
@@ -92,7 +92,7 @@ func TestInjectAttribute(t *testing.T) {
 			N int64 `PluginAttribute:"n,default=abc"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
-		s := barky.NewStorage()
+		s := flatten.NewStorage()
 		_, err := NewPlugin(typ, "test", s)
 		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error >> inject struct field N error >> strconv.ParseInt: parsing \"abc\": invalid syntax`)
 	})
@@ -103,7 +103,7 @@ func TestInjectAttribute(t *testing.T) {
 			N float64 `PluginAttribute:"n,default=abc"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
-		s := barky.NewStorage()
+		s := flatten.NewStorage()
 		_, err := NewPlugin(typ, "test", s)
 		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error >> inject struct field N error >> strconv.ParseFloat: parsing \"abc\": invalid syntax`)
 	})
@@ -114,7 +114,7 @@ func TestInjectAttribute(t *testing.T) {
 			N bool `PluginAttribute:"n,default=abc"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
-		s := barky.NewStorage()
+		s := flatten.NewStorage()
 		_, err := NewPlugin(typ, "test", s)
 		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error >> inject struct field N error >> strconv.ParseBool: parsing \"abc\": invalid syntax`)
 	})
@@ -124,7 +124,7 @@ func TestInjectAttribute(t *testing.T) {
 			M chan error `PluginAttribute:"m,default=true"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
-		s := barky.NewStorage()
+		s := flatten.NewStorage()
 		_, err := NewPlugin(typ, "test", s)
 		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error >> inject struct field M error >> unsupported inject type chan error`)
 	})
@@ -134,7 +134,7 @@ func TestInjectAttribute(t *testing.T) {
 			Name string `PluginAttribute:"name"`
 		}
 		typ := reflect.TypeFor[SuccessPlugin]()
-		v, err := NewPlugin(typ, "test", barky.NewStorage())
+		v, err := NewPlugin(typ, "test", flatten.NewStorage())
 		assert.Error(t, err).Nil()
 		p := v.Interface().(*SuccessPlugin)
 		assert.String(t, p.Name).Equal("test")
@@ -145,7 +145,7 @@ func TestInjectAttribute(t *testing.T) {
 			Value string `PluginAttribute:"value,default=hello"`
 		}
 		typ := reflect.TypeFor[SuccessPlugin]()
-		v, err := NewPlugin(typ, "test", barky.NewStorage())
+		v, err := NewPlugin(typ, "test", flatten.NewStorage())
 		assert.Error(t, err).Nil()
 		p := v.Interface().(*SuccessPlugin)
 		assert.String(t, p.Value).Equal("hello")
@@ -156,7 +156,7 @@ func TestInjectAttribute(t *testing.T) {
 			Value string `PluginAttribute:"value"`
 		}
 		typ := reflect.TypeFor[SuccessPlugin]()
-		s := barky.NewStorage()
+		s := flatten.NewStorage()
 		_ = s.Set("test.value", "world", 0)
 		v, err := NewPlugin(typ, "test", s)
 		assert.Error(t, err).Nil()
@@ -169,7 +169,7 @@ func TestInjectAttribute(t *testing.T) {
 			Value string `PluginAttribute:"value"`
 		}
 		typ := reflect.TypeFor[SuccessPlugin]()
-		s := barky.NewStorage()
+		s := flatten.NewStorage()
 		_ = s.Set("prop.value", "property_value", 0)
 		_ = s.Set("test.value", "${prop.value}", 0)
 		v, err := NewPlugin(typ, "test", s)
@@ -186,16 +186,16 @@ func TestInjectElement(t *testing.T) {
 			Layout Layout `PluginElement:""`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
-		_, err := NewPlugin(typ, "test", barky.NewStorage())
+		_, err := NewPlugin(typ, "test", flatten.NewStorage())
 		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field Layout error >> found no plugin element")
 	})
 
 	t.Run("unsupported inject type", func(t *testing.T) {
 		type ErrorPlugin struct {
-			Layout map[string]Layout `PluginElement:"Layout"`
+			Layout map[string]Layout `PluginElement:"layout"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
-		s := barky.NewStorage()
+		s := flatten.NewStorage()
 		_ = s.Set("test.layout.type", "TextLayout", 0)
 		_, err := NewPlugin(typ, "test", s)
 		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field Layout error >> unsupported inject type map\\[string]log.Layout")
@@ -203,38 +203,38 @@ func TestInjectElement(t *testing.T) {
 
 	t.Run("no element - slice - default", func(t *testing.T) {
 		type ErrorPlugin struct {
-			Layouts []Layout `PluginElement:"Layout"`
+			Layouts []Layout `PluginElement:"layout"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
-		_, err := NewPlugin(typ, "test", barky.NewStorage())
+		_, err := NewPlugin(typ, "test", flatten.NewStorage())
 		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field Layouts error >> found no plugin element")
 	})
 
 	t.Run("no element - slice - len - 0", func(t *testing.T) {
 		type ErrorPlugin struct {
-			Layouts []Layout `PluginElement:"Layout,default=;;"`
+			Layouts []Layout `PluginElement:"layout,default=;;"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
-		_, err := NewPlugin(typ, "test", barky.NewStorage())
+		_, err := NewPlugin(typ, "test", flatten.NewStorage())
 		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field Layouts error >> found no plugin element")
 	})
 
 	t.Run("plugin not found - slice - interface - 1", func(t *testing.T) {
 		type ErrorPlugin struct {
-			Layout []Layout `PluginElement:"Layout,default=NotExistElement"`
+			Layout []Layout `PluginElement:"layout,default=NotExistElement"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
-		s := barky.NewStorage()
+		s := flatten.NewStorage()
 		_, err := NewPlugin(typ, "test", s)
 		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field Layout error >> plugin NotExistElement not found")
 	})
 
 	t.Run("plugin not found - slice - interface - 2", func(t *testing.T) {
 		type ErrorPlugin struct {
-			Layout []Layout `PluginElement:"Layout"`
+			Layout []Layout `PluginElement:"layout"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
-		s := barky.NewStorage()
+		s := flatten.NewStorage()
 		_ = s.Set("test.layout.type", "NotExistElement", 0)
 		_, err := NewPlugin(typ, "test", s)
 		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field Layout error >> plugin NotExistElement not found")
@@ -242,41 +242,41 @@ func TestInjectElement(t *testing.T) {
 
 	t.Run("plugin not found - slice - struct - 1", func(t *testing.T) {
 		type ErrorPlugin struct {
-			AppenderRefs []*AppenderRef `PluginElement:"NotExistElement"`
+			AppenderRefs []*AppenderRef `PluginElement:"appenderRef"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
-		s := barky.NewStorage()
-		_ = s.Set("test.notExistElement[0].ref", "file", 0)
+		s := flatten.NewStorage()
+		_ = s.Set("test.appenderRef[0].ref", "file", 0)
 		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field AppenderRefs error >> plugin NotExistElement not found")
+		assert.Error(t, err).Nil()
 	})
 
 	t.Run("plugin not found - slice - struct - 2", func(t *testing.T) {
 		type ErrorPlugin struct {
-			AppenderRefs []*AppenderRef `PluginElement:"NotExistElement"`
+			AppenderRefs []*AppenderRef `PluginElement:"appenderRef"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
-		s := barky.NewStorage()
-		_ = s.Set("test.notExistElement.ref", "file", 0)
+		s := flatten.NewStorage()
+		_ = s.Set("test.appenderRef.ref", "file", 0)
 		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field AppenderRefs error >> plugin NotExistElement not found")
+		assert.Error(t, err).Nil()
 	})
 
 	t.Run("no element - single - default", func(t *testing.T) {
 		type ErrorPlugin struct {
-			Layouts Layout `PluginElement:"Layout"`
+			Layouts Layout `PluginElement:"layout"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
-		_, err := NewPlugin(typ, "test", barky.NewStorage())
+		_, err := NewPlugin(typ, "test", flatten.NewStorage())
 		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field Layouts error >> found no plugin element")
 	})
 
 	t.Run("no element - single - no - type", func(t *testing.T) {
 		type ErrorPlugin struct {
-			Layouts Layout `PluginElement:"Layout"`
+			Layouts Layout `PluginElement:"layout"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
-		s := barky.NewStorage()
+		s := flatten.NewStorage()
 		_ = s.Set("test.layout.dummy", "", 0)
 		_, err := NewPlugin(typ, "test", s)
 		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field Layouts error >> found no plugin element")
@@ -284,20 +284,20 @@ func TestInjectElement(t *testing.T) {
 
 	t.Run("plugin not found - single - interface - 1", func(t *testing.T) {
 		type ErrorPlugin struct {
-			Layout Layout `PluginElement:"Layout,default=NotExistElement"`
+			Layout Layout `PluginElement:"layout,default=NotExistElement"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
-		s := barky.NewStorage()
+		s := flatten.NewStorage()
 		_, err := NewPlugin(typ, "test", s)
 		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field Layout error >> plugin NotExistElement not found")
 	})
 
 	t.Run("plugin not found - single - interface - 2", func(t *testing.T) {
 		type ErrorPlugin struct {
-			Layout Layout `PluginElement:"Layout"`
+			Layout Layout `PluginElement:"layout"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
-		s := barky.NewStorage()
+		s := flatten.NewStorage()
 		_ = s.Set("test.layout.type", "NotExistElement", 0)
 		_, err := NewPlugin(typ, "test", s)
 		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field Layout error >> plugin NotExistElement not found")
@@ -305,39 +305,39 @@ func TestInjectElement(t *testing.T) {
 
 	t.Run("NewPlugin error - slice - 1", func(t *testing.T) {
 		type ErrorPlugin struct {
-			Appenders []Appender `PluginElement:"Appender,default=File"`
+			Appenders []Appender `PluginElement:"appender,default=FileAppender"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
-		_, err := NewPlugin(typ, "test", barky.NewStorage())
+		_, err := NewPlugin(typ, "test", flatten.NewStorage())
 		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error >> inject struct field Appenders error >> create plugin log.FileAppender error >> inject struct field FileName error >> found no attribute`)
 	})
 
 	t.Run("NewPlugin error - slice - 2", func(t *testing.T) {
 		type ErrorPlugin struct {
-			Appenders []Appender `PluginElement:"Appender"`
+			Appenders []Appender `PluginElement:"appender"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
-		s := barky.NewStorage()
-		_ = s.Set("test.appender.type", "File", 0)
+		s := flatten.NewStorage()
+		_ = s.Set("test.appender.type", "FileAppender", 0)
 		_, err := NewPlugin(typ, "test", s)
 		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error >> inject struct field Appenders error >> create plugin log.FileAppender error >> inject struct field FileName error >> found no attribute`)
 	})
 
 	t.Run("NewPlugin error - single", func(t *testing.T) {
 		type ErrorPlugin struct {
-			Appender Appender `PluginElement:"Appender,default=File"`
+			Appender Appender `PluginElement:"appender,default=FileAppender"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
-		_, err := NewPlugin(typ, "test", barky.NewStorage())
+		_, err := NewPlugin(typ, "test", flatten.NewStorage())
 		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error >> inject struct field Appender error >> create plugin log.FileAppender error >> inject struct field FileName error >> found no attribute`)
 	})
 
 	t.Run("success - slice - 1", func(t *testing.T) {
 		type SuccessPlugin struct {
-			Layouts []Layout `PluginElement:"Layout,default=TextLayout"`
+			Layouts []Layout `PluginElement:"layout,default=TextLayout"`
 		}
 		typ := reflect.TypeFor[SuccessPlugin]()
-		s := barky.NewStorage()
+		s := flatten.NewStorage()
 		v, err := NewPlugin(typ, "test", s)
 		assert.Error(t, err).Nil()
 		p := v.Interface().(*SuccessPlugin)
@@ -346,10 +346,10 @@ func TestInjectElement(t *testing.T) {
 
 	t.Run("success - slice -2", func(t *testing.T) {
 		type SuccessPlugin struct {
-			Layouts []Layout `PluginElement:"Layout"`
+			Layouts []Layout `PluginElement:"layout"`
 		}
 		typ := reflect.TypeFor[SuccessPlugin]()
-		s := barky.NewStorage()
+		s := flatten.NewStorage()
 		_ = s.Set("test.layout.type", "TextLayout", 0)
 		v, err := NewPlugin(typ, "test", s)
 		assert.Error(t, err).Nil()
@@ -359,10 +359,10 @@ func TestInjectElement(t *testing.T) {
 
 	t.Run("success - single", func(t *testing.T) {
 		type SuccessPlugin struct {
-			Layout Layout `PluginElement:"Layout"`
+			Layout Layout `PluginElement:"layout"`
 		}
 		typ := reflect.TypeFor[SuccessPlugin]()
-		s := barky.NewStorage()
+		s := flatten.NewStorage()
 		_ = s.Set("test.layout.type", "TextLayout", 0)
 		v, err := NewPlugin(typ, "test", s)
 		assert.Error(t, err).Nil()

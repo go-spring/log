@@ -19,7 +19,7 @@ package log
 import (
 	"strings"
 
-	"github.com/lvan100/errutil"
+	"github.com/go-spring/stdlib/errutil"
 )
 
 func init() {
@@ -76,6 +76,9 @@ type LevelRange struct {
 // Enable returns true if the given Level 'l' falls within the LevelRange.
 // The check is inclusive of MinLevel and exclusive of MaxLevel.
 func (c LevelRange) Enable(l Level) bool {
+	if c.MaxLevel == MaxLevel {
+		return l.code >= c.MinLevel.code
+	}
 	return l.code >= c.MinLevel.code && l.code < c.MaxLevel.code
 }
 

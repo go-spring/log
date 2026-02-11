@@ -1,13 +1,10 @@
 module github.com/go-spring/log
 
-go 1.24
+go 1.25
 
 require (
 	github.com/antlr4-go/antlr/v4 v4.13.1
-	github.com/go-spring/spring-base v1.2.4
-	github.com/lvan100/errutil v0.0.1
-	github.com/magiconair/properties v1.8.10
-	gopkg.in/yaml.v2 v2.4.0
+	github.com/go-spring/stdlib v0.0.5
 )
 
 require (

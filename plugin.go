@@ -22,8 +22,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/go-spring/spring-base/barky"
-	"github.com/lvan100/errutil"
+	"github.com/go-spring/stdlib/errutil"
+	"github.com/go-spring/stdlib/flatten"
 )
 
 // typeConverters holds user-defined type conversion functions
@@ -59,52 +59,32 @@ type Lifecycle interface {
 	Stop()
 }
 
-// PluginType enumerates supported plugin categories.
-type PluginType string
-
-const (
-	PluginTypeLogger      PluginType = "logger"
-	PluginTypeAppender    PluginType = "appender"
-	PluginTypeAppenderRef PluginType = "appenderRef"
-	PluginTypeLayout      PluginType = "layout"
-)
-
 // pluginRegistry maintains a registry of available plugin classes,
 // organized by plugin type and plugin name.
-var pluginRegistry = map[PluginType]map[string]*Plugin{}
+var pluginRegistry = map[string]*Plugin{}
 
 // Plugin represents metadata about a plugin type.
 type Plugin struct {
 	Name  string       // Name of the plugin
-	Type  PluginType   // Type of the plugin
 	Class reflect.Type // Underlying struct type
 	File  string       // File where plugin was registered
 	Line  int          // Line number where plugin was registered
 }
 
 // RegisterPlugin registers a plugin struct type with a given name and plugin type.
-func RegisterPlugin[T any](name string, typ PluginType) {
+func RegisterPlugin[T any](name string) {
 	t := reflect.TypeFor[T]()
 	if t.Kind() != reflect.Struct {
 		panic("T must be struct")
 	}
-
-	m := pluginRegistry[typ]
-	if m == nil {
-		m = make(map[string]*Plugin)
-		pluginRegistry[typ] = m
-	}
-
 	_, file, line, _ := runtime.Caller(1)
-	if p, ok := m[name]; ok {
+	if p, ok := pluginRegistry[name]; ok {
 		err := errutil.Explain(nil, "duplicate plugin name %q in %s:%d and %s:%d",
 			name, p.File, p.Line, file, line)
 		panic(err)
 	}
-
-	m[name] = &Plugin{
+	pluginRegistry[name] = &Plugin{
 		Name:  name,
-		Type:  typ,
 		Class: t,
 		File:  file,
 		Line:  line,
@@ -112,7 +92,7 @@ func RegisterPlugin[T any](name string, typ PluginType) {
 }
 
 // NewPlugin creates a new plugin instance and injects configuration values.
-func NewPlugin(t reflect.Type, prefix string, s *barky.Storage) (reflect.Value, error) {
+func NewPlugin(t reflect.Type, prefix string, s *flatten.Storage) (reflect.Value, error) {
 	v := reflect.New(t)
 	if err := inject(v.Elem(), t, prefix, s); err != nil {
 		return reflect.Value{}, errutil.Stack(err, "create plugin %s error", t.String())
@@ -121,7 +101,7 @@ func NewPlugin(t reflect.Type, prefix string, s *barky.Storage) (reflect.Value, 
 }
 
 // inject recursively sets struct fields based on `PluginAttribute` and `PluginElement` tags.
-func inject(v reflect.Value, t reflect.Type, prefix string, s *barky.Storage) error {
+func inject(v reflect.Value, t reflect.Type, prefix string, s *flatten.Storage) error {
 	for i := range v.NumField() {
 		ft := t.Field(i)
 		fv := v.Field(i)
@@ -185,7 +165,7 @@ func (tag PluginTag) Lookup(key string) (value string, ok bool) {
 // RegisterConverter) are used if available.
 //
 // It also supports placeholder syntax `${prop}` for property substitution.
-func injectAttribute(tag string, fv reflect.Value, ft reflect.StructField, prefix string, s *barky.Storage) error {
+func injectAttribute(tag string, fv reflect.Value, ft reflect.StructField, prefix string, s *flatten.Storage) error {
 
 	attrTag := PluginTag(tag)
 	attrName := attrTag.Get("")
@@ -275,17 +255,17 @@ func injectAttribute(tag string, fv reflect.Value, ft reflect.StructField, prefi
 }
 
 // injectElement injects child plugin elements into a struct field.
-func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix string, s *barky.Storage) error {
+func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix string, s *flatten.Storage) error {
 
 	elemTag := PluginTag(tag)
-	elemType := elemTag.Get("")
-	if elemType == "" {
+	elemKey := elemTag.Get("")
+	if elemKey == "" {
 		err := errutil.Explain(nil, "found no plugin element")
 		return errutil.Stack(err, "inject struct field %s error", ft.Name)
 	}
 
-	elemType, nullable := strings.CutSuffix(elemType, "?")
-	elemKey := prefix + "." + toCamelKey(elemType)
+	elemKey, nullable := strings.CutSuffix(elemKey, "?")
+	elemKey = prefix + "." + toCamelKey(elemKey)
 
 	switch fv.Kind() {
 	case reflect.Slice:
@@ -325,52 +305,14 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 				if !s.Has(subKey) {
 					break
 				}
-
-				const def = ":def:"
-				strType := s.Get(subKey+".type", def)
-
-				var (
-					p  *Plugin
-					ok bool
-				)
-				if strType != def {
-					if p, ok = pluginRegistry[PluginType(toCamelKey(elemType))][strType]; !ok {
-						err := errutil.Explain(nil, "plugin %s not found", strType)
-						return errutil.Stack(err, "inject struct field %s error", ft.Name)
-					}
-				} else {
-					if p, ok = pluginRegistry[PluginType(toCamelKey(elemType))][elemType]; !ok {
-						err := errutil.Explain(nil, "plugin %s not found", elemType)
-						return errutil.Stack(err, "inject struct field %s error", ft.Name)
-					}
-				}
-				v, err := NewPlugin(p.Class, subKey, s)
+				v, err := createPlugin(ft, subKey, s)
 				if err != nil {
 					return errutil.Stack(err, "inject struct field %s error", ft.Name)
 				}
 				slice = reflect.Append(slice, v)
 			}
-
 		} else if s.Has(elemKey) { // Single element
-			const def = ":def:"
-			strType := s.Get(elemKey+".type", def)
-
-			var (
-				p  *Plugin
-				ok bool
-			)
-			if strType != def {
-				if p, ok = pluginRegistry[PluginType(toCamelKey(elemType))][strType]; !ok {
-					err := errutil.Explain(nil, "plugin %s not found", strType)
-					return errutil.Stack(err, "inject struct field %s error", ft.Name)
-				}
-			} else {
-				if p, ok = pluginRegistry[PluginType(toCamelKey(elemType))][elemType]; !ok {
-					err := errutil.Explain(nil, "plugin %s not found", elemType)
-					return errutil.Stack(err, "inject struct field %s error", ft.Name)
-				}
-			}
-			v, err := NewPlugin(p.Class, elemKey, s)
+			v, err := createPlugin(ft, elemKey, s)
 			if err != nil {
 				return errutil.Stack(err, "inject struct field %s error", ft.Name)
 			}
@@ -381,17 +323,8 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 		return nil
 
 	case reflect.Interface:
-		var strType string
-		if s.Has(elemKey) {
-			typeKey := elemKey + ".type"
-			if v, ok := s.RawData()[typeKey]; ok {
-				strType = v.Value
-			} else {
-				err := errutil.Explain(nil, "found no plugin element")
-				return errutil.Stack(err, "inject struct field %s error", ft.Name)
-			}
-		} else {
-			elemLabel, ok := elemTag.Lookup("default")
+		if !s.Has(elemKey) {
+			typeClass, ok := elemTag.Lookup("default")
 			if !ok {
 				if nullable {
 					return nil
@@ -399,16 +332,13 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 				err := errutil.Explain(nil, "found no plugin element")
 				return errutil.Stack(err, "inject struct field %s error", ft.Name)
 			}
-			strType = elemLabel
+			typeKey := elemKey + ".type"
+			if err := s.Set(typeKey, typeClass, 0); err != nil {
+				return err // Should never fail
+			}
 		}
 
-		p, ok := pluginRegistry[PluginType(toCamelKey(elemType))][strType]
-		if !ok {
-			err := errutil.Explain(nil, "plugin %s not found", strType)
-			return errutil.Stack(err, "inject struct field %s error", ft.Name)
-		}
-
-		v, err := NewPlugin(p.Class, elemKey, s)
+		v, err := createPlugin(ft, elemKey, s)
 		if err != nil {
 			return errutil.Stack(err, "inject struct field %s error", ft.Name)
 		}
@@ -419,4 +349,26 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 		err := errutil.Explain(nil, "unsupported inject type %s", ft.Type.String())
 		return errutil.Stack(err, "inject struct field %s error", ft.Name)
 	}
+}
+
+// createPlugin creates a plugin instance.
+func createPlugin(ft reflect.StructField, elemKey string, s *flatten.Storage) (reflect.Value, error) {
+	strType := s.Get(elemKey + ".type")
+	p, ok := pluginRegistry[strType]
+	if !ok {
+		if ft.Type.Kind() == reflect.Interface {
+			if strType == "" {
+				return reflect.Value{}, errutil.Explain(nil, "found no plugin element")
+			}
+			return reflect.Value{}, errutil.Explain(nil, "plugin %s not found", strType)
+		}
+		p = &Plugin{Class: ft.Type.Elem()}
+		for p.Class.Kind() == reflect.Pointer {
+			p.Class = p.Class.Elem()
+		}
+		if p.Class.Kind() != reflect.Struct {
+			return reflect.Value{}, errutil.Explain(nil, "plugin %s not found", strType)
+		}
+	}
+	return NewPlugin(p.Class, elemKey, s)
 }
