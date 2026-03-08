@@ -71,7 +71,7 @@ func isValidTag(tag string) bool {
 // Normally, higher-level helpers like RegisterAppTag, RegisterBizTag,
 // or RegisterRPCTag should be used to ensure semantic consistency.
 func RegisterTag(tag string) *Tag {
-	if global.init {
+	if global.refreshed {
 		panic("log refresh already done")
 	}
 	if !isValidTag(tag) {

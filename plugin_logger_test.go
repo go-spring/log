@@ -89,7 +89,7 @@ func TestLoggerConfig(t *testing.T) {
 					MinLevel: InfoLevel,
 					MaxLevel: MaxLevel,
 				},
-				Tags: "_com_*",
+				Tags: []string{"_com_*"},
 			},
 			AppenderRefs: AppenderRefs{
 				AppenderRefs: []*AppenderRef{
@@ -173,7 +173,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 					MinLevel: InfoLevel,
 					MaxLevel: MaxLevel,
 				},
-				Tags: "_com_*",
+				Tags: []string{"_com_*"},
 			},
 			AppenderRefs: AppenderRefs{
 				AppenderRefs: []*AppenderRef{
@@ -227,7 +227,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 					MinLevel: InfoLevel,
 					MaxLevel: MaxLevel,
 				},
-				Tags: "_com_*",
+				Tags: []string{"_com_*"},
 			},
 			AppenderRefs: AppenderRefs{
 				AppenderRefs: []*AppenderRef{
@@ -281,7 +281,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 					MinLevel: InfoLevel,
 					MaxLevel: MaxLevel,
 				},
-				Tags: "_com_*",
+				Tags: []string{"_com_*"},
 			},
 			AppenderRefs: AppenderRefs{
 				AppenderRefs: []*AppenderRef{
@@ -327,7 +327,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 					MinLevel: InfoLevel,
 					MaxLevel: MaxLevel,
 				},
-				Tags: "_com_*",
+				Tags: []string{"_com_*"},
 			},
 			AppenderRefs: AppenderRefs{
 				AppenderRefs: []*AppenderRef{

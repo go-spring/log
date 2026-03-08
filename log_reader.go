@@ -21,10 +21,9 @@ import (
 
 	"github.com/go-spring/log/expr"
 	"github.com/go-spring/stdlib/errutil"
-	"github.com/go-spring/stdlib/flatten"
 )
 
-// toStorage converts a flattened string map into a *flatten.Storage instance.
+// ToStorage converts a flattened string map into a *flatten.Storage instance.
 // It interprets keys with a "!" suffix as nested map structures, parsing their
 // values using expr.Parse() and inserting them under a composite key.
 //
@@ -41,8 +40,8 @@ import (
 //	    "db.host":  "localhost",
 //	    "db.port":  "5432",
 //	  }
-func toStorage(m map[string]string) (*flatten.Storage, error) {
-	s := flatten.NewStorage()
+func ToStorage(m map[string]string) (map[string]string, error) {
+	ret := make(map[string]string)
 	for k, v := range m {
 		var ok bool
 		// Normalize key to CamelCase and check for "!" suffix,
@@ -53,17 +52,13 @@ func toStorage(m map[string]string) (*flatten.Storage, error) {
 				return nil, errutil.Explain(err, "toStorage error")
 			}
 			for k2, v2 := range subMap {
-				if err = s.Set(k+"."+toCamelKey(k2), v2, 0); err != nil {
-					return nil, errutil.Explain(err, "toStorage error")
-				}
+				ret[k+"."+toCamelKey(k2)] = v2
 			}
 		} else {
-			if err := s.Set(k, v, 0); err != nil {
-				return nil, errutil.Explain(err, "toStorage error")
-			}
+			ret[k] = v
 		}
 	}
-	return s, nil
+	return ret, nil
 }
 
 // toCamelKey converts a string like "foo_bar-baz" into "fooBarBaz".

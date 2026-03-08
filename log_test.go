@@ -71,7 +71,7 @@ func init() {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-func readConfig() map[string]string {
+func readConfig() flatten.Storage {
 	s := `
 	{
 	  "bufferCap": "1KB",
@@ -114,7 +114,12 @@ func readConfig() map[string]string {
 	if err := json.Unmarshal([]byte(s), &m); err != nil {
 		panic(err)
 	}
-	return flatten.Flatten(m)
+	ret, err := log.ToStorage(flatten.Flatten(m))
+	if err != nil {
+		return nil
+	}
+	p := flatten.NewProperties(ret)
+	return flatten.NewPropertiesStorage(p)
 }
 
 func TestLog(t *testing.T) {
@@ -213,12 +218,12 @@ func TestLog(t *testing.T) {
 	_, _ = rootLogger.Write([]byte("this message is written directly\n"))
 
 	expectLog := `
-[INFO][2025-06-01T00:00:00.000][<<file>>:152] _def||trace_id=||span_id=||msg=hello world
-[INFO][2025-06-01T00:00:00.000][<<file>>:153] _com_request_in||trace_id=||span_id=||msg=hello world
-[WARN][2025-06-01T00:00:00.000][<<file>>:202] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||msg=hello world
-[ERROR][2025-06-01T00:00:00.000][<<file>>:203] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||msg=hello world
-[PANIC][2025-06-01T00:00:00.000][<<file>>:204] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||msg=hello world
-[ERROR][2025-06-01T00:00:00.000][<<file>>:207] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||key1=value1||key2=value2
+[INFO][2025-06-01T00:00:00.000][<<file>>:157] _def||trace_id=||span_id=||msg=hello world
+[INFO][2025-06-01T00:00:00.000][<<file>>:158] _com_request_in||trace_id=||span_id=||msg=hello world
+[WARN][2025-06-01T00:00:00.000][<<file>>:207] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||msg=hello world
+[ERROR][2025-06-01T00:00:00.000][<<file>>:208] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||msg=hello world
+[PANIC][2025-06-01T00:00:00.000][<<file>>:209] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||msg=hello world
+[ERROR][2025-06-01T00:00:00.000][<<file>>:212] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||key1=value1||key2=value2
 this message is written directly
 this message is written directly
 `
@@ -235,20 +240,20 @@ this message is written directly
 	_, _ = myLoggerV2.Write([]byte("this message is written directly\n"))
 
 	expectLog = `
-{"level":"trace","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:167","tag":"_com_request_out","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"debug","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:174","tag":"_com_request_out","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"trace","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:181","tag":"_com_request_out","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"debug","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:182","tag":"_com_request_out","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"info","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:185","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"warn","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:186","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"error","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:187","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"panic","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:188","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"fatal","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:189","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"info","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:192","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"warn","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:193","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"error","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:194","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"panic","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:195","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"fatal","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:196","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"trace","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:172","tag":"_com_request_out","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"debug","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:179","tag":"_com_request_out","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"trace","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:186","tag":"_com_request_out","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"debug","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:187","tag":"_com_request_out","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"info","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:190","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"warn","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:191","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"error","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:192","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"panic","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:193","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"fatal","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:194","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"info","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:197","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"warn","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:198","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"error","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:199","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"panic","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:200","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"fatal","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:201","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
 this message is written directly
 this message is written directly
 `

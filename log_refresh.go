@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/go-spring/stdlib/errutil"
+	"github.com/go-spring/stdlib/flatten"
 )
 
 // RootLoggerName defines the reserved name for the root logger.
@@ -28,46 +29,54 @@ const RootLoggerName = "root"
 
 // global holds all runtime logger and appender instances.
 var global struct {
-	init      bool
+	refreshed bool // 目前暂不实现动态刷新的能力
 	loggers   []Logger
 	appenders []Appender
 }
 
 // Refresh loads a logging configuration from a *flatten.Storage.
-func Refresh(data map[string]string) error {
+func Refresh(s flatten.Storage) error {
 
-	s, err := toStorage(data)
-	if err != nil {
-		return errutil.Stack(err, "toStorage error")
+	// Ensure this refresh is executed only once
+	if global.refreshed {
+		return errutil.Explain(nil, "log refresh already done")
 	}
+	global.refreshed = true
+
+	//s, err := toStorage(data)
+	//if err != nil {
+	//	return errutil.Stack(err, "toStorage error")
+	//}
 
 	// Read appenders
-	appenders, err := s.SubKeys("appender")
-	if err != nil {
-		return errutil.Stack(err, "read appenders section error")
-	}
+
+	appenders := make(map[string]struct{})
+	s.MapKeys("appender", appenders)
+	//appenders, err := s.SubKeys("appender")
+	//if err != nil {
+	//	return errutil.Stack(err, "read appenders section error")
+	//}
 	if len(appenders) == 0 {
 		return errutil.Explain(nil, "appenders section not found")
 	}
 
 	// Read loggers
-	loggers, err := s.SubKeys("logger")
-	if err != nil {
-		return errutil.Stack(err, "read loggers section error")
-	}
-
-	// Ensure this refresh is executed only once
-	if global.init {
-		return errutil.Explain(nil, "log refresh already done")
-	}
-	global.init = true
+	loggers := make(map[string]struct{})
+	s.MapKeys("logger", loggers)
+	//loggers, err := s.SubKeys("logger")
+	//if err != nil {
+	//	return errutil.Stack(err, "read loggers section error")
+	//}
 
 	// Factory function to create plugin instances
 	newPlugin := func(typeKey string) (reflect.Value, error) {
-		if !s.Has(typeKey) {
+		if !s.Exists(typeKey) {
 			return reflect.Value{}, errutil.Explain(nil, "attribute 'type' not found")
 		}
-		strType := s.Get(typeKey)
+		strType, ok := s.Value(typeKey)
+		if !ok {
+			return reflect.Value{}, errutil.Explain(nil, "attribute 'type' not found")
+		}
 		p, ok := pluginRegistry[strType]
 		if !ok {
 			return reflect.Value{}, errutil.Explain(nil, "plugin %s not found", strType)
@@ -86,7 +95,7 @@ func Refresh(data map[string]string) error {
 	cLoggers[RootLoggerName] = cRoot
 
 	// Initialize appenders
-	for _, name := range appenders {
+	for name := range appenders {
 		v, err := newPlugin("appender." + name + ".type")
 		if err != nil {
 			return errutil.Stack(err, "create appender %s error", name)
@@ -95,7 +104,7 @@ func Refresh(data map[string]string) error {
 	}
 
 	// Initialize all other loggers
-	for _, name := range loggers {
+	for name := range loggers {
 		v, err := newPlugin("logger." + name + ".type")
 		if err != nil {
 			return errutil.Stack(err, "create logger %s error", name)
@@ -109,7 +118,7 @@ func Refresh(data map[string]string) error {
 
 		// Skip the root logger
 		if name == RootLoggerName {
-			if base.Tags != "" {
+			if len(base.Tags) > 0 {
 				err = errutil.Explain(nil, "root logger must not define any tags")
 				return errutil.Stack(err, "create logger %s error", name)
 			}
@@ -119,7 +128,7 @@ func Refresh(data map[string]string) error {
 
 		// Parse and validate tag list
 		var tags []string
-		for tag := range strings.SplitSeq(base.Tags, ",") {
+		for _, tag := range base.Tags {
 			if tag = strings.TrimSpace(tag); tag == "" {
 				continue
 			}
@@ -148,14 +157,14 @@ func Refresh(data map[string]string) error {
 
 	// Start all appenders
 	for _, a := range cAppenders {
-		if err = a.Start(); err != nil {
+		if err := a.Start(); err != nil {
 			return errutil.Stack(err, "appender %s start error", a.GetName())
 		}
 	}
 
 	// Start all loggers
 	for _, l := range cLoggers {
-		if err = l.Start(); err != nil {
+		if err := l.Start(); err != nil {
 			return errutil.Stack(err, "logger %s start error", l.GetName())
 		}
 	}
@@ -191,9 +200,9 @@ func Refresh(data map[string]string) error {
 
 	// Inject properties
 	for k, f := range propertyRegistry {
-		if v := s.Get(toCamelKey(k)); v == "" {
+		if v, ok := s.Value(toCamelKey(k)); !ok {
 			continue
-		} else if err = f(v); err != nil {
+		} else if err := f(v); err != nil {
 			return errutil.Stack(err, "inject property %s error", k)
 		}
 	}
@@ -212,7 +221,7 @@ func Refresh(data map[string]string) error {
 // Destroy gracefully shuts down all loggers and appenders,
 // releasing resources and resetting the global state.
 func Destroy() {
-	if !global.init {
+	if !global.refreshed {
 		return
 	}
 	for _, l := range global.loggers {
@@ -223,7 +232,7 @@ func Destroy() {
 	}
 	global.loggers = nil
 	global.appenders = nil
-	global.init = false
+	global.refreshed = false
 }
 
 // initAppenderRefs Initialize appender references in a logger

@@ -17,10 +17,12 @@
 package log
 
 import (
+	"fmt"
 	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-spring/stdlib/errutil"
 	"github.com/go-spring/stdlib/flatten"
@@ -41,6 +43,12 @@ type Converter[T any] func(string) (T, error)
 func RegisterConverter[T any](fn Converter[T]) {
 	t := reflect.TypeFor[T]()
 	typeConverters[t] = fn
+}
+
+func init() {
+	RegisterConverter(func(s string) (time.Duration, error) {
+		return time.ParseDuration(s)
+	})
 }
 
 // propertyRegistry holds all registered property injection functions.
@@ -92,7 +100,7 @@ func RegisterPlugin[T any](name string) {
 }
 
 // NewPlugin creates a new plugin instance and injects configuration values.
-func NewPlugin(t reflect.Type, prefix string, s *flatten.Storage) (reflect.Value, error) {
+func NewPlugin(t reflect.Type, prefix string, s flatten.Storage) (reflect.Value, error) {
 	v := reflect.New(t)
 	if err := inject(v.Elem(), t, prefix, s); err != nil {
 		return reflect.Value{}, errutil.Stack(err, "create plugin %s error", t.String())
@@ -101,7 +109,7 @@ func NewPlugin(t reflect.Type, prefix string, s *flatten.Storage) (reflect.Value
 }
 
 // inject recursively sets struct fields based on `PluginAttribute` and `PluginElement` tags.
-func inject(v reflect.Value, t reflect.Type, prefix string, s *flatten.Storage) error {
+func inject(v reflect.Value, t reflect.Type, prefix string, s flatten.Storage) error {
 	for i := range v.NumField() {
 		ft := t.Field(i)
 		fv := v.Field(i)
@@ -132,6 +140,162 @@ func inject(v reflect.Value, t reflect.Type, prefix string, s *flatten.Storage) 
 	return nil
 }
 
+func resolvePropertyRef(s flatten.Storage, val string) (string, error) {
+	val = strings.TrimSpace(val)
+	if strings.HasPrefix(val, "${") && strings.HasSuffix(val, "}") {
+		key := toCamelKey(val[2 : len(val)-1])
+		str, ok := s.Value(key)
+		if !ok {
+			return "", errutil.Explain(nil, "property %s not found", val)
+		}
+		return str, nil
+	}
+	return val, nil
+}
+
+func convertAttributeValue(t reflect.Type, val string) (reflect.Value, error) {
+	if fn := typeConverters[t]; fn != nil {
+		fnValue := reflect.ValueOf(fn)
+		out := fnValue.Call([]reflect.Value{reflect.ValueOf(val)})
+		if !out[1].IsNil() {
+			return reflect.Value{}, out[1].Interface().(error)
+		}
+		return out[0], nil
+	}
+
+	v := reflect.New(t).Elem()
+	switch t.Kind() {
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		u, err := strconv.ParseUint(val, 0, t.Bits())
+		if err != nil {
+			return reflect.Value{}, err
+		}
+		v.SetUint(u)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		i, err := strconv.ParseInt(val, 0, t.Bits())
+		if err != nil {
+			return reflect.Value{}, err
+		}
+		v.SetInt(i)
+	case reflect.Float32, reflect.Float64:
+		f, err := strconv.ParseFloat(val, t.Bits())
+		if err != nil {
+			return reflect.Value{}, err
+		}
+		v.SetFloat(f)
+	case reflect.Bool:
+		b, err := strconv.ParseBool(val)
+		if err != nil {
+			return reflect.Value{}, err
+		}
+		v.SetBool(b)
+	case reflect.String:
+		v.SetString(val)
+	default:
+		return reflect.Value{}, errutil.Explain(nil, "unsupported inject type %s", t.String())
+	}
+	return v, nil
+}
+
+//func getAttributeRawValue(s *flatten.Storage, key string, tag PluginTag) (string, error) {
+//	if v, ok := s.RawData()[key]; ok {
+//		return v.Value, nil
+//	}
+//	val, ok := tag.Lookup("default")
+//	if !ok {
+//		return "", errutil.Explain(nil, "found no attribute")
+//	}
+//	return val, nil
+//}
+
+func getArrayValues(s flatten.Storage, key string, attrTag PluginTag) ([]string, error) {
+	delimiter := attrTag.Get("delimiter")
+	if delimiter == "" {
+		delimiter = ","
+	}
+	var values []string
+	if s.Exists(key + "[0]") {
+		// Indexed keys win over a delimited scalar value.
+		for i := 0; ; i++ {
+			subKey := fmt.Sprintf("%s[%d]", key, i)
+			if !s.Exists(subKey) {
+				break
+			}
+			str, ok := s.Value(subKey)
+			if !ok {
+				return nil, errutil.Explain(nil, "attribute %s not found", subKey)
+			}
+			v, err := resolvePropertyRef(s, str)
+			if err != nil {
+				return nil, err
+			}
+			for str := range strings.SplitSeq(v, delimiter) {
+				if str = strings.TrimSpace(str); str == "" {
+					continue
+				}
+				values = append(values, str)
+			}
+		}
+		return values, nil
+	}
+
+	var val string
+	if str, ok := s.Value(key); ok {
+		val = str
+	} else {
+		str, ok = attrTag.Lookup("default")
+		if !ok {
+			return nil, errutil.Explain(nil, "found no attribute")
+		}
+		val = str
+	}
+	v, err := resolvePropertyRef(s, val)
+	if err != nil {
+		return nil, err
+	}
+	for str := range strings.SplitSeq(v, delimiter) {
+		if str = strings.TrimSpace(str); str == "" {
+			continue
+		}
+		values = append(values, str)
+	}
+	return values, nil
+}
+
+func injectArrayAttribute(fv reflect.Value, ft reflect.StructField, key string, attrTag PluginTag, s flatten.Storage) error {
+	values, err := getArrayValues(s, key, attrTag)
+	if err != nil {
+		return err
+	}
+	switch fv.Kind() {
+	case reflect.Slice:
+		out := reflect.MakeSlice(ft.Type, len(values), len(values))
+		elemType := ft.Type.Elem()
+		for i, raw := range values {
+			elem, err := convertAttributeValue(elemType, raw)
+			if err != nil {
+				return errutil.Stack(err, "inject struct field %s[%d] error", ft.Name, i)
+			}
+			out.Index(i).Set(elem)
+		}
+		fv.Set(out)
+	case reflect.Array:
+		if len(values) > fv.Len() {
+			return errutil.Explain(nil, "too many values for array %s", ft.Type.String())
+		}
+		elemType := ft.Type.Elem()
+		for i, raw := range values {
+			elem, err := convertAttributeValue(elemType, raw)
+			if err != nil {
+				return errutil.Stack(err, "inject struct field %s[%d] error", ft.Name, i)
+			}
+			fv.Index(i).Set(elem)
+		}
+	default: // for linter
+	}
+	return nil
+}
+
 // PluginTag is a wrapper for parsing struct field tags.
 type PluginTag string
 
@@ -148,7 +312,7 @@ func (tag PluginTag) Lookup(key string) (value string, ok bool) {
 		return kvs[0], true
 	}
 	for i := 1; i < len(kvs); i++ {
-		ss := strings.Split(kvs[i], "=")
+		ss := strings.SplitN(kvs[i], "=", 2)
 		if len(ss) != 2 {
 			return "", false
 		} else if ss[0] == key {
@@ -165,7 +329,7 @@ func (tag PluginTag) Lookup(key string) (value string, ok bool) {
 // RegisterConverter) are used if available.
 //
 // It also supports placeholder syntax `${prop}` for property substitution.
-func injectAttribute(tag string, fv reflect.Value, ft reflect.StructField, prefix string, s *flatten.Storage) error {
+func injectAttribute(tag string, fv reflect.Value, ft reflect.StructField, prefix string, s flatten.Storage) error {
 
 	attrTag := PluginTag(tag)
 	attrName := attrTag.Get("")
@@ -181,84 +345,44 @@ func injectAttribute(tag string, fv reflect.Value, ft reflect.StructField, prefi
 		return nil
 	}
 
-	var val string
 	key := prefix + "." + toCamelKey(attrName)
-	if v, ok := s.RawData()[key]; ok {
-		val = v.Value
+
+	if fv.Kind() == reflect.Slice || fv.Kind() == reflect.Array {
+		if err := injectArrayAttribute(fv, ft, key, attrTag, s); err != nil {
+			return errutil.Stack(err, "inject struct field %s error", ft.Name)
+		}
+		return nil
+	}
+
+	var val string
+	if str, ok := s.Value(key); ok {
+		val = str
 	} else {
-		val, ok = attrTag.Lookup("default")
+		str, ok = attrTag.Lookup("default")
 		if !ok {
 			err := errutil.Explain(nil, "found no attribute")
 			return errutil.Stack(err, "inject struct field %s error", ft.Name)
 		}
+		val = str
 	}
 
-	// Handle properties in format ${prop}
-	val = strings.TrimSpace(val)
-	if strings.HasPrefix(val, "${") && strings.HasSuffix(val, "}") {
-		v, ok := s.RawData()[toCamelKey(val[2:len(val)-1])]
-		if !ok {
-			err := errutil.Explain(nil, "property %s not found", val)
-			return errutil.Stack(err, "inject struct field %s error", ft.Name)
-		}
-		val = v.Value
+	val, err := resolvePropertyRef(s, val)
+	if err != nil {
+		return errutil.Stack(err, "inject struct field %s error", ft.Name)
 	}
 
-	// Use custom converter if exists
-	if fn := typeConverters[ft.Type]; fn != nil {
-		fnValue := reflect.ValueOf(fn)
-		out := fnValue.Call([]reflect.Value{reflect.ValueOf(val)})
-		if !out[1].IsNil() {
-			err := out[1].Interface().(error)
-			return errutil.Stack(err, "inject struct field %s error", ft.Name)
-		}
-		fv.Set(out[0])
-		return nil
-	}
-
-	switch fv.Kind() {
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		u, err := strconv.ParseUint(val, 0, 0)
-		if err == nil {
-			fv.SetUint(u)
-			return nil
-		}
-		return errutil.Stack(err, "inject struct field %s error", ft.Name)
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		i, err := strconv.ParseInt(val, 0, 0)
-		if err == nil {
-			fv.SetInt(i)
-			return nil
-		}
-		return errutil.Stack(err, "inject struct field %s error", ft.Name)
-	case reflect.Float32, reflect.Float64:
-		f, err := strconv.ParseFloat(val, 64)
-		if err == nil {
-			fv.SetFloat(f)
-			return nil
-		}
-		return errutil.Stack(err, "inject struct field %s error", ft.Name)
-	case reflect.Bool:
-		b, err := strconv.ParseBool(val)
-		if err == nil {
-			fv.SetBool(b)
-			return nil
-		}
-		return errutil.Stack(err, "inject struct field %s error", ft.Name)
-	case reflect.String:
-		fv.SetString(val)
-		return nil
-	default:
-		err := errutil.Explain(nil, "unsupported inject type %s", ft.Type.String())
+	v, err := convertAttributeValue(ft.Type, val)
+	if err != nil {
 		return errutil.Stack(err, "inject struct field %s error", ft.Name)
 	}
+	fv.Set(v)
+	return nil
 }
 
 // injectElement injects child plugin elements into a struct field.
-func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix string, s *flatten.Storage) error {
+func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix string, s flatten.Storage) error {
 
-	elemTag := PluginTag(tag)
-	elemKey := elemTag.Get("")
+	elemKey := PluginTag(tag).Get("")
 	if elemKey == "" {
 		err := errutil.Explain(nil, "found no plugin element")
 		return errutil.Stack(err, "inject struct field %s error", ft.Name)
@@ -269,8 +393,33 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 
 	switch fv.Kind() {
 	case reflect.Slice:
-		if !s.Has(elemKey) && !s.Has(elemKey+"[0]") {
-			elemDef, ok := elemTag.Lookup("default")
+		slice := reflect.MakeSlice(ft.Type, 0, 1)
+		if s.Exists(elemKey + "[0]") { // Multiple elements
+			for i := 0; ; i++ {
+				subKey := elemKey + "[" + strconv.Itoa(i) + "]"
+				if !s.Exists(subKey) {
+					break
+				}
+				strType, _ := s.Value(subKey + ".type")
+				// 这里允许 strType 为空，对于结构体指针类型而言
+				v, err := createPlugin(ft, subKey, strType, s)
+				if err != nil {
+					return errutil.Stack(err, "inject struct field %s error", ft.Name)
+				}
+				slice = reflect.Append(slice, v)
+			}
+		} else if s.Exists(elemKey) { // Single element
+			strType, _ := s.Value(elemKey + ".type")
+			// 这里允许 strType 为空，对于结构体指针类型而言
+			v, err := createPlugin(ft, elemKey, strType, s)
+			if err != nil {
+				return errutil.Stack(err, "inject struct field %s error", ft.Name)
+			}
+			slice = reflect.Append(slice, v)
+		}
+
+		if slice.Len() == 0 {
+			elemDef, ok := PluginTag(tag).Lookup("default")
 			if !ok {
 				if nullable {
 					return nil
@@ -278,6 +427,8 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 				err := errutil.Explain(nil, "found no plugin element")
 				return errutil.Stack(err, "inject struct field %s error", ft.Name)
 			}
+
+			var defaultTypes [][]string
 
 			// Parse default plugin type sequence (semicolon-separated)
 			index := 0
@@ -286,45 +437,31 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 				if typeClass == "" {
 					continue
 				}
-				typeKey := elemKey + "[" + strconv.Itoa(index) + "].type"
-				if err := s.Set(typeKey, typeClass, 0); err != nil {
-					return err // Should never fail
-				}
+				typeKey := elemKey + "[" + strconv.Itoa(index) + "]"
+				defaultTypes = append(defaultTypes, []string{typeKey, typeClass})
 				index++
 			}
 			if index == 0 {
 				err := errutil.Explain(nil, "found no plugin element")
 				return errutil.Stack(err, "inject struct field %s error", ft.Name)
 			}
-		}
 
-		slice := reflect.MakeSlice(ft.Type, 0, 1)
-		if s.Has(elemKey + "[0]") { // Multiple elements
-			for i := 0; ; i++ {
-				subKey := elemKey + "[" + strconv.Itoa(i) + "]"
-				if !s.Has(subKey) {
-					break
-				}
-				v, err := createPlugin(ft, subKey, s)
+			for _, arr := range defaultTypes {
+				v, err := createPlugin(ft, arr[0], arr[1], s)
 				if err != nil {
 					return errutil.Stack(err, "inject struct field %s error", ft.Name)
 				}
 				slice = reflect.Append(slice, v)
 			}
-		} else if s.Has(elemKey) { // Single element
-			v, err := createPlugin(ft, elemKey, s)
-			if err != nil {
-				return errutil.Stack(err, "inject struct field %s error", ft.Name)
-			}
-			slice = reflect.Append(slice, v)
 		}
 
 		fv.Set(slice)
 		return nil
 
 	case reflect.Interface:
-		if !s.Has(elemKey) {
-			typeClass, ok := elemTag.Lookup("default")
+		strType, ok := s.Value(elemKey + ".type")
+		if !ok {
+			typeClass, ok := PluginTag(tag).Lookup("default")
 			if !ok {
 				if nullable {
 					return nil
@@ -332,13 +469,10 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 				err := errutil.Explain(nil, "found no plugin element")
 				return errutil.Stack(err, "inject struct field %s error", ft.Name)
 			}
-			typeKey := elemKey + ".type"
-			if err := s.Set(typeKey, typeClass, 0); err != nil {
-				return err // Should never fail
-			}
+			strType = typeClass
 		}
 
-		v, err := createPlugin(ft, elemKey, s)
+		v, err := createPlugin(ft, elemKey, strType, s)
 		if err != nil {
 			return errutil.Stack(err, "inject struct field %s error", ft.Name)
 		}
@@ -352,8 +486,11 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 }
 
 // createPlugin creates a plugin instance.
-func createPlugin(ft reflect.StructField, elemKey string, s *flatten.Storage) (reflect.Value, error) {
-	strType := s.Get(elemKey + ".type")
+func createPlugin(ft reflect.StructField, elemKey string, strType string, s flatten.Storage) (reflect.Value, error) {
+	//strType, ok := s.Value(elemKey + ".type")
+	//if !ok {
+	//	return reflect.Value{}, errutil.Explain(nil, "found no plugin element")
+	//}
 	p, ok := pluginRegistry[strType]
 	if !ok {
 		if ft.Type.Kind() == reflect.Interface {

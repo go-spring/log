@@ -89,44 +89,50 @@ package log
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"runtime"
-	"strconv"
+	"strings"
 	"time"
+)
 
-	"github.com/go-spring/stdlib/errutil"
+// CallerType defines the type of caller information to retrieve.
+type CallerType int
+
+const (
+	// CallerTypeDefault indicates that the caller information should be retrieved
+	// using the default method.
+	CallerTypeDefault CallerType = iota
+
+	// CallerTypeFast indicates that the caller information should be retrieved
+	// using a faster but less accurate method.
+	CallerTypeFast
+
+	// CallerTypeNone indicates that no caller information should be retrieved.
+	CallerTypeNone
 )
 
 var (
-	// enableCaller controls whether to enable caller lookup (file/line).
-	enableCaller = true
-
-	// fastCaller controls whether to use a faster but less accurate
-	// implementation of caller lookup (file/line).
-	fastCaller = false
+	// enableCaller indicates whether to enable caller information.
+	callerType = CallerTypeFast
 
 	// defaultLoggerLevel is the default log level for the default logger.
 	defaultLoggerLevel = InfoLevel
 )
 
 func init() {
-	// Property: enableCaller
-	RegisterProperty("enableCaller", func(s string) error {
-		b, err := strconv.ParseBool(s)
-		if err != nil {
-			return errutil.Stack(err, "invalid enableCaller: %q", s)
+	// Property: callerType
+	RegisterProperty("callerType", func(s string) error {
+		switch strings.TrimSpace(s); s {
+		case "default":
+			callerType = CallerTypeDefault
+		case "fast":
+			callerType = CallerTypeFast
+		case "none":
+			callerType = CallerTypeNone
+		default:
+			return fmt.Errorf("invalid callerType: %s", s)
 		}
-		enableCaller = b
-		return nil
-	})
-
-	// Property: fastCaller
-	RegisterProperty("fastCaller", func(s string) error {
-		b, err := strconv.ParseBool(s)
-		if err != nil {
-			return errutil.Stack(err, "invalid fastCaller: %q", s)
-		}
-		fastCaller = b
 		return nil
 	})
 
@@ -136,6 +142,20 @@ func init() {
 	}
 	defaultLoggerLevel = r.MinLevel
 }
+
+var (
+	// TimeNow is an overrideable function to provide custom timestamps.
+	// For example, this can be replaced during testing to return a fixed time.
+	TimeNow func(ctx context.Context) time.Time
+
+	// StringFromContext is an optional hook to extract a string (e.g., trace ID)
+	// from the context. This string will be attached to the log event.
+	StringFromContext func(ctx context.Context) string
+
+	// FieldsFromContext is an optional hook to extract structured fields
+	// (e.g., trace ID, span ID, or request metadata) from the context.
+	FieldsFromContext func(ctx context.Context) []Field
+)
 
 // defaultLogger serves as the fallback logger used when no custom logger
 // has been configured for a specific tag.
@@ -184,20 +204,6 @@ func RegisterBizTag(subType, action string) *Tag {
 func RegisterRPCTag(subType, action string) *Tag {
 	return RegisterTag(BuildTag("rpc", subType, action))
 }
-
-var (
-	// TimeNow is an overrideable function to provide custom timestamps.
-	// For example, this can be replaced during testing to return a fixed time.
-	TimeNow func(ctx context.Context) time.Time
-
-	// StringFromContext is an optional hook to extract a string (e.g., trace ID)
-	// from the context. This string will be attached to the log event.
-	StringFromContext func(ctx context.Context) string
-
-	// FieldsFromContext is an optional hook to extract structured fields
-	// (e.g., trace ID, span ID, or request metadata) from the context.
-	FieldsFromContext func(ctx context.Context) []Field
-)
 
 // getLogger returns the logger associated with the given tag.
 // If no logger is bound, the default logger is returned.
@@ -328,12 +334,12 @@ func record(ctx context.Context, level Level, tag string, logger Logger, skip in
 		file string
 		line int
 	)
-	if enableCaller {
-		if fastCaller {
-			file, line = FastCaller(skip)
-		} else {
-			_, file, line, _ = runtime.Caller(skip + 1)
-		}
+	switch callerType {
+	case CallerTypeDefault:
+		_, file, line, _ = runtime.Caller(skip + 1)
+	case CallerTypeFast:
+		file, line = FastCaller(skip + 1)
+	default: // for linter
 	}
 
 	// Step 3: get log timestamp.

@@ -27,6 +27,7 @@ func init() {
 	RegisterConverter[BufferFullPolicy](ParseBufferFullPolicy)
 
 	RegisterPlugin[SyncLogger]("Logger")
+	RegisterPlugin[SyncLogger]("SyncLogger")
 	RegisterPlugin[AsyncLogger]("AsyncLogger")
 	RegisterPlugin[DiscardLogger]("DiscardLogger")
 	RegisterPlugin[ConsoleLogger]("ConsoleLogger")
@@ -37,7 +38,7 @@ func init() {
 // Logger is the interface implemented by all loggers.
 type Logger interface {
 	Appender
-	GetTags() string
+	GetTags() []string
 	GetLevel() LevelRange
 }
 
@@ -64,7 +65,7 @@ func (c *AppenderRef) Write(b []byte) {
 // LoggerBase contains fields shared by all logger configurations.
 type LoggerBase struct {
 	Name   string     `PluginAttribute:"name"`           // Logger name
-	Tags   string     `PluginAttribute:"tags,default="`  // Optional tags
+	Tags   []string   `PluginAttribute:"tags,default="`  // Optional tags
 	Level  LevelRange `PluginAttribute:"level,default="` // Logger level range
 	Layout Layout     `PluginElement:"layout?"`          // Layout for formatting logs
 }
@@ -75,7 +76,7 @@ func (c *LoggerBase) GetName() string {
 }
 
 // GetTags returns the tags of the logger.
-func (c *LoggerBase) GetTags() string {
+func (c *LoggerBase) GetTags() []string {
 	return c.Tags
 }
 
