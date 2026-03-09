@@ -19,6 +19,7 @@ package log
 import (
 	"slices"
 	"strings"
+	"sync/atomic"
 
 	"github.com/go-spring/stdlib/ordered"
 )
@@ -27,12 +28,22 @@ import (
 // Note: Not concurrency-safe; intended for use during initialization.
 var tagRegistry = map[string]*Tag{}
 
+// loggerValue wraps a Logger instance.
+type loggerValue struct {
+	Logger
+}
+
 // Tag represents a named log tag, used to categorize logs by
 // subsystem, business domain, or RPC interaction, and so on.
 // Each Tag holds a reference to a Logger.
 type Tag struct {
 	tag    string
-	logger Logger
+	logger atomic.Pointer[loggerValue]
+}
+
+// reset resets the logger associated with the tag.
+func (t *Tag) reset() {
+	t.logger.Store(&loggerValue{})
 }
 
 // GetAllTags returns the names of all registered tags.
@@ -80,6 +91,7 @@ func RegisterTag(tag string) *Tag {
 	m, ok := tagRegistry[tag]
 	if !ok {
 		m = &Tag{tag: tag}
+		m.reset()
 		tagRegistry[tag] = m
 	}
 	return m

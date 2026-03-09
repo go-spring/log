@@ -208,8 +208,8 @@ func RegisterRPCTag(subType, action string) *Tag {
 // getLogger returns the logger associated with the given tag.
 // If no logger is bound, the default logger is returned.
 func getLogger(tag *Tag) Logger {
-	if tag.logger != nil {
-		return tag.logger
+	if l := tag.logger.Load().Logger; l != nil {
+		return l
 	}
 	return defaultLogger
 }

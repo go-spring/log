@@ -195,7 +195,7 @@ func Refresh(s flatten.Storage) error {
 
 	// Update `tagMap` with corresponding loggers
 	for tag, obj := range tagRegistry {
-		obj.logger = findLoggerForTag(tag)
+		obj.logger.Store(&loggerValue{findLoggerForTag(tag)})
 	}
 
 	// Inject properties
@@ -223,6 +223,9 @@ func Refresh(s flatten.Storage) error {
 func Destroy() {
 	if !global.refreshed {
 		return
+	}
+	for _, obj := range tagRegistry {
+		obj.reset()
 	}
 	for _, l := range global.loggers {
 		l.Stop()
