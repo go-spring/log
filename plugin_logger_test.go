@@ -68,7 +68,7 @@ func TestLoggerConfig(t *testing.T) {
 			},
 		}
 
-		l.Write([]byte("test"))
+		l.WriteLevel(InfoLevel, []byte("test"))
 		assert.That(t, a.count).Equal(0)
 
 		l.Stop()
@@ -195,7 +195,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 
 		go func() {
 			for range 100 {
-				l.Write([]byte("hello"))
+				l.WriteLevel(InfoLevel, []byte("hello"))
 			}
 		}()
 
@@ -249,7 +249,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 
 		go func() {
 			for range 100 {
-				l.Write([]byte("hello"))
+				l.WriteLevel(InfoLevel, []byte("hello"))
 			}
 		}()
 
@@ -297,7 +297,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 
 		go func() {
 			for range 100 {
-				l.Write([]byte("hello"))
+				l.WriteLevel(InfoLevel, []byte("hello"))
 			}
 		}()
 
@@ -382,7 +382,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 
 		// Rapidly write large amount of data to fill the buffer
 		for range 500 {
-			l.Write([]byte("test data"))
+			l.WriteLevel(InfoLevel, []byte("test data"))
 		}
 
 		time.Sleep(100 * time.Millisecond)

@@ -62,6 +62,9 @@ func (l Level) Name() string {
 // The Level is also stored in the global levels map for string lookups.
 // Name is normalized to uppercase for consistency.
 func RegisterLevel(code int32, name string) Level {
+	if _, ok := levelRegistry[name]; ok {
+		panic("log: level " + name + " already registered")
+	}
 	l := Level{code: code, name: strings.ToUpper(name)}
 	levelRegistry[l.name] = l
 	return l
@@ -76,7 +79,7 @@ type LevelRange struct {
 // Enable returns true if the given Level 'l' falls within the LevelRange.
 // The check is inclusive of MinLevel and exclusive of MaxLevel.
 func (c LevelRange) Enable(l Level) bool {
-	if c.MaxLevel == MaxLevel {
+	if c.MaxLevel.code == MaxLevel.code {
 		return l.code >= c.MinLevel.code
 	}
 	return l.code >= c.MinLevel.code && l.code < c.MaxLevel.code
@@ -106,6 +109,9 @@ func ParseLevelRange(s string) (LevelRange, error) {
 	)
 
 	ss := strings.Split(s, "~")
+	if len(ss) > 2 {
+		return LevelRange{}, errutil.Explain(nil, "invalid log level: %q", s)
+	}
 	minLevel, ok = levelRegistry[strings.ToUpper(ss[0])]
 	if !ok {
 		return LevelRange{}, errutil.Explain(nil, "invalid log level: %q", ss[0])
@@ -115,6 +121,9 @@ func ParseLevelRange(s string) (LevelRange, error) {
 		if !ok {
 			return LevelRange{}, errutil.Explain(nil, "invalid log level: %q", ss[1])
 		}
+	}
+	if maxLevel.code <= minLevel.code {
+		return LevelRange{}, errutil.Explain(nil, "invalid log level: %q", s)
 	}
 
 	return LevelRange{MinLevel: minLevel, MaxLevel: maxLevel}, nil

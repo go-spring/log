@@ -25,7 +25,8 @@ import (
 )
 
 // tagRegistry stores Tag instances keyed by their string names.
-// Note: Not concurrency-safe; intended for use during initialization.
+// Note: This registry is not concurrency-safe and is intended to be
+// used only during the initialization phase.
 var tagRegistry = map[string]*Tag{}
 
 // loggerValue wraps a Logger instance.
@@ -34,8 +35,8 @@ type loggerValue struct {
 }
 
 // Tag represents a named log tag, used to categorize logs by
-// subsystem, business domain, or RPC interaction, and so on.
-// Each Tag holds a reference to a Logger.
+// subsystem, business domain, RPC interaction, and so on.
+// Each Tag maintains a reference to a Logger instance.
 type Tag struct {
 	tag    string
 	logger atomic.Pointer[loggerValue]
@@ -52,11 +53,13 @@ func GetAllTags() []string {
 }
 
 // isValidTag validates a tag string according to the following rules:
+//
 //  1. Length must be between 3 and 36 characters.
 //  2. Allowed characters: lowercase letters (a-z), digits (0-9), underscores (_).
-//  3. Tag may start with an underscore.
-//  4. Segments are separated by underscores, with 1 to 4 non-empty segments.
-//  5. No consecutive or trailing underscores are allowed.
+//  3. The tag may optionally start with a single underscore.
+//  4. After removing the optional leading underscore, the tag consists of
+//     1 to 4 non-empty segments separated by underscores.
+//  5. Consecutive underscores or trailing underscores are not allowed.
 func isValidTag(tag string) bool {
 	if len(tag) < 3 || len(tag) > 36 {
 		return false
@@ -76,11 +79,14 @@ func isValidTag(tag string) bool {
 }
 
 // RegisterTag retrieves or creates a Tag by name.
-// If the tag is not yet registered, it is associated with initLogger.
-// Panics if called after global.init is set (i.e., after logging refresh).
+// If the tag is not yet registered, a new Tag is created and initialized.
 //
-// Normally, higher-level helpers like RegisterAppTag, RegisterBizTag,
-// or RegisterRPCTag should be used to ensure semantic consistency.
+// This function must be called during initialization. It panics if invoked
+// after the logging system has been refreshed (i.e., when global.refreshed
+// is already set).
+//
+// Normally, higher-level helpers such as RegisterAppTag, RegisterBizTag,
+// or RegisterRPCTag should be used to enforce semantic consistency.
 func RegisterTag(tag string) *Tag {
 	if global.refreshed {
 		panic("log refresh already done")
@@ -97,8 +103,10 @@ func RegisterTag(tag string) *Tag {
 	return m
 }
 
-// BuildTag constructs a structured tag string from main type, sub type, and action.
-// The format is:
+// BuildTag constructs a structured tag string from mainType, subType,
+// and an optional action.
+//
+// The resulting format is:
 //
 //	_<mainType>_<subType>
 //	_<mainType>_<subType>_<action>

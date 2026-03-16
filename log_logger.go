@@ -33,8 +33,14 @@ type LoggerWrapper struct {
 // It implements the io.Writer interface, allowing LoggerWrapper to be
 // used anywhere an io.Writer is expected.
 func (m *LoggerWrapper) Write(b []byte) (n int, err error) {
-	m.logger.Write(b)
+	m.WriteLevel(MaxLevel, b)
 	return len(b), nil
+}
+
+// WriteLevel forwards the given byte slice to the currently active Logger
+// with the specified level.
+func (m *LoggerWrapper) WriteLevel(level Level, b []byte) {
+	m.logger.WriteLevel(level, b)
 }
 
 // GetLogger retrieves an existing LoggerWrapper by name,

@@ -2,7 +2,8 @@
  * Copyright 2025 The Go-Spring Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ *
+ * You may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
  *      https://www.apache.org/licenses/LICENSE-2.0
@@ -23,85 +24,43 @@ import (
 	"github.com/go-spring/stdlib/errutil"
 )
 
-// ToStorage converts a flattened string map into a *flatten.Storage instance.
-// It interprets keys with a "!" suffix as nested map structures, parsing their
-// values using expr.Parse() and inserting them under a composite key.
+// parseExpr expands inline map expressions embedded in map values.
+//
+// A key ending with "!" indicates that the corresponding value is a
+// map expression. The trailing "!" is removed and the parsed entries
+// are merged into the result using the "<key>.<subKey>" format.
 //
 // Example:
 //
-//	Input:
-//	  map[string]string{
+//	input:
+//	  {
 //	    "app.name": "MyApp",
 //	    "db!": "{host: localhost, port: 5432}",
 //	  }
-//	Output:
-//	  flatten.Storage{
+//
+//	output:
+//	  {
 //	    "app.name": "MyApp",
 //	    "db.host":  "localhost",
 //	    "db.port":  "5432",
 //	  }
-func ToStorage(m map[string]string) (map[string]string, error) {
+func parseExpr(m map[string]string) (map[string]string, error) {
 	ret := make(map[string]string)
 	for k, v := range m {
 		var ok bool
-		// Normalize key to CamelCase and check for "!" suffix,
-		// which indicates that the value represents a nested map expression.
-		if k, ok = strings.CutSuffix(toCamelKey(k), "!"); ok {
-			subMap, err := expr.Parse(v)
-			if err != nil {
-				return nil, errutil.Explain(err, "toStorage error")
-			}
-			for k2, v2 := range subMap {
-				ret[k+"."+toCamelKey(k2)] = v2
-			}
-		} else {
+		k, ok = strings.CutSuffix(k, "!")
+		if !ok {
 			ret[k] = v
+			continue
+		}
+		// Parse the inline map expression
+		subMap, err := expr.Parse(v)
+		if err != nil {
+			return nil, errutil.Explain(err, "parseExpr error")
+		}
+		for k2, v2 := range subMap {
+			ret[k+"."+k2] = v2
 		}
 	}
 	return ret, nil
-}
-
-// toCamelKey converts a string like "foo_bar-baz" into "fooBarBaz".
-func toCamelKey(key string) string {
-	if key == "" {
-		return ""
-	}
-
-	const offset = 'a' - 'A'
-
-	b := []byte(key)
-	r := make([]byte, 0, len(b))
-
-	c := b[0]
-	if c >= 'A' && c <= 'Z' {
-		c += offset
-	}
-	r = append(r, c)
-
-	lowerNext := false
-	upperNext := false
-	for i := 1; i < len(b); i++ {
-		c = b[i]
-		if c == '.' {
-			lowerNext = true
-			r = append(r, c)
-			continue
-		} else if c == '-' || c == '_' {
-			upperNext = true
-			continue
-		}
-		if lowerNext {
-			if c >= 'A' && c <= 'Z' {
-				c += offset
-			}
-			lowerNext = false
-		} else if upperNext {
-			if c >= 'a' && c <= 'z' {
-				c -= offset
-			}
-			upperNext = false
-		}
-		r = append(r, c)
-	}
-	return string(r)
 }

@@ -166,10 +166,12 @@ var defaultLogger Logger = &ConsoleLogger{
 			MaxLevel: MaxLevel,
 		},
 	},
-	ConsoleAppender: ConsoleAppender{
-		Layout: &TextLayout{
-			BaseLayout: BaseLayout{
-				FileLineLength: 48,
+	appender: &ConsoleAppender{
+		AppenderBase: AppenderBase{
+			Layout: &TextLayout{
+				BaseLayout: BaseLayout{
+					FileLineLength: 48,
+				},
 			},
 		},
 	},

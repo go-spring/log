@@ -39,6 +39,7 @@ type Event struct {
 	Fields    []Field   // Custom fields provided specifically for this log event
 	CtxString string    // String representation extracted from the context (e.g., trace ID)
 	CtxFields []Field   // Additional structured fields extracted from the context (e.g., request ID, user ID)
+	RawBytes  []byte    // 已经格式化过的数据，仅用于 Write 方案，和其他字段互斥
 }
 
 // Reset clears the Event's fields so the instance can be reused.
@@ -51,6 +52,7 @@ func (e *Event) Reset() {
 	e.Fields = nil
 	e.CtxString = ""
 	e.CtxFields = nil
+	e.RawBytes = nil
 }
 
 // GetEvent retrieves an *Event from the pool.

@@ -143,7 +143,7 @@ func inject(v reflect.Value, t reflect.Type, prefix string, s flatten.Storage) e
 func resolvePropertyRef(s flatten.Storage, val string) (string, error) {
 	val = strings.TrimSpace(val)
 	if strings.HasPrefix(val, "${") && strings.HasSuffix(val, "}") {
-		key := toCamelKey(val[2 : len(val)-1])
+		key := val[2 : len(val)-1]
 		str, ok := s.Value(key)
 		if !ok {
 			return "", errutil.Explain(nil, "property %s not found", val)
@@ -345,7 +345,7 @@ func injectAttribute(tag string, fv reflect.Value, ft reflect.StructField, prefi
 		return nil
 	}
 
-	key := prefix + "." + toCamelKey(attrName)
+	key := prefix + "." + attrName
 
 	if fv.Kind() == reflect.Slice || fv.Kind() == reflect.Array {
 		if err := injectArrayAttribute(fv, ft, key, attrTag, s); err != nil {
@@ -389,7 +389,7 @@ func injectElement(tag string, fv reflect.Value, ft reflect.StructField, prefix 
 	}
 
 	elemKey, nullable := strings.CutSuffix(elemKey, "?")
-	elemKey = prefix + "." + toCamelKey(elemKey)
+	elemKey = prefix + "." + elemKey
 
 	switch fv.Kind() {
 	case reflect.Slice:

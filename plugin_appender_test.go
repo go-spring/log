@@ -44,9 +44,11 @@ func TestConsoleAppender(t *testing.T) {
 		}()
 
 		a := &ConsoleAppender{
-			Layout: &TextLayout{
-				BaseLayout{
-					FileLineLength: 48,
+			AppenderBase: AppenderBase{
+				Layout: &TextLayout{
+					BaseLayout{
+						FileLineLength: 48,
+					},
 				},
 			},
 		}
@@ -93,9 +95,11 @@ func TestFileAppender(t *testing.T) {
 
 	t.Run("Start error", func(t *testing.T) {
 		a := &FileAppender{
-			Layout: &TextLayout{
-				BaseLayout{
-					FileLineLength: 48,
+			AppenderBase: AppenderBase{
+				Layout: &TextLayout{
+					BaseLayout{
+						FileLineLength: 48,
+					},
 				},
 			},
 			FileName: "/not-exist-dir/file.log",
@@ -111,9 +115,11 @@ func TestFileAppender(t *testing.T) {
 		assert.Error(t, err).Nil()
 
 		a := &FileAppender{
-			Layout: &TextLayout{
-				BaseLayout{
-					FileLineLength: 48,
+			AppenderBase: AppenderBase{
+				Layout: &TextLayout{
+					BaseLayout{
+						FileLineLength: 48,
+					},
 				},
 			},
 			FileName: file.Name(),

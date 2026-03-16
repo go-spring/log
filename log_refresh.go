@@ -34,6 +34,16 @@ var global struct {
 	appenders []Appender
 }
 
+// RefreshConfig loads a logging configuration from a map[string]string.
+func RefreshConfig(m map[string]string) error {
+	m, err := parseExpr(m)
+	if err != nil {
+		return err
+	}
+	p := flatten.NewProperties(m)
+	return Refresh(flatten.NewPropertiesStorage(p))
+}
+
 // Refresh loads a logging configuration from a *flatten.Storage.
 func Refresh(s flatten.Storage) error {
 
@@ -200,7 +210,7 @@ func Refresh(s flatten.Storage) error {
 
 	// Inject properties
 	for k, f := range propertyRegistry {
-		if v, ok := s.Value(toCamelKey(k)); !ok {
+		if v, ok := s.Value(k); !ok {
 			continue
 		} else if err := f(v); err != nil {
 			return errutil.Stack(err, "inject property %s error", k)

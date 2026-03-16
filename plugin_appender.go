@@ -47,7 +47,8 @@ type Appender interface {
 
 // AppenderBase provides common configuration fields for all appenders.
 type AppenderBase struct {
-	Name string `PluginAttribute:"name"`
+	Name   string `PluginAttribute:"name"`
+	Layout Layout `PluginElement:"layout,default=TextLayout"`
 }
 
 // GetName returns the appender's name.
@@ -79,7 +80,6 @@ func (c *DiscardAppender) ConcurrentSafe() bool { return true }
 // ConsoleAppender writes formatted log events to standard output.
 type ConsoleAppender struct {
 	AppenderBase
-	Layout Layout `PluginElement:"layout,default=TextLayout"`
 }
 
 func (c *ConsoleAppender) Start() error { return nil }
@@ -102,7 +102,6 @@ func (c *ConsoleAppender) ConcurrentSafe() bool { return true }
 // FileAppender writes formatted log events to a specified file.
 type FileAppender struct {
 	AppenderBase
-	Layout   Layout `PluginElement:"layout,default=TextLayout"`
 	FileDir  string `PluginAttribute:"fileDir,default=./logs"`
 	FileName string `PluginAttribute:"fileName"`
 
@@ -148,7 +147,6 @@ func (c *FileAppender) ConcurrentSafe() bool { return true }
 // If Lock=false, concurrent writes must be serialized by the caller (e.g., async logger).
 type RollingFileAppender struct {
 	AppenderBase
-	Layout   Layout        `PluginElement:"layout,default=TextLayout"`
 	FileDir  string        `PluginAttribute:"fileDir,default=./logs"`
 	FileName string        `PluginAttribute:"fileName"`
 	Interval time.Duration `PluginAttribute:"interval,default=1h"`
