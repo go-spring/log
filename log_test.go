@@ -55,9 +55,8 @@ type SampleAppender struct {
 	Layout log.Layout `PluginElement:"layout,default=TextLayout"`
 }
 
-func (a *SampleAppender) Start() error   { return nil }
-func (a *SampleAppender) Stop()          {}
-func (a *SampleAppender) Write(b []byte) {}
+func (a *SampleAppender) Start() error { return nil }
+func (a *SampleAppender) Stop()        {}
 func (a *SampleAppender) Append(e *log.Event) {
 	data := a.Layout.ToBytes(e)
 	_, _ = os.Stdout.Write(data)

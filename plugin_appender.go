@@ -41,7 +41,6 @@ type Appender interface {
 	Lifecycle             // Start/Stop methods for resource management
 	GetName() string      // Returns the appender's name
 	Append(e *Event)      // Handles writing a log event
-	Write(b []byte)       // Directly writes a byte slice
 	ConcurrentSafe() bool // Returns true if the appender is concurrent-safe
 }
 
@@ -74,7 +73,6 @@ type DiscardAppender struct {
 func (c *DiscardAppender) Start() error         { return nil }
 func (c *DiscardAppender) Stop()                {}
 func (c *DiscardAppender) Append(e *Event)      {}
-func (c *DiscardAppender) Write(b []byte)       {}
 func (c *DiscardAppender) ConcurrentSafe() bool { return true }
 
 // ConsoleAppender writes formatted log events to standard output.
@@ -87,11 +85,7 @@ func (c *ConsoleAppender) Stop()        {}
 
 // Append formats the event and writes it to standard output.
 func (c *ConsoleAppender) Append(e *Event) {
-	c.Write(c.Layout.ToBytes(e))
-}
-
-// Write writes a byte slice directly to standard output.
-func (c *ConsoleAppender) Write(b []byte) {
+	b := e.ToBytes(c.Layout)
 	if _, err := Stdout.Write(b); err != nil {
 		c.ReportError(err)
 	}
@@ -102,6 +96,7 @@ func (c *ConsoleAppender) ConcurrentSafe() bool { return true }
 // FileAppender writes formatted log events to a specified file.
 type FileAppender struct {
 	AppenderBase
+
 	FileDir  string `PluginAttribute:"fileDir,default=./logs"`
 	FileName string `PluginAttribute:"fileName"`
 
@@ -130,11 +125,7 @@ func (c *FileAppender) Stop() {
 
 // Append formats the log event and writes it to the file.
 func (c *FileAppender) Append(e *Event) {
-	c.Write(c.Layout.ToBytes(e))
-}
-
-// Write writes a byte slice directly to the file.
-func (c *FileAppender) Write(b []byte) {
+	b := e.ToBytes(c.Layout)
 	if _, err := c.file.Write(b); err != nil {
 		c.ReportError(err)
 	}
@@ -147,25 +138,26 @@ func (c *FileAppender) ConcurrentSafe() bool { return true }
 // If Lock=false, concurrent writes must be serialized by the caller (e.g., async logger).
 type RollingFileAppender struct {
 	AppenderBase
+
 	FileDir  string        `PluginAttribute:"fileDir,default=./logs"`
 	FileName string        `PluginAttribute:"fileName"`
 	Interval time.Duration `PluginAttribute:"interval,default=1h"`
 	MaxAge   time.Duration `PluginAttribute:"maxAge,default=168h"`
 	Lock     bool          `PluginAttribute:"lock,default=false"`
 
-	w *RollingFileWriter
-	l sync.Mutex
+	writer *RollingFileWriter
+	mutex  sync.Mutex
 }
 
 // Start opens the initial log file and prepares for rotation.
 func (c *RollingFileAppender) Start() error {
-	c.w = &RollingFileWriter{
+	c.writer = &RollingFileWriter{
 		fileDir:  c.FileDir,
 		fileName: c.FileName,
 		interval: c.Interval,
 		maxAge:   c.MaxAge,
 	}
-	if _, err := c.w.Rotate(); err != nil {
+	if _, err := c.writer.Rotate(); err != nil {
 		return err
 	}
 	return nil
@@ -173,34 +165,28 @@ func (c *RollingFileAppender) Start() error {
 
 // Stop flushes and closes the current file.
 func (c *RollingFileAppender) Stop() {
-	c.w.Close()
+	c.writer.Close()
 }
 
 // Append formats the log event and writes it to the current file.
 func (c *RollingFileAppender) Append(e *Event) {
-	c.Write(c.Layout.ToBytes(e))
-}
-
-// Write writes bytes to the current log file.
-// Lock=true ensures thread safety internally;
-// Lock=false assumes caller serializes writes.
-func (c *RollingFileAppender) Write(b []byte) {
 	var (
 		file *os.File
 		err  error
 	)
 	if c.Lock { // for sync logger or multi-threaded usage
-		c.l.Lock()
-		file, err = c.w.Rotate()
-		c.l.Unlock()
+		c.mutex.Lock()
+		file, err = c.writer.Rotate()
+		c.mutex.Unlock()
 	} else { // for async logger that ensures serialization
-		file, err = c.w.Rotate()
+		file, err = c.writer.Rotate()
 	}
 	if err != nil {
 		c.ReportError(err)
 	}
-	_, err = file.Write(b)
-	if err != nil {
+
+	b := e.ToBytes(c.Layout)
+	if _, err = file.Write(b); err != nil {
 		c.ReportError(err)
 	}
 }

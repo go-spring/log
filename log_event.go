@@ -39,10 +39,24 @@ type Event struct {
 	Fields    []Field   // Custom fields provided specifically for this log event
 	CtxString string    // String representation extracted from the context (e.g., trace ID)
 	CtxFields []Field   // Additional structured fields extracted from the context (e.g., request ID, user ID)
-	RawBytes  []byte    // 已经格式化过的数据，仅用于 Write 方案，和其他字段互斥
+	RawBytes  []byte    // Raw data, only used for Write operations, mutually exclusive with other fields
 }
 
-// Reset clears the Event's fields so the instance can be reused.
+// GetEvent retrieves an *Event from the pool.
+// If the pool is empty, a new Event will be created.
+func GetEvent() *Event {
+	return eventPool.Get().(*Event)
+}
+
+// ToBytes formats the Event using the provided Layout.
+func (e *Event) ToBytes(layout Layout) []byte {
+	if e.RawBytes != nil {
+		return e.RawBytes
+	}
+	return layout.ToBytes(e)
+}
+
+// Reset clears the fields of the Event and returns it to the pool.
 func (e *Event) Reset() {
 	e.Level = NoneLevel
 	e.Time = time.Time{}
@@ -53,16 +67,5 @@ func (e *Event) Reset() {
 	e.CtxString = ""
 	e.CtxFields = nil
 	e.RawBytes = nil
-}
-
-// GetEvent retrieves an *Event from the pool.
-// If the pool is empty, a new Event will be created.
-func GetEvent() *Event {
-	return eventPool.Get().(*Event)
-}
-
-// PutEvent resets the given Event and returns it to the pool for reuse.
-func PutEvent(e *Event) {
-	e.Reset()
 	eventPool.Put(e)
 }

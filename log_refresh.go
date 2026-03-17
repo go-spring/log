@@ -53,19 +53,8 @@ func Refresh(s flatten.Storage) error {
 	}
 	global.refreshed = true
 
-	//s, err := toStorage(data)
-	//if err != nil {
-	//	return errutil.Stack(err, "toStorage error")
-	//}
-
-	// Read appenders
-
 	appenders := make(map[string]struct{})
 	s.MapKeys("appender", appenders)
-	//appenders, err := s.SubKeys("appender")
-	//if err != nil {
-	//	return errutil.Stack(err, "read appenders section error")
-	//}
 	if len(appenders) == 0 {
 		return errutil.Explain(nil, "appenders section not found")
 	}
@@ -73,10 +62,6 @@ func Refresh(s flatten.Storage) error {
 	// Read loggers
 	loggers := make(map[string]struct{})
 	s.MapKeys("logger", loggers)
-	//loggers, err := s.SubKeys("logger")
-	//if err != nil {
-	//	return errutil.Stack(err, "read loggers section error")
-	//}
 
 	// Factory function to create plugin instances
 	newPlugin := func(typeKey string) (reflect.Value, error) {
@@ -119,8 +104,8 @@ func Refresh(s flatten.Storage) error {
 		if err != nil {
 			return errutil.Stack(err, "create logger %s error", name)
 		}
-		base, err := initAppenderRefs(v, cAppenders)
-		if err != nil {
+
+		if err = initAppenderRefs(v, cAppenders); err != nil {
 			return errutil.Stack(err, "init appender refs for logger %s error", name)
 		}
 		logger := v.Interface().(Logger)
@@ -128,7 +113,7 @@ func Refresh(s flatten.Storage) error {
 
 		// Skip the root logger
 		if name == RootLoggerName {
-			if len(base.Tags) > 0 {
+			if len(logger.GetTags()) > 0 {
 				err = errutil.Explain(nil, "root logger must not define any tags")
 				return errutil.Stack(err, "create logger %s error", name)
 			}
@@ -138,7 +123,7 @@ func Refresh(s flatten.Storage) error {
 
 		// Parse and validate tag list
 		var tags []string
-		for _, tag := range base.Tags {
+		for _, tag := range logger.GetTags() {
 			if tag = strings.TrimSpace(tag); tag == "" {
 				continue
 			}
@@ -189,18 +174,18 @@ func Refresh(s flatten.Storage) error {
 	}
 
 	// Helper to find the most appropriate logger for a given tag.
-	var findLoggerForTag func(tag string) Logger
-	findLoggerForTag = func(tag string) Logger {
-		if l, ok := cTags[tag]; ok {
-			return l
+	findLoggerForTag := func(tag string) Logger {
+		for {
+			if l, ok := cTags[tag]; ok {
+				return l
+			}
+			tag, _ = strings.CutSuffix(tag, "_*")
+			i := strings.LastIndex(tag, "_")
+			if i <= 0 {
+				return cRoot
+			}
+			tag = tag[:i-1] + "_*" // 去掉最后一段
 		}
-		tag, _ = strings.CutSuffix(tag, "_*")
-		i := strings.LastIndex(tag, "_")
-		if i <= 0 {
-			return cRoot
-		}
-		tag = strings.TrimSuffix(tag[:i], "_") + "_*"
-		return findLoggerForTag(tag)
 	}
 
 	// Update `tagMap` with corresponding loggers
@@ -249,33 +234,22 @@ func Destroy() {
 }
 
 // initAppenderRefs Initialize appender references in a logger
-func initAppenderRefs(v reflect.Value, cAppenders map[string]Appender) (*LoggerBase, error) {
-	var (
-		sync bool
-		base *LoggerBase
-		ref  *AppenderRefs
-	)
-	switch config := v.Interface().(type) {
-	case *SyncLogger:
-		sync = true
-		base = &config.LoggerBase
-		ref = &config.AppenderRefs
-	case *AsyncLogger:
-		sync = false
-		base = &config.LoggerBase
-		ref = &config.AppenderRefs
-	default: // for linter
+func initAppenderRefs(v reflect.Value, cAppenders map[string]Appender) error {
+	i, ok := v.Interface().(AppenderRefs)
+	if !ok {
+		return nil
 	}
-	for _, r := range ref.AppenderRefs {
-		appender, ok := cAppenders[r.Ref]
+	syncMode, appenderRefs := i.GetAppenderRefs()
+	for _, r := range appenderRefs {
+		a, ok := cAppenders[r.Ref]
 		if !ok {
-			return nil, errutil.Explain(nil, "appender %s not found", r.Ref)
+			return errutil.Explain(nil, "appender %s not found", r.Ref)
 		}
 		// 同步 logger 必须搭配并发安全的 appender
-		if sync && !appender.ConcurrentSafe() {
-			return nil, errutil.Explain(nil, "appender %s is not concurrent-safe", r.Ref)
+		if syncMode && !a.ConcurrentSafe() {
+			return errutil.Explain(nil, "appender %s is not concurrent-safe", r.Ref)
 		}
-		r.Appender = appender
+		r.Appender = a
 	}
-	return base, nil
+	return nil
 }
