@@ -17,11 +17,18 @@
 package log
 
 import (
-	"bytes"
 	"encoding/json"
+	"io"
 	"strconv"
 	"unicode/utf8"
 )
+
+// Writer defines the interface for writing raw data.
+type Writer interface {
+	io.Writer
+	io.ByteWriter
+	io.StringWriter
+}
 
 // Encoder defines the interface for structured logging encoders.
 // Implementations control how log fields are serialized (e.g. JSON, text).
@@ -62,13 +69,13 @@ const (
 
 // JSONEncoder encodes log fields into standard JSON format.
 type JSONEncoder struct {
-	buf  *bytes.Buffer // Buffer to write JSON output.
+	out  Writer        // Buffer to write JSON output.
 	last JSONTokenType // The last token type written.
 }
 
 // NewJSONEncoder creates a new JSONEncoder.
-func NewJSONEncoder(buf *bytes.Buffer) *JSONEncoder {
-	return &JSONEncoder{buf: buf, last: JSONTokenUnknown}
+func NewJSONEncoder(out Writer) *JSONEncoder {
+	return &JSONEncoder{out: out, last: JSONTokenUnknown}
 }
 
 // Reset resets the encoder's state.
@@ -90,33 +97,33 @@ func (enc *JSONEncoder) AppendEncoderEnd() {
 func (enc *JSONEncoder) AppendObjectBegin() {
 	enc.appendSeparator()
 	enc.last = JSONTokenObjectBegin
-	enc.buf.WriteByte('{')
+	_ = enc.out.WriteByte('{')
 }
 
 // AppendObjectEnd writes the end of a JSON object.
 func (enc *JSONEncoder) AppendObjectEnd() {
 	enc.last = JSONTokenObjectEnd
-	enc.buf.WriteByte('}')
+	_ = enc.out.WriteByte('}')
 }
 
 // AppendArrayBegin writes the beginning of a JSON array.
 func (enc *JSONEncoder) AppendArrayBegin() {
 	enc.appendSeparator()
 	enc.last = JSONTokenArrayBegin
-	enc.buf.WriteByte('[')
+	_ = enc.out.WriteByte('[')
 }
 
 // AppendArrayEnd writes the end of a JSON array.
 func (enc *JSONEncoder) AppendArrayEnd() {
 	enc.last = JSONTokenArrayEnd
-	enc.buf.WriteByte(']')
+	_ = enc.out.WriteByte(']')
 }
 
 // appendSeparator writes a comma if the previous token
 // requires separation (e.g., between values).
 func (enc *JSONEncoder) appendSeparator() {
 	if enc.last == JSONTokenObjectEnd || enc.last == JSONTokenArrayEnd || enc.last == JSONTokenValue {
-		enc.buf.WriteByte(',')
+		_ = enc.out.WriteByte(',')
 	}
 }
 
@@ -124,47 +131,47 @@ func (enc *JSONEncoder) appendSeparator() {
 func (enc *JSONEncoder) AppendKey(key string) {
 	enc.appendSeparator()
 	enc.last = JSONTokenKey
-	enc.buf.WriteByte('"')
-	WriteLogString(enc.buf, key)
-	enc.buf.WriteByte('"')
-	enc.buf.WriteByte(':')
+	_ = enc.out.WriteByte('"')
+	WriteLogString(enc.out, key)
+	_ = enc.out.WriteByte('"')
+	_ = enc.out.WriteByte(':')
 }
 
 // AppendBool writes a boolean value.
 func (enc *JSONEncoder) AppendBool(v bool) {
 	enc.appendSeparator()
 	enc.last = JSONTokenValue
-	enc.buf.WriteString(strconv.FormatBool(v))
+	_, _ = enc.out.WriteString(strconv.FormatBool(v))
 }
 
 // AppendInt64 writes an int64 value.
 func (enc *JSONEncoder) AppendInt64(v int64) {
 	enc.appendSeparator()
 	enc.last = JSONTokenValue
-	enc.buf.WriteString(strconv.FormatInt(v, 10))
+	_, _ = enc.out.WriteString(strconv.FormatInt(v, 10))
 }
 
 // AppendUint64 writes an uint64 value.
 func (enc *JSONEncoder) AppendUint64(u uint64) {
 	enc.appendSeparator()
 	enc.last = JSONTokenValue
-	enc.buf.WriteString(strconv.FormatUint(u, 10))
+	_, _ = enc.out.WriteString(strconv.FormatUint(u, 10))
 }
 
 // AppendFloat64 writes a float64 value.
 func (enc *JSONEncoder) AppendFloat64(v float64) {
 	enc.appendSeparator()
 	enc.last = JSONTokenValue
-	enc.buf.WriteString(strconv.FormatFloat(v, 'f', -1, 64))
+	_, _ = enc.out.WriteString(strconv.FormatFloat(v, 'f', -1, 64))
 }
 
 // AppendString writes a string value with proper escaping.
 func (enc *JSONEncoder) AppendString(v string) {
 	enc.appendSeparator()
 	enc.last = JSONTokenValue
-	enc.buf.WriteByte('"')
-	WriteLogString(enc.buf, v)
-	enc.buf.WriteByte('"')
+	_ = enc.out.WriteByte('"')
+	WriteLogString(enc.out, v)
+	_ = enc.out.WriteByte('"')
 }
 
 // AppendReflect marshals any Go value to JSON and writes it.
@@ -174,30 +181,30 @@ func (enc *JSONEncoder) AppendReflect(v any) {
 	enc.last = JSONTokenValue
 	b, err := json.Marshal(v)
 	if err != nil {
-		enc.buf.WriteByte('"')
-		WriteLogString(enc.buf, err.Error())
-		enc.buf.WriteByte('"')
+		_ = enc.out.WriteByte('"')
+		WriteLogString(enc.out, err.Error())
+		_ = enc.out.WriteByte('"')
 		return
 	}
-	enc.buf.Write(b)
+	_, _ = enc.out.Write(b)
 }
 
 // TextEncoder encodes fields as "key=value" pairs separated by a delimiter.
 // Nested arrays/objects are serialized as JSON using an internal JSONEncoder.
 type TextEncoder struct {
-	buf         *bytes.Buffer // Buffer to write the encoded output
-	separator   string        // Separator used between top-level key-value pairs
-	jsonEncoder *JSONEncoder  // Embedded JSON encoder for nested objects/arrays
-	jsonDepth   int8          // Tracks depth of nested JSON structures
-	hasWritten  bool          // Tracks if the first key-value has been written
+	out         Writer       // Buffer to write the encoded output
+	separator   string       // Separator used between top-level key-value pairs
+	jsonEncoder *JSONEncoder // Embedded JSON encoder for nested objects/arrays
+	jsonDepth   int8         // Tracks depth of nested JSON structures
+	hasWritten  bool         // Tracks if the first key-value has been written
 }
 
 // NewTextEncoder creates a new TextEncoder, using the specified separator.
-func NewTextEncoder(buf *bytes.Buffer, separator string) *TextEncoder {
+func NewTextEncoder(out Writer, separator string) *TextEncoder {
 	return &TextEncoder{
-		buf:         buf,
+		out:         out,
 		separator:   separator,
-		jsonEncoder: &JSONEncoder{buf: buf},
+		jsonEncoder: &JSONEncoder{out: out},
 	}
 }
 
@@ -250,12 +257,12 @@ func (enc *TextEncoder) AppendKey(key string) {
 		return
 	}
 	if enc.hasWritten {
-		enc.buf.WriteString(enc.separator)
+		_, _ = enc.out.WriteString(enc.separator)
 	} else {
 		enc.hasWritten = true
 	}
-	WriteLogString(enc.buf, key)
-	enc.buf.WriteByte('=')
+	WriteLogString(enc.out, key)
+	_ = enc.out.WriteByte('=')
 }
 
 // AppendBool appends a boolean value, using JSON encoder if nested.
@@ -264,7 +271,7 @@ func (enc *TextEncoder) AppendBool(v bool) {
 		enc.jsonEncoder.AppendBool(v)
 		return
 	}
-	enc.buf.WriteString(strconv.FormatBool(v))
+	_, _ = enc.out.WriteString(strconv.FormatBool(v))
 }
 
 // AppendInt64 appends an int64 value, using JSON encoder if nested.
@@ -273,7 +280,7 @@ func (enc *TextEncoder) AppendInt64(v int64) {
 		enc.jsonEncoder.AppendInt64(v)
 		return
 	}
-	enc.buf.WriteString(strconv.FormatInt(v, 10))
+	_, _ = enc.out.WriteString(strconv.FormatInt(v, 10))
 }
 
 // AppendUint64 appends a uint64 value, using JSON encoder if nested.
@@ -282,7 +289,7 @@ func (enc *TextEncoder) AppendUint64(v uint64) {
 		enc.jsonEncoder.AppendUint64(v)
 		return
 	}
-	enc.buf.WriteString(strconv.FormatUint(v, 10))
+	_, _ = enc.out.WriteString(strconv.FormatUint(v, 10))
 }
 
 // AppendFloat64 appends a float64 value, using JSON encoder if nested.
@@ -291,7 +298,7 @@ func (enc *TextEncoder) AppendFloat64(v float64) {
 		enc.jsonEncoder.AppendFloat64(v)
 		return
 	}
-	enc.buf.WriteString(strconv.FormatFloat(v, 'f', -1, 64))
+	_, _ = enc.out.WriteString(strconv.FormatFloat(v, 'f', -1, 64))
 }
 
 // AppendString appends a string value, using JSON encoder if nested.
@@ -300,7 +307,7 @@ func (enc *TextEncoder) AppendString(v string) {
 		enc.jsonEncoder.AppendString(v)
 		return
 	}
-	WriteLogString(enc.buf, v)
+	WriteLogString(enc.out, v)
 }
 
 // AppendReflect uses reflection to marshal any value as JSON.
@@ -312,72 +319,72 @@ func (enc *TextEncoder) AppendReflect(v any) {
 	}
 	b, err := json.Marshal(v)
 	if err != nil {
-		WriteLogString(enc.buf, err.Error())
+		WriteLogString(enc.out, err.Error())
 		return
 	}
-	enc.buf.Write(b)
+	_, _ = enc.out.Write(b)
 }
 
 /************************************* string ********************************/
 
 // WriteLogString escapes and writes a string according to JSON rules.
-func WriteLogString(buf *bytes.Buffer, s string) {
+func WriteLogString(out Writer, s string) {
 	for i := 0; i < len(s); {
 		// Try to add a single-byte (ASCII) character directly
-		if tryAddRuneSelf(buf, s[i]) {
+		if tryAddRuneSelf(out, s[i]) {
 			i++
 			continue
 		}
 		// Decode multi-byte UTF-8 character
 		r, size := utf8.DecodeRuneInString(s[i:])
 		// Handle invalid UTF-8 encoding
-		if tryAddRuneError(buf, r, size) {
+		if tryAddRuneError(out, r, size) {
 			i++
 			continue
 		}
 		// Valid multi-byte rune; add as is
-		buf.WriteString(s[i : i+size])
+		_, _ = out.WriteString(s[i : i+size])
 		i += size
 	}
 }
 
 // tryAddRuneSelf handles ASCII characters and escapes control/quote characters.
-func tryAddRuneSelf(buf *bytes.Buffer, b byte) bool {
+func tryAddRuneSelf(out Writer, b byte) bool {
 	const _hex = "0123456789abcdef"
 	if b >= utf8.RuneSelf {
 		return false // not a single-byte rune
 	}
 	if 0x20 <= b && b != '\\' && b != '"' {
-		buf.WriteByte(b)
+		_ = out.WriteByte(b)
 		return true
 	}
 	// Handle escaping
 	switch b {
 	case '\\', '"':
-		buf.WriteByte('\\')
-		buf.WriteByte(b)
+		_ = out.WriteByte('\\')
+		_ = out.WriteByte(b)
 	case '\n':
-		buf.WriteByte('\\')
-		buf.WriteByte('n')
+		_ = out.WriteByte('\\')
+		_ = out.WriteByte('n')
 	case '\r':
-		buf.WriteByte('\\')
-		buf.WriteByte('r')
+		_ = out.WriteByte('\\')
+		_ = out.WriteByte('r')
 	case '\t':
-		buf.WriteByte('\\')
-		buf.WriteByte('t')
+		_ = out.WriteByte('\\')
+		_ = out.WriteByte('t')
 	default:
 		// Encode bytes < 0x20, except for the escape sequences above.
-		buf.WriteString(`\u00`)
-		buf.WriteByte(_hex[b>>4])
-		buf.WriteByte(_hex[b&0xF])
+		_, _ = out.WriteString(`\u00`)
+		_ = out.WriteByte(_hex[b>>4])
+		_ = out.WriteByte(_hex[b&0xF])
 	}
 	return true
 }
 
 // tryAddRuneError checks and escapes invalid UTF-8 runes.
-func tryAddRuneError(buf *bytes.Buffer, r rune, size int) bool {
+func tryAddRuneError(out Writer, r rune, size int) bool {
 	if r == utf8.RuneError && size == 1 {
-		buf.WriteString(`\ufffd`)
+		_, _ = out.WriteString(`\ufffd`)
 		return true
 	}
 	return false

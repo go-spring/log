@@ -58,9 +58,9 @@ type SampleAppender struct {
 func (a *SampleAppender) Start() error { return nil }
 func (a *SampleAppender) Stop()        {}
 func (a *SampleAppender) Append(e *log.Event) {
-	data := a.Layout.ToBytes(e)
-	_, _ = os.Stdout.Write(data)
-	_, _ = os.Stderr.Write(data)
+	//data := a.Layout.ToBytes(e)
+	//_, _ = os.Stdout.Write(data)
+	//_, _ = os.Stderr.Write(data)
 }
 func (a *SampleAppender) ConcurrentSafe() bool { return true }
 
@@ -95,7 +95,7 @@ func readConfig() map[string]string {
 	    "myLogger": {
 	      "type": "AsyncLogger",
 	      "level": "trace",
-	      "tags": "_com_request_in,_com_request_*",
+	      "tag": "_com_request_in,_com_request_*",
 	      "bufferSize": "${bufferSize}",
 	      "appenderRef": [
 	        {

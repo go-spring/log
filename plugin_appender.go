@@ -37,6 +37,8 @@ func init() {
 
 // Appender defines components that handle log output.
 // All implementations of Appender must be safe for concurrent use.
+//
+// Append MUST NOT reuse or modify the Event.
 type Appender interface {
 	Lifecycle             // Start/Stop methods for resource management
 	GetName() string      // Returns the appender's name
@@ -52,11 +54,6 @@ type AppenderBase struct {
 
 // GetName returns the appender's name.
 func (c *AppenderBase) GetName() string { return c.Name }
-
-// ReportError reports an error to the appender.
-func (c *AppenderBase) ReportError(err error) {
-	// TODO: report the error
-}
 
 var (
 	_ Appender = (*DiscardAppender)(nil)
@@ -85,10 +82,7 @@ func (c *ConsoleAppender) Stop()        {}
 
 // Append formats the event and writes it to standard output.
 func (c *ConsoleAppender) Append(e *Event) {
-	b := e.ToBytes(c.Layout)
-	if _, err := Stdout.Write(b); err != nil {
-		c.ReportError(err)
-	}
+	WriteEvent(Stdout, e, c.Layout)
 }
 
 func (c *ConsoleAppender) ConcurrentSafe() bool { return true }
@@ -125,10 +119,7 @@ func (c *FileAppender) Stop() {
 
 // Append formats the log event and writes it to the file.
 func (c *FileAppender) Append(e *Event) {
-	b := e.ToBytes(c.Layout)
-	if _, err := c.file.Write(b); err != nil {
-		c.ReportError(err)
-	}
+	WriteEvent(c.file, e, c.Layout)
 }
 
 func (c *FileAppender) ConcurrentSafe() bool { return true }
@@ -182,13 +173,9 @@ func (c *RollingFileAppender) Append(e *Event) {
 		file, err = c.writer.Rotate()
 	}
 	if err != nil {
-		c.ReportError(err)
+		ReportError(err)
 	}
-
-	b := e.ToBytes(c.Layout)
-	if _, err = file.Write(b); err != nil {
-		c.ReportError(err)
-	}
+	WriteEvent(file, e, c.Layout)
 }
 
 func (c *RollingFileAppender) ConcurrentSafe() bool { return c.Lock }

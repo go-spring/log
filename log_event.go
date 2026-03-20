@@ -42,18 +42,10 @@ type Event struct {
 	RawBytes  []byte    // Raw data, only used for Write operations, mutually exclusive with other fields
 }
 
-// GetEvent retrieves an *Event from the pool.
+// getEvent retrieves an *Event from the pool.
 // If the pool is empty, a new Event will be created.
-func GetEvent() *Event {
+func getEvent() *Event {
 	return eventPool.Get().(*Event)
-}
-
-// ToBytes formats the Event using the provided Layout.
-func (e *Event) ToBytes(layout Layout) []byte {
-	if e.RawBytes != nil {
-		return e.RawBytes
-	}
-	return layout.ToBytes(e)
 }
 
 // Reset clears the fields of the Event and returns it to the pool.

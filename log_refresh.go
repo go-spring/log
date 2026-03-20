@@ -137,7 +137,7 @@ func Refresh(s flatten.Storage) error {
 		}
 
 		if len(tags) == 0 {
-			err = errutil.Explain(nil, "logger must have attribute 'tags'")
+			err = errutil.Explain(nil, "logger must have attribute 'tag'")
 			return errutil.Stack(err, "create logger %s error", name)
 		}
 
@@ -191,15 +191,6 @@ func Refresh(s flatten.Storage) error {
 	// Update `tagMap` with corresponding loggers
 	for tag, obj := range tagRegistry {
 		obj.logger.Store(&loggerValue{findLoggerForTag(tag)})
-	}
-
-	// Inject properties
-	for k, f := range propertyRegistry {
-		if v, ok := s.Value(k); !ok {
-			continue
-		} else if err := f(v); err != nil {
-			return errutil.Stack(err, "inject property %s error", k)
-		}
 	}
 
 	// Update global loggers and appenders

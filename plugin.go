@@ -51,16 +51,6 @@ func init() {
 	})
 }
 
-// propertyRegistry holds all registered property injection functions.
-// Each entry associates a configuration key with a function that applies
-// its value at runtime.
-var propertyRegistry = make(map[string]func(string) error)
-
-// RegisterProperty registers a property setter with a given key.
-func RegisterProperty(key string, val func(string) error) {
-	propertyRegistry[key] = val
-}
-
 // Lifecycle is an optional interface for plugin lifecycle hooks.
 type Lifecycle interface {
 	Start() error

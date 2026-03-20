@@ -76,7 +76,7 @@ type AppenderRefs interface {
 // LoggerBase contains fields shared by all logger configurations.
 type LoggerBase struct {
 	Name  string     `PluginAttribute:"name"`           // Logger name
-	Tags  []string   `PluginAttribute:"tags,default="`  // Optional tags associated with this logger
+	Tags  []string   `PluginAttribute:"tag,default="`   // Optional tags associated with this logger
 	Level LevelRange `PluginAttribute:"level,default="` // Level range handled by this logger
 }
 
@@ -122,20 +122,20 @@ func (c *SyncLogger) Append(e *Event) {
 type BufferFullPolicy int
 
 const (
-	BufferFullPolicyBlock         = BufferFullPolicy(0) // Block until space is available
-	BufferFullPolicyDiscard       = BufferFullPolicy(1) // Drop the new event or data
-	BufferFullPolicyDiscardOldest = BufferFullPolicy(2) // Drop the oldest buffered item
+	BufferFullPolicyBlock      = BufferFullPolicy(0) // Block until space is available
+	BufferFullPolicyDiscard    = BufferFullPolicy(1) // Drop the new event or data
+	BufferFullPolicyDropOldest = BufferFullPolicy(2) // Drop the oldest buffered item
 )
 
 // ParseBufferFullPolicy converts a string to a BufferFullPolicy.
 func ParseBufferFullPolicy(s string) (BufferFullPolicy, error) {
 	switch s {
-	case "Block":
+	case "block":
 		return BufferFullPolicyBlock, nil
-	case "Discard":
+	case "discard":
 		return BufferFullPolicyDiscard, nil
-	case "DiscardOldest":
-		return BufferFullPolicyDiscardOldest, nil
+	case "drop-oldest":
+		return BufferFullPolicyDropOldest, nil
 	default:
 		return -1, errutil.Explain(nil, "invalid BufferFullPolicy %s", s)
 	}
@@ -145,9 +145,9 @@ func ParseBufferFullPolicy(s string) (BufferFullPolicy, error) {
 // and processes them in a background goroutine.
 type AsyncLogger struct {
 	LoggerBase
-	AppenderRefs     []*AppenderRef   `PluginElement:"appenderRef"`
-	BufferSize       int              `PluginAttribute:"bufferSize,default=10000"`
-	BufferFullPolicy BufferFullPolicy `PluginAttribute:"bufferFullPolicy,default=Discard"`
+	AppenderRefs []*AppenderRef   `PluginElement:"appenderRef"`
+	BufferSize   int              `PluginAttribute:"bufferSize,default=10000"`
+	OnBufferFull BufferFullPolicy `PluginAttribute:"onBufferFull,default=discard"`
 
 	buf  chan *Event   // Channel buffering events
 	wait chan struct{} // Waiting for the worker goroutine to finish
@@ -169,7 +169,7 @@ func (c *AsyncLogger) GetAppenderRefs() (syncMode bool, _ []*AppenderRef) {
 // Start initializes the buffer and starts the background worker goroutine.
 func (c *AsyncLogger) Start() error {
 	if c.BufferSize < 100 {
-		return errutil.Explain(nil, "bufferSize is too small") // todo 详细错误信息
+		return errutil.Explain(nil, "bufferSize is too small") // todo details
 	}
 
 	c.buf = make(chan *Event, c.BufferSize)
@@ -180,7 +180,7 @@ func (c *AsyncLogger) Start() error {
 	// and forwards them to appenders.
 	go func() {
 		for e := range c.buf {
-			// 尽可能保证日志写完
+			// Make a best effort to flush all logs before exiting.
 			if e == c.stop {
 				break
 			}
@@ -217,8 +217,8 @@ func (c *AsyncLogger) Append(e *Event) {
 	default:
 	}
 
-	switch c.BufferFullPolicy {
-	case BufferFullPolicyDiscardOldest:
+	switch c.OnBufferFull {
+	case BufferFullPolicyDropOldest:
 		for {
 			select {
 			case x := <-c.buf: // Remove one element to make space
@@ -287,9 +287,9 @@ func (c *ConsoleLogger) Append(e *Event) {
 // FileLogger writes log events to a file.
 type FileLogger struct {
 	LoggerBase
+	Layout   Layout `PluginElement:"layout,default=TextLayout"`
 	FileDir  string `PluginAttribute:"fileDir,default=./logs"`
 	FileName string `PluginAttribute:"fileName"`
-	Layout   Layout `PluginElement:"layout,default=TextLayout"`
 
 	appender *FileAppender
 }
@@ -331,11 +331,9 @@ type RollingFileLogger struct {
 	logger    Logger
 	appenders []*AppenderRef
 
-	Layout Layout `PluginElement:"layout,default=TextLayout"`
-
-	// File output configuration
+	Layout   Layout `PluginElement:"layout,default=TextLayout"`
 	FileDir  string `PluginAttribute:"fileDir,default=./logs"`
-	FileName string `PluginAttribute:"fileName,default=app.log"`
+	FileName string `PluginAttribute:"fileName"`
 
 	// If true, warning/error logs go to a separate .wf file.
 	Separate bool `PluginAttribute:"separate,default=false"`
@@ -345,9 +343,9 @@ type RollingFileLogger struct {
 	MaxAge   time.Duration `PluginAttribute:"maxAge,default=168h"`
 
 	// Asynchronous logging options
-	AsyncWrite       bool             `PluginAttribute:"async,default=false"`
-	BufferSize       int              `PluginAttribute:"bufferSize,default=10000"`
-	BufferFullPolicy BufferFullPolicy `PluginAttribute:"bufferFullPolicy,default=Discard"`
+	AsyncWrite   bool             `PluginAttribute:"asyncWrite,default=false"`
+	BufferSize   int              `PluginAttribute:"bufferSize,default=10000"`
+	OnBufferFull BufferFullPolicy `PluginAttribute:"onBufferFull,default=discard"`
 }
 
 // Start initializes the internal logger and configures rolling file appenders.
@@ -402,10 +400,10 @@ func (f *RollingFileLogger) Start() error {
 	// Initialize the underlay logger
 	if f.AsyncWrite {
 		f.logger = &AsyncLogger{
-			LoggerBase:       f.LoggerBase,
-			AppenderRefs:     f.appenders,
-			BufferSize:       f.BufferSize,
-			BufferFullPolicy: f.BufferFullPolicy,
+			LoggerBase:   f.LoggerBase,
+			AppenderRefs: f.appenders,
+			BufferSize:   f.BufferSize,
+			OnBufferFull: f.OnBufferFull,
 		}
 	} else {
 		f.logger = &SyncLogger{

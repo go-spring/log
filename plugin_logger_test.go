@@ -24,20 +24,20 @@ import (
 )
 
 func TestParseBufferFullPolicy(t *testing.T) {
-	_, err := ParseBufferFullPolicy("block")
-	assert.Error(t, err).Matches("invalid BufferFullPolicy block")
+	_, err := ParseBufferFullPolicy("Block")
+	assert.Error(t, err).Matches("invalid BufferFullPolicy Block")
 
-	p, err := ParseBufferFullPolicy("Block")
+	p, err := ParseBufferFullPolicy("block")
 	assert.Error(t, err).Nil()
 	assert.That(t, p).Equal(BufferFullPolicyBlock)
 
-	p, err = ParseBufferFullPolicy("Discard")
+	p, err = ParseBufferFullPolicy("discard")
 	assert.Error(t, err).Nil()
 	assert.That(t, p).Equal(BufferFullPolicyDiscard)
 
-	p, err = ParseBufferFullPolicy("DiscardOldest")
+	p, err = ParseBufferFullPolicy("drop-oldest")
 	assert.Error(t, err).Nil()
-	assert.That(t, p).Equal(BufferFullPolicyDiscardOldest)
+	assert.That(t, p).Equal(BufferFullPolicyDropOldest)
 }
 
 type CountAppender struct {
@@ -182,8 +182,8 @@ func TestAsyncLoggerConfig(t *testing.T) {
 					},
 				},
 			},
-			BufferSize:       100,
-			BufferFullPolicy: BufferFullPolicyDiscard,
+			BufferSize:   100,
+			OnBufferFull: BufferFullPolicyDiscard,
 		}
 
 		err = l.Start()
@@ -196,7 +196,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		//}()
 
 		for range 5000 {
-			e := GetEvent()
+			e := &Event{}
 			e.Level = InfoLevel
 			l.Append(e)
 		}
@@ -234,8 +234,8 @@ func TestAsyncLoggerConfig(t *testing.T) {
 					},
 				},
 			},
-			BufferSize:       100,
-			BufferFullPolicy: BufferFullPolicyDiscardOldest,
+			BufferSize:   100,
+			OnBufferFull: BufferFullPolicyDropOldest,
 		}
 
 		err = l.Start()
@@ -248,7 +248,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		//}()
 
 		for range 5000 {
-			e := GetEvent()
+			e := &Event{}
 			e.Level = InfoLevel
 			l.Append(e)
 		}
@@ -280,8 +280,8 @@ func TestAsyncLoggerConfig(t *testing.T) {
 			AppenderRefs: []*AppenderRef{
 				{Appender: a},
 			},
-			BufferSize:       100,
-			BufferFullPolicy: BufferFullPolicyBlock,
+			BufferSize:   100,
+			OnBufferFull: BufferFullPolicyBlock,
 		}
 
 		err = l.Start()
@@ -294,7 +294,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		//}()
 
 		for range 5000 {
-			l.Append(GetEvent())
+			l.Append(&Event{})
 		}
 
 		time.Sleep(200 * time.Millisecond)
@@ -337,7 +337,7 @@ func TestAsyncLoggerConfig(t *testing.T) {
 		assert.Error(t, err).Nil()
 
 		for range 5 {
-			e := GetEvent()
+			e := &Event{}
 			e.Level = InfoLevel
 			l.Append(e)
 		}

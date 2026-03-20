@@ -47,7 +47,7 @@ func readConfig() map[string]string {
 	    "myLogger": {
 	      "type": "AsyncLogger",
 	      "level": "trace",
-	      "tags": "_com_request_in,_com_request_*",
+	      "tag": "_com_request_in,_com_request_*",
 	      "bufferSize": "${bufferSize}",
 	      "appenderRef": [
 	        {

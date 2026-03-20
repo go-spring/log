@@ -21,9 +21,9 @@ logging configuration, and multiple output options, making it ideal for server-s
 
 ## Core Concepts:
 
-Tags:
+Tag:
 
-Tags are a core concept in the log package used to categorize logs. By registering a tag via the `RegisterTag`
+Tag is a core concept in the log package used to categorize logs. By registering a tag via the `RegisterTag`
 function, you can use regular expressions to match the user-defined tags. This approach allows for a unified API
 for logging without explicitly creating logger instances. Even third-party libraries can write logs without
 setting up a logger object.
@@ -89,7 +89,6 @@ package log
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"runtime"
 	"strings"
@@ -113,7 +112,7 @@ const (
 )
 
 var (
-	// enableCaller indicates whether to enable caller information.
+	// callerType indicates whether to enable caller information.
 	callerType = CallerTypeFast
 
 	// defaultLoggerLevel is the default log level for the default logger.
@@ -121,29 +120,41 @@ var (
 )
 
 func init() {
-	// Property: callerType
-	RegisterProperty("callerType", func(s string) error {
-		switch strings.TrimSpace(s); s {
-		case "default":
-			callerType = CallerTypeDefault
-		case "fast":
-			callerType = CallerTypeFast
-		case "none":
-			callerType = CallerTypeNone
-		default:
-			return fmt.Errorf("invalid callerType: %s", s)
+	if s, ok := os.LookupEnv("GS_LOGGER_CALLER_TYPE"); ok {
+		r, err := ParseCallerType(s)
+		if err != nil {
+			panic(err)
 		}
-		return nil
-	})
-
-	r, err := ParseLevelRange(os.Getenv("GS_DEFAULT_LOGGER_LEVEL"))
-	if err != nil {
-		panic(err)
+		callerType = r
 	}
-	defaultLoggerLevel = r.MinLevel
+
+	if s, ok := os.LookupEnv("GS_LOGGER_DEFAULT_LEVEL"); ok {
+		r, err := ParseLevelRange(s)
+		if err != nil {
+			panic(err)
+		}
+		defaultLoggerLevel = r.MinLevel
+	}
+}
+
+// ParseCallerType parses a string representation of a CallerType
+// and returns the corresponding value.
+func ParseCallerType(s string) (CallerType, error) {
+	switch strings.TrimSpace(s); s {
+	case "default":
+		return CallerTypeDefault, nil
+	case "fast":
+		return CallerTypeFast, nil
+	default:
+		return CallerTypeNone, nil
+	}
 }
 
 var (
+	// ReportError is an optional function to report errors.
+	// It is called when an error occurs during logging.
+	ReportError = func(err error) {}
+
 	// TimeNow is an overrideable function to provide custom timestamps.
 	// For example, this can be replaced during testing to return a fixed time.
 	TimeNow func(ctx context.Context) time.Time
@@ -170,7 +181,7 @@ var defaultLogger Logger = &ConsoleLogger{
 		AppenderBase: AppenderBase{
 			Layout: &TextLayout{
 				BaseLayout: BaseLayout{
-					FileLineLength: 48,
+					FileLineMaxLength: 48,
 				},
 			},
 		},
@@ -362,7 +373,7 @@ func record(ctx context.Context, level Level, tag string, logger Logger, skip in
 	}
 
 	// Step 5: populate event.
-	e := GetEvent()
+	e := getEvent()
 	e.Level = level
 	e.Time = now
 	e.File = file

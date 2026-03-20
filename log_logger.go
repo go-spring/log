@@ -40,7 +40,7 @@ func (m *LoggerWrapper) Write(b []byte) (n int, err error) {
 // WriteLevel forwards the given byte slice to the currently active Logger
 // with the specified level.
 func (m *LoggerWrapper) WriteLevel(level Level, b []byte) {
-	e := GetEvent()
+	e := getEvent()
 	e.Level = level
 	e.RawBytes = b
 	m.logger.Append(e)

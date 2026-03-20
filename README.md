@@ -37,9 +37,9 @@ logging configuration, and multiple output options, making it ideal for a wide r
 
 ## Core Concepts
 
-### Tags
+### Tag
 
-Tags are the core concept in this logging library, used to categorize logs. You can register tags via the `RegisterTag`
+Tag is the core concept in this logging library, used to categorize logs. You can register tag via the `RegisterTag`
 function and match them with regular expressions.
 This approach enables a unified logging API without the need to explicitly create logger instances, even for third-party
 libraries, allowing them to write logs in a standardized way.
@@ -128,7 +128,7 @@ logger.root.appenderRef.ref=console
 
 logger.myLogger.type=AsyncLogger
 logger.myLogger.level=trace
-logger.myLogger.tags=_com_request_in,_com_request_*
+logger.myLogger.tag=_com_request_in,_com_request_*
 logger.myLogger.bufferSize=${bufferSize}
 logger.myLogger.appenderRef[0].ref=file
 ```

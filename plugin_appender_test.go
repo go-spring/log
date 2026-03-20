@@ -47,7 +47,7 @@ func TestConsoleAppender(t *testing.T) {
 			AppenderBase: AppenderBase{
 				Layout: &TextLayout{
 					BaseLayout{
-						FileLineLength: 48,
+						FileLineMaxLength: 48,
 					},
 				},
 			},
@@ -98,7 +98,7 @@ func TestFileAppender(t *testing.T) {
 			AppenderBase: AppenderBase{
 				Layout: &TextLayout{
 					BaseLayout{
-						FileLineLength: 48,
+						FileLineMaxLength: 48,
 					},
 				},
 			},
@@ -118,7 +118,7 @@ func TestFileAppender(t *testing.T) {
 			AppenderBase: AppenderBase{
 				Layout: &TextLayout{
 					BaseLayout{
-						FileLineLength: 48,
+						FileLineMaxLength: 48,
 					},
 				},
 			},
