@@ -30,11 +30,6 @@ func TestParseHumanizeBytes(t *testing.T) {
 		wantErr error
 	}{
 		{
-			name:  "basic bytes",
-			input: "1024B",
-			want:  1024,
-		},
-		{
 			name:  "kilobytes",
 			input: "1KB",
 			want:  1024,

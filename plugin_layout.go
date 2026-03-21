@@ -18,7 +18,6 @@ package log
 
 import (
 	"strconv"
-	"strings"
 )
 
 func init() {
@@ -39,9 +38,13 @@ type BaseLayout struct {
 }
 
 // GetFileLine returns the "file:line" string for a log event.
-// If the result exceeds FileLineMaxLength, the prefix is truncated and "..." is added.
+// If the result exceeds FileLineMaxLength,
+// the leading part is truncated and replaced with "...".
 func (c *BaseLayout) GetFileLine(e *Event) string {
 	fileLine := e.File + ":" + strconv.Itoa(e.Line)
+	if c.FileLineMaxLength <= 16 {
+		return fileLine
+	}
 	if n := len(fileLine); n > c.FileLineMaxLength {
 		fileLine = "..." + fileLine[n-c.FileLineMaxLength+3:]
 	}
@@ -59,7 +62,7 @@ func (c *TextLayout) EncodeTo(e *Event, w Writer) {
 
 	// Write basic header fields
 	_, _ = w.WriteString("[")
-	_, _ = w.WriteString(strings.ToUpper(e.Level.Name()))
+	_, _ = w.WriteString(e.Level.UpperName())
 	_, _ = w.WriteString("][")
 	_, _ = w.WriteString(e.Time.Format("2006-01-02T15:04:05.000"))
 	_, _ = w.WriteString("][")
@@ -91,7 +94,7 @@ type JSONLayout struct {
 func (c *JSONLayout) EncodeTo(e *Event, w Writer) {
 	enc := NewJSONEncoder(w)
 	enc.AppendEncoderBegin()
-	String("level", strings.ToLower(e.Level.Name())).Encode(enc)
+	String("level", e.Level.LowerName()).Encode(enc)
 	String("time", e.Time.Format("2006-01-02T15:04:05.000")).Encode(enc)
 	String("fileLine", c.GetFileLine(e)).Encode(enc)
 	String("tag", e.Tag).Encode(enc)

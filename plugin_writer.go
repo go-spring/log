@@ -38,7 +38,7 @@ func init() {
 	if s, ok := os.LookupEnv("GS_LOGGER_BUFFER_CAP"); ok {
 		n, err := ParseHumanizeBytes(s)
 		if err != nil {
-			panic(err)
+			panic(errutil.Explain(err, "invalid value for GS_LOGGER_BUFFER_CAP: %q", s))
 		}
 		bufferCap = int(n)
 	}
@@ -46,7 +46,6 @@ func init() {
 
 // Supported size units for human-readable byte values
 var bytesSizeTable = map[string]int64{
-	"B":  1,
 	"KB": 1024,
 	"MB": 1024 * 1024,
 }
@@ -98,7 +97,7 @@ func putBuffer(buf *bytes.Buffer) {
 
 // WriteEvent writes a log event to the provided io.Writer using the specified Layout.
 // If e.RawBytes is not nil, it writes the raw bytes directly.
-// Otherwise, it encodes the event using a pooled buffer and writes the result.
+// Otherwise, it encodes the event into a buffer and writes it.
 func WriteEvent(w io.Writer, e *Event, layout Layout) {
 	if e.RawBytes != nil {
 		if _, err := w.Write(e.RawBytes); err != nil {

@@ -17,6 +17,7 @@
 package log
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/go-spring/stdlib/errutil"
@@ -43,8 +44,9 @@ var levelRegistry = map[string]Level{}
 // Level represents a logging severity level. Each level
 // has a numeric code (for comparison) and a string name (for display).
 type Level struct {
-	code int32
-	name string
+	code      int32
+	lowerName string
+	upperName string
 }
 
 // Code returns the numeric code of the Level.
@@ -53,20 +55,37 @@ func (l Level) Code() int32 {
 	return l.code
 }
 
-// Name returns the string name of the Level.
-func (l Level) Name() string {
-	return l.name
+// LowerName returns the lowercase name of the Level.
+func (l Level) LowerName() string {
+	return l.lowerName
+}
+
+// UpperName returns the uppercase name of the Level.
+func (l Level) UpperName() string {
+	return l.upperName
 }
 
 // RegisterLevel defines a new logging Level with the given code and name.
-// The Level is also stored in the global levels map for string lookups.
-// Name is normalized to uppercase for consistency.
+// The name is normalized to uppercase and stored in a global registry for lookup.
+//
+// It must be called during initialization only and is not safe for concurrent use.
+// It panics if the same name is registered with a different code.
+//
+// Multiple names may share the same code (aliases). Such levels are considered
+// equivalent in comparisons (by code), but remain distinct values.
 func RegisterLevel(code int32, name string) Level {
-	if _, ok := levelRegistry[name]; ok {
-		panic("log: level " + name + " already registered")
+	if l, ok := levelRegistry[strings.ToUpper(name)]; ok {
+		if l.code == code {
+			return l
+		}
+		panic(fmt.Sprintf("log: level %s already registered with a different code", name))
 	}
-	l := Level{code: code, name: strings.ToUpper(name)}
-	levelRegistry[l.name] = l
+	l := Level{
+		code:      code,
+		lowerName: strings.ToLower(name),
+		upperName: strings.ToUpper(name),
+	}
+	levelRegistry[l.upperName] = l
 	return l
 }
 
@@ -79,9 +98,6 @@ type LevelRange struct {
 // Enable returns true if the given Level 'l' falls within the LevelRange.
 // The check is inclusive of MinLevel and exclusive of MaxLevel.
 func (c LevelRange) Enable(l Level) bool {
-	if c.MaxLevel.code == MaxLevel.code {
-		return l.code >= c.MinLevel.code
-	}
 	return l.code >= c.MinLevel.code && l.code < c.MaxLevel.code
 }
 
@@ -112,14 +128,19 @@ func ParseLevelRange(s string) (LevelRange, error) {
 	if len(ss) > 2 {
 		return LevelRange{}, errutil.Explain(nil, "invalid log level: %q", s)
 	}
-	minLevel, ok = levelRegistry[strings.ToUpper(ss[0])]
+	s0 := strings.TrimSpace(ss[0])
+	minLevel, ok = levelRegistry[strings.ToUpper(s0)]
 	if !ok {
-		return LevelRange{}, errutil.Explain(nil, "invalid log level: %q", ss[0])
+		return LevelRange{}, errutil.Explain(nil, "invalid log level: %q", s0)
 	}
 	if len(ss) == 2 {
-		maxLevel, ok = levelRegistry[strings.ToUpper(ss[1])]
-		if !ok {
-			return LevelRange{}, errutil.Explain(nil, "invalid log level: %q", ss[1])
+		if s1 := strings.TrimSpace(ss[1]); s1 == "" {
+			maxLevel = MaxLevel
+		} else {
+			maxLevel, ok = levelRegistry[strings.ToUpper(s1)]
+			if !ok {
+				return LevelRange{}, errutil.Explain(nil, "invalid log level: %q", s1)
+			}
 		}
 	}
 	if maxLevel.code <= minLevel.code {
