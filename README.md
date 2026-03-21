@@ -116,7 +116,7 @@ bufferCap=1KB
 bufferSize=1000
 
 appender.file.type=File
-appender.file.fileName=log.txt
+appender.file.file=log.txt
 appender.file.layout.type=JSONLayout
 
 appender.console.type=Console

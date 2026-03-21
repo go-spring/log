@@ -26,18 +26,13 @@ func TestParseHumanizeBytes(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
-		want    HumanizeBytes
+		want    int
 		wantErr error
 	}{
 		{
 			name:  "kilobytes",
 			input: "1KB",
 			want:  1024,
-		},
-		{
-			name:  "megabytes",
-			input: "2MB",
-			want:  2 * 1024 * 1024,
 		},
 		{
 			name:  "case insensitive",
@@ -62,12 +57,12 @@ func TestParseHumanizeBytes(t *testing.T) {
 		{
 			name:    "missing unit",
 			input:   "1024",
-			wantErr: errutil.Explain(nil, `unhandled size name: ""`),
+			wantErr: errutil.Explain(nil, `invalid unit ""`),
 		},
 		{
 			name:    "unknown unit",
 			input:   "1GB",
-			wantErr: errutil.Explain(nil, `unhandled size name: "GB"`),
+			wantErr: errutil.Explain(nil, `invalid unit "GB"`),
 		},
 	}
 

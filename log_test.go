@@ -78,7 +78,7 @@ func readConfig() map[string]string {
 	  "appender": {
 	    "file": {
 	      "type": "FileAppender",
-	      "fileName": "log.txt",
+	      "file": "log.txt",
 	      "layout!": "JSONLayout{}"
 	    },
 	    "console!": "ConsoleAppender{layout=TextLayout{}}",

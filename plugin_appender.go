@@ -17,28 +17,119 @@
 package log
 
 import (
+	"bytes"
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+
+	"github.com/go-spring/stdlib/errutil"
 )
 
-// Stdout is the standard output stream used by appenders.
-var Stdout io.Writer = os.Stdout
+var (
+	// bufferCap defines maximum buffer capacity eligible for reuse.
+	// Buffers with capacity larger than this will be discarded instead of reused.
+	bufferCap int
+
+	// bufferPool reuses byte buffers to reduce allocations during log encoding.
+	bufferPool sync.Pool
+
+	// Stdout is the standard output stream used by appenders.
+	Stdout io.Writer = os.Stdout
+)
 
 func init() {
+
 	RegisterPlugin[DiscardAppender]("DiscardAppender")
 	RegisterPlugin[ConsoleAppender]("ConsoleAppender")
 	RegisterPlugin[FileAppender]("FileAppender")
 	RegisterPlugin[RollingFileAppender]("RollingFileAppender")
+
+	bufferCap = 10 * 1024 // 10KB
+	if s, ok := os.LookupEnv("GS_LOGGER_BUFFER_CAP"); ok {
+		n, err := ParseHumanizeBytes(s)
+		if err != nil {
+			panic(errutil.Explain(err, "invalid value for GS_LOGGER_BUFFER_CAP: %q", s))
+		}
+		bufferCap = n
+	}
 }
 
-// Appender defines components that handle log output.
-// All implementations of Appender must be safe for concurrent use.
+// ParseHumanizeBytes parses a size string like "10KB" into bytes.
+// Currently, only the "KB" unit is supported.
+// Returns an error if the format is invalid, the unit is unsupported,
+// or the value exceeds the allowed limit (10MB).
+func ParseHumanizeBytes(s string) (int, error) {
+	lastDigit := 0
+	for _, r := range s {
+		if !unicode.IsDigit(r) {
+			break
+		}
+		lastDigit++
+	}
+	num := s[:lastDigit]
+	f, err := strconv.ParseInt(num, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	unit := strings.ToUpper(strings.TrimSpace(s[lastDigit:]))
+	if unit != "KB" {
+		return 0, errutil.Explain(nil, "invalid unit %q", unit)
+	}
+	f *= 1024
+	if f > 10*1024*1024 {
+		return 0, errutil.Explain(nil, "value too large: %d", f)
+	}
+	return int(f), nil
+}
+
+// getBuffer retrieves a *bytes.Buffer from the pool.
+// If the pool is empty, it allocates a new buffer.
+func getBuffer() *bytes.Buffer {
+	if v := bufferPool.Get(); v != nil {
+		return v.(*bytes.Buffer)
+	}
+	return bytes.NewBuffer(nil)
+}
+
+// putBuffer resets the buffer and returns it to the pool for reuse.
+// Buffers with capacity larger than bufferCap are discarded
+// to prevent retaining excessively large memory.
+func putBuffer(buf *bytes.Buffer) {
+	if buf.Cap() <= bufferCap {
+		buf.Reset()
+		bufferPool.Put(buf)
+	}
+}
+
+// WriteEvent writes a log event to the given io.Writer using the specified Layout.
+// If e.RawBytes is not nil, it writes the raw bytes directly.
+// Otherwise, the event is encoded using the layout into a temporary buffer.
+// Any write errors are reported via ReportError.
+func WriteEvent(w io.Writer, e *Event, layout Layout) {
+	if e.RawBytes != nil {
+		if _, err := w.Write(e.RawBytes); err != nil {
+			ReportError(err)
+		}
+		return
+	}
+
+	buf := getBuffer()
+	defer putBuffer(buf)
+	layout.EncodeTo(e, buf)
+	if _, err := w.Write(buf.Bytes()); err != nil {
+		ReportError(err)
+	}
+}
+
+// Appender defines components responsible for writing log events.
+// Implementations should document whether they are safe for concurrent use.
 //
-// Append MUST NOT reuse or modify the Event.
+// Append MUST NOT modify or retain references to the Event.
 type Appender interface {
 	Lifecycle             // Start/Stop methods for resource management
 	GetName() string      // Returns the appender's name
@@ -87,12 +178,12 @@ func (c *ConsoleAppender) Append(e *Event) {
 
 func (c *ConsoleAppender) ConcurrentSafe() bool { return true }
 
-// FileAppender writes formatted log events to a specified file.
+// FileAppender writes formatted log events to a file in append mode.
 type FileAppender struct {
 	AppenderBase
 
-	FileDir  string `PluginAttribute:"fileDir,default=./logs"`
-	FileName string `PluginAttribute:"fileName"`
+	FileDir  string `PluginAttribute:"dir,default=./logs"`
+	FileName string `PluginAttribute:"file"`
 
 	file *os.File
 }
@@ -124,17 +215,17 @@ func (c *FileAppender) Append(e *Event) {
 
 func (c *FileAppender) ConcurrentSafe() bool { return true }
 
-// RollingFileAppender writes logs to files that rotate based on time.
-// It is safe for multiple goroutines to call Write() concurrently only if Lock=true.
-// If Lock=false, concurrent writes must be serialized by the caller (e.g., async logger).
+// RollingFileAppender writes log events to files that rotate at fixed time intervals.
+// It is safe for concurrent use only when Lock is true.
+// If Lock is false, callers must ensure serialized access (e.g., via an async logger).
 type RollingFileAppender struct {
 	AppenderBase
 
-	FileDir  string        `PluginAttribute:"fileDir,default=./logs"`
-	FileName string        `PluginAttribute:"fileName"`
+	FileDir  string        `PluginAttribute:"dir,default=./logs"`
+	FileName string        `PluginAttribute:"file"`
 	Interval time.Duration `PluginAttribute:"interval,default=1h"`
 	MaxAge   time.Duration `PluginAttribute:"maxAge,default=168h"`
-	Lock     bool          `PluginAttribute:"lock,default=false"`
+	SyncLock bool          `PluginAttribute:"syncLock,default=false"`
 
 	writer *RollingFileWriter
 	mutex  sync.Mutex
@@ -147,9 +238,6 @@ func (c *RollingFileAppender) Start() error {
 		fileName: c.FileName,
 		interval: c.Interval,
 		maxAge:   c.MaxAge,
-	}
-	if _, err := c.writer.Rotate(); err != nil {
-		return err
 	}
 	return nil
 }
@@ -165,7 +253,7 @@ func (c *RollingFileAppender) Append(e *Event) {
 		file *os.File
 		err  error
 	)
-	if c.Lock { // for sync logger or multi-threaded usage
+	if c.SyncLock { // for sync logger or multi-threaded usage
 		c.mutex.Lock()
 		file, err = c.writer.Rotate()
 		c.mutex.Unlock()
@@ -175,10 +263,12 @@ func (c *RollingFileAppender) Append(e *Event) {
 	if err != nil {
 		ReportError(err)
 	}
-	WriteEvent(file, e, c.Layout)
+	if file != nil {
+		WriteEvent(file, e, c.Layout)
+	}
 }
 
-func (c *RollingFileAppender) ConcurrentSafe() bool { return c.Lock }
+func (c *RollingFileAppender) ConcurrentSafe() bool { return c.SyncLock }
 
 // RollingFileWriter is the low-level sequential writer.
 // It is NOT safe for concurrent use;
@@ -192,16 +282,10 @@ type RollingFileWriter struct {
 	maxAge   time.Duration
 }
 
-// Close closes the current file.
-func (w *RollingFileWriter) Close() {
-	if w.currFile != nil {
-		_ = w.currFile.Sync()
-		_ = w.currFile.Close()
-	}
-}
-
-// Rotate checks if a new file needs to be created and returns the current file.
-// Old files are closed in a delayed goroutine. Concurrency must be handled externally.
+// Rotate creates a new log file if the current time exceeds the rotation interval.
+// It returns the active file for writing.
+// The previous file is closed asynchronously after a delay.
+// This method is not concurrency-safe.
 func (w *RollingFileWriter) Rotate() (*os.File, error) {
 	now := time.Now()
 	newTime := now.Truncate(w.interval).Unix()
@@ -235,7 +319,8 @@ func (w *RollingFileWriter) Rotate() (*os.File, error) {
 	return w.currFile, nil
 }
 
-// clearExpiredFiles removes log files older than MaxAge.
+// clearExpiredFiles deletes log files matching the configured filename prefix
+// that are older than MaxAge. Errors during deletion are ignored.
 func (w *RollingFileWriter) clearExpiredFiles() {
 	expiration := time.Now().Add(-w.maxAge)
 	entries, _ := os.ReadDir(w.fileDir)
@@ -250,5 +335,13 @@ func (w *RollingFileWriter) clearExpiredFiles() {
 		if info.ModTime().Before(expiration) {
 			_ = os.Remove(filepath.Join(w.fileDir, entry.Name()))
 		}
+	}
+}
+
+// Close closes the current file.
+func (w *RollingFileWriter) Close() {
+	if w.currFile != nil {
+		_ = w.currFile.Sync()
+		_ = w.currFile.Close()
 	}
 }

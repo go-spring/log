@@ -288,8 +288,8 @@ func (c *ConsoleLogger) Append(e *Event) {
 type FileLogger struct {
 	LoggerBase
 	Layout   Layout `PluginElement:"layout,default=TextLayout"`
-	FileDir  string `PluginAttribute:"fileDir,default=./logs"`
-	FileName string `PluginAttribute:"fileName"`
+	FileDir  string `PluginAttribute:"dir,default=./logs"`
+	FileName string `PluginAttribute:"file"`
 
 	appender *FileAppender
 }
@@ -332,8 +332,8 @@ type RollingFileLogger struct {
 	appenders []*AppenderRef
 
 	Layout   Layout `PluginElement:"layout,default=TextLayout"`
-	FileDir  string `PluginAttribute:"fileDir,default=./logs"`
-	FileName string `PluginAttribute:"fileName"`
+	FileDir  string `PluginAttribute:"dir,default=./logs"`
+	FileName string `PluginAttribute:"file"`
 
 	// If true, warning/error logs go to a separate .wf file.
 	Separate bool `PluginAttribute:"separate,default=false"`
@@ -368,7 +368,7 @@ func (f *RollingFileLogger) Start() error {
 				FileName: f.FileName,
 				Interval: f.Interval,
 				MaxAge:   f.MaxAge,
-				Lock:     !f.AsyncWrite,
+				SyncLock: !f.AsyncWrite,
 			},
 			Level: LevelRange{
 				MinLevel: f.Level.MinLevel,
@@ -388,7 +388,7 @@ func (f *RollingFileLogger) Start() error {
 				FileName: f.FileName + ".wf",
 				Interval: f.Interval,
 				MaxAge:   f.MaxAge,
-				Lock:     !f.AsyncWrite,
+				SyncLock: !f.AsyncWrite,
 			},
 			Level: LevelRange{
 				MinLevel: normalMaxLevel,
