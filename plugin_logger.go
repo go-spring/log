@@ -68,8 +68,11 @@ type AppenderRefs interface {
 	// GetAppenderRefs returns the logger's synchronization mode
 	// and the list of appender references.
 	//
-	// In sync mode, appenders must ensure thread safety.
-	// In async mode, they do not require strict thread safety.
+	// In sync mode, appenders may be invoked concurrently by multiple goroutines,
+	// so they must ensure thread safety.
+	//
+	// In async mode, appenders are invoked by a single background goroutine,
+	// so they do not require strict thread safety.
 	GetAppenderRefs() (syncMode bool, _ []*AppenderRef)
 }
 
@@ -153,12 +156,12 @@ type AsyncLogger struct {
 	wait chan struct{} // Waiting for the worker goroutine to finish
 	stop *Event        // Sentinel value used to signal shutdown
 
-	discardCounter int64 // Count of discarded events
+	discardCounter atomic.Int64 // Count of discarded events
 }
 
 // GetDiscardCounter returns the total number of discarded events.
 func (c *AsyncLogger) GetDiscardCounter() int64 {
-	return atomic.LoadInt64(&c.discardCounter)
+	return c.discardCounter.Load()
 }
 
 // GetAppenderRefs returns false for async mode and the appender references.
@@ -194,7 +197,8 @@ func (c *AsyncLogger) Start() error {
 	return nil
 }
 
-// Stop gracefully shuts down the AsyncLogger, ensuring that any remaining buffered events
+// Stop gracefully shuts down the AsyncLogger.
+// It guarantees that events already in the buffer before the stop signal
 // are processed before the background worker goroutine exits.
 func (c *AsyncLogger) Stop() {
 	// To ensure that more log events are written, a blocking approach is used here.
@@ -222,7 +226,7 @@ func (c *AsyncLogger) Append(e *Event) {
 		for {
 			select {
 			case x := <-c.buf: // Remove one element to make space
-				atomic.AddInt64(&c.discardCounter, 1)
+				c.discardCounter.Add(1)
 				x.Reset()
 			default: // for linter
 			}
@@ -235,7 +239,7 @@ func (c *AsyncLogger) Append(e *Event) {
 	case BufferFullPolicyBlock:
 		c.buf <- e // Block until space is available
 	case BufferFullPolicyDiscard:
-		atomic.AddInt64(&c.discardCounter, 1)
+		c.discardCounter.Add(1)
 		e.Reset()
 	default: // for linter
 	}
@@ -323,28 +327,56 @@ func (c *FileLogger) Append(e *Event) {
 	e.Reset()
 }
 
-// RollingFileLogger writes log events to log files with automatic file rotation.
-// It can separate warning and error logs into a separate ".wf" file if configured.
-// It supports both synchronous and asynchronous logging modes base on configuration.
+// RollingFileLogger writes log events to files with time-based rotation
+// and optional level-based separation. It supports both synchronous and
+// asynchronous modes.
 type RollingFileLogger struct {
 	LoggerBase
-	logger    Logger
+
+	// Internal logger used to dispatch events.
+	// It is either a SyncLogger or AsyncLogger depending on AsyncWrite.
+	logger Logger
+
+	// Internal appenders created during Start().
+	// Not configured directly by users.
 	appenders []*AppenderRef
 
-	Layout   Layout `PluginElement:"layout,default=TextLayout"`
-	FileDir  string `PluginAttribute:"dir,default=./logs"`
+	// Layout used to format log events.
+	Layout Layout `PluginElement:"layout,default=TextLayout"`
+
+	// Directory where log files are stored.
+	// Defaults to "./logs".
+	FileDir string `PluginAttribute:"dir,default=./logs"`
+
+	// Base name of the log file.
+	// Actual file names may include rotation suffixes.
 	FileName string `PluginAttribute:"file"`
 
-	// If true, warning/error logs go to a separate .wf file.
+	// If true, warning and error logs are written to a separate file
+	// with ".wf" suffix (e.g. app.log.wf).
+	//
+	// In this mode:
+	//   - normal log file contains levels < WARN
+	//   - ".wf" file contains WARN and above
 	Separate bool `PluginAttribute:"separate,default=false"`
 
-	// Rotation and retention
+	// Rotation interval for log files.
+	// A new file is created after each interval (e.g. 1h, 24h).
 	Interval time.Duration `PluginAttribute:"interval,default=1h"`
-	MaxAge   time.Duration `PluginAttribute:"maxAge,default=168h"`
 
-	// Asynchronous logging options
-	AsyncWrite   bool             `PluginAttribute:"asyncWrite,default=false"`
-	BufferSize   int              `PluginAttribute:"bufferSize,default=10000"`
+	// Maximum retention duration for old log files.
+	// Files older than this duration will be automatically removed.
+	MaxAge time.Duration `PluginAttribute:"maxAge,default=168h"`
+
+	// Whether to enable asynchronous logging.
+	AsyncWrite bool `PluginAttribute:"async,default=false"`
+
+	// Size of the buffer used in async mode.
+	// Ignored if AsyncWrite is false.
+	BufferSize int `PluginAttribute:"bufferSize,default=10000"`
+
+	// Behavior when async buffer is full.
+	// Ignored if AsyncWrite is false.
 	OnBufferFull BufferFullPolicy `PluginAttribute:"onBufferFull,default=discard"`
 }
 

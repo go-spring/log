@@ -75,7 +75,7 @@ func (c *TextLayout) EncodeTo(e *Event, w Writer) {
 		_, _ = w.WriteString(separator)
 	}
 
-	// Encode structured fields using TextEncoder
+	// Encode structured fields
 	enc := NewTextEncoder(w, separator)
 	enc.AppendEncoderBegin()
 	EncodeFields(enc, e.CtxFields)
@@ -94,6 +94,8 @@ type JSONLayout struct {
 func (c *JSONLayout) EncodeTo(e *Event, w Writer) {
 	enc := NewJSONEncoder(w)
 	enc.AppendEncoderBegin()
+
+	// Write basic header fields
 	String("level", e.Level.LowerName()).Encode(enc)
 	String("time", e.Time.Format("2006-01-02T15:04:05.000")).Encode(enc)
 	String("fileLine", c.GetFileLine(e)).Encode(enc)
@@ -101,8 +103,11 @@ func (c *JSONLayout) EncodeTo(e *Event, w Writer) {
 	if e.CtxString != "" {
 		String("ctxString", e.CtxString).Encode(enc)
 	}
+
+	// Encode structured fields
 	EncodeFields(enc, e.CtxFields)
 	EncodeFields(enc, e.Fields)
 	enc.AppendEncoderEnd()
+
 	_ = w.WriteByte('\n')
 }

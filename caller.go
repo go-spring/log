@@ -17,9 +17,57 @@
 package log
 
 import (
+	"os"
 	"runtime"
+	"strings"
 	"sync"
+
+	"github.com/go-spring/stdlib/errutil"
 )
+
+// callerType indicates whether to enable caller information.
+var callerType = CallerTypeFast
+
+func init() {
+	if s, ok := os.LookupEnv("GS_LOGGER_CALLER_TYPE"); ok {
+		r, err := ParseCallerType(s)
+		if err != nil {
+			panic(err)
+		}
+		callerType = r
+	}
+}
+
+// CallerType defines the type of caller information to retrieve.
+type CallerType int
+
+const (
+	// CallerTypeDefault indicates that the caller information should be retrieved
+	// using the default method.
+	CallerTypeDefault CallerType = iota
+
+	// CallerTypeFast indicates that the caller information should be retrieved
+	// using a faster but less accurate method.
+	CallerTypeFast
+
+	// CallerTypeNone indicates that no caller information should be retrieved.
+	CallerTypeNone
+)
+
+// ParseCallerType parses a string representation of a CallerType
+// and returns the corresponding value.
+func ParseCallerType(s string) (CallerType, error) {
+	switch s = strings.TrimSpace(s); s {
+	case "default":
+		return CallerTypeDefault, nil
+	case "fast":
+		return CallerTypeFast, nil
+	case "none":
+		return CallerTypeNone, nil
+	default:
+		return 0, errutil.Explain(nil, "invalid caller type %q", s)
+	}
+}
 
 // frameCache is used to cache call site information.
 // Benchmarking shows that using this cache improves performance by about 50%.

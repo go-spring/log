@@ -19,6 +19,7 @@ package log
 import (
 	"reflect"
 	"strings"
+	"sync"
 
 	"github.com/go-spring/stdlib/errutil"
 	"github.com/go-spring/stdlib/flatten"
@@ -29,7 +30,7 @@ const RootLoggerName = "root"
 
 // global holds all runtime logger and appender instances.
 var global struct {
-	refreshed bool // 目前暂不实现动态刷新的能力
+	mutex     sync.Mutex
 	loggers   []Logger
 	appenders []Appender
 }
@@ -47,11 +48,13 @@ func RefreshConfig(m map[string]string) error {
 // Refresh loads a logging configuration from a *flatten.Storage.
 func Refresh(s flatten.Storage) error {
 
-	// Ensure this refresh is executed only once
-	if global.refreshed {
-		return errutil.Explain(nil, "log refresh already done")
+	global.mutex.Lock()
+	defer global.mutex.Unlock()
+
+	// 目前只能刷新一次
+	if len(global.loggers) > 0 {
+		return errutil.Explain(nil, "can only refresh once")
 	}
-	global.refreshed = true
 
 	appenders := make(map[string]struct{})
 	s.MapKeys("appender", appenders)
@@ -65,9 +68,6 @@ func Refresh(s flatten.Storage) error {
 
 	// Factory function to create plugin instances
 	newPlugin := func(typeKey string) (reflect.Value, error) {
-		if !s.Exists(typeKey) {
-			return reflect.Value{}, errutil.Explain(nil, "attribute 'type' not found")
-		}
 		strType, ok := s.Value(typeKey)
 		if !ok {
 			return reflect.Value{}, errutil.Explain(nil, "attribute 'type' not found")
@@ -98,6 +98,27 @@ func Refresh(s flatten.Storage) error {
 		cAppenders[name] = v.Interface().(Appender)
 	}
 
+	// initialize appender references in a logger
+	initAppenderRefs := func(v reflect.Value) error {
+		i, ok := v.Interface().(AppenderRefs)
+		if !ok {
+			return nil
+		}
+		syncMode, appenderRefs := i.GetAppenderRefs()
+		for _, r := range appenderRefs {
+			a, ok := cAppenders[r.Ref]
+			if !ok {
+				return errutil.Explain(nil, "appender %s not found", r.Ref)
+			}
+			// 同步 logger 必须搭配并发安全的 appender
+			if syncMode && !a.ConcurrentSafe() {
+				return errutil.Explain(nil, "appender %s is not concurrent-safe", r.Ref)
+			}
+			r.Appender = a
+		}
+		return nil
+	}
+
 	// Initialize all other loggers
 	for name := range loggers {
 		v, err := newPlugin("logger." + name + ".type")
@@ -105,7 +126,7 @@ func Refresh(s flatten.Storage) error {
 			return errutil.Stack(err, "create logger %s error", name)
 		}
 
-		if err = initAppenderRefs(v, cAppenders); err != nil {
+		if err = initAppenderRefs(v); err != nil {
 			return errutil.Stack(err, "init appender refs for logger %s error", name)
 		}
 		logger := v.Interface().(Logger)
@@ -170,7 +191,7 @@ func Refresh(s flatten.Storage) error {
 		if !ok {
 			return errutil.Explain(nil, "logger %s not found", l.name)
 		}
-		l.logger = v
+		l.logger.Store(&loggerValue{v})
 	}
 
 	// Helper to find the most appropriate logger for a given tag.
@@ -190,7 +211,8 @@ func Refresh(s flatten.Storage) error {
 
 	// Update `tagMap` with corresponding loggers
 	for tag, obj := range tagRegistry {
-		obj.logger.Store(&loggerValue{findLoggerForTag(tag)})
+		v := findLoggerForTag(tag)
+		obj.logger.Store(&loggerValue{v})
 	}
 
 	// Update global loggers and appenders
@@ -207,12 +229,13 @@ func Refresh(s flatten.Storage) error {
 // Destroy gracefully shuts down all loggers and appenders,
 // releasing resources and resetting the global state.
 func Destroy() {
-	if !global.refreshed {
-		return
-	}
+	global.mutex.Lock()
+	defer global.mutex.Unlock()
+
 	for _, obj := range tagRegistry {
 		obj.reset()
 	}
+
 	for _, l := range global.loggers {
 		l.Stop()
 	}
@@ -221,26 +244,4 @@ func Destroy() {
 	}
 	global.loggers = nil
 	global.appenders = nil
-	global.refreshed = false
-}
-
-// initAppenderRefs Initialize appender references in a logger
-func initAppenderRefs(v reflect.Value, cAppenders map[string]Appender) error {
-	i, ok := v.Interface().(AppenderRefs)
-	if !ok {
-		return nil
-	}
-	syncMode, appenderRefs := i.GetAppenderRefs()
-	for _, r := range appenderRefs {
-		a, ok := cAppenders[r.Ref]
-		if !ok {
-			return errutil.Explain(nil, "appender %s not found", r.Ref)
-		}
-		// 同步 logger 必须搭配并发安全的 appender
-		if syncMode && !a.ConcurrentSafe() {
-			return errutil.Explain(nil, "appender %s is not concurrent-safe", r.Ref)
-		}
-		r.Appender = a
-	}
-	return nil
 }
