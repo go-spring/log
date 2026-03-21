@@ -21,11 +21,13 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/go-spring/log/expr"
 	"github.com/go-spring/stdlib/errutil"
 	"github.com/go-spring/stdlib/flatten"
 )
 
 // RootLoggerName defines the reserved name for the root logger.
+// This is the default logger used when no specific logger is matched.
 const RootLoggerName = "root"
 
 // global holds all runtime logger and appender instances.
@@ -45,16 +47,60 @@ func RefreshConfig(m map[string]string) error {
 	return Refresh(flatten.NewPropertiesStorage(p))
 }
 
+// parseExpr expands inline map expressions embedded in map values.
+//
+// A key ending with "!" indicates that the corresponding value is a
+// map expression. The trailing "!" is removed and the parsed entries
+// are merged into the result using the "<key>.<subKey>" format.
+//
+// Example:
+//
+//	input:
+//	  {
+//	    "app.name": "MyApp",
+//	    "db!": "{host: localhost, port: 5432}",
+//	  }
+//
+//	output:
+//	  {
+//	    "app.name": "MyApp",
+//	    "db.host":  "localhost",
+//	    "db.port":  "5432",
+//	  }
+func parseExpr(m map[string]string) (map[string]string, error) {
+	ret := make(map[string]string)
+	for k, v := range m {
+		var ok bool
+		k, ok = strings.CutSuffix(k, "!")
+		if !ok {
+			ret[k] = v
+			continue
+		}
+		// Parse the inline map expression
+		subMap, err := expr.Parse(v)
+		if err != nil {
+			return nil, errutil.Explain(err, "parseExpr error")
+		}
+		for k2, v2 := range subMap {
+			ret[k+"."+k2] = v2
+		}
+	}
+	return ret, nil
+}
+
 // Refresh loads a logging configuration from a *flatten.Storage.
 func Refresh(s flatten.Storage) error {
 
 	global.mutex.Lock()
 	defer global.mutex.Unlock()
 
-	// 目前只能刷新一次
+	// Refresh can only happen once; prevent multiple refreshes
 	if len(global.loggers) > 0 {
 		return errutil.Explain(nil, "can only refresh once")
 	}
+
+	loggers := make(map[string]struct{})
+	s.MapKeys("logger", loggers)
 
 	appenders := make(map[string]struct{})
 	s.MapKeys("appender", appenders)
@@ -62,11 +108,6 @@ func Refresh(s flatten.Storage) error {
 		return errutil.Explain(nil, "appenders section not found")
 	}
 
-	// Read loggers
-	loggers := make(map[string]struct{})
-	s.MapKeys("logger", loggers)
-
-	// Factory function to create plugin instances
 	newPlugin := func(typeKey string) (reflect.Value, error) {
 		strType, ok := s.Value(typeKey)
 		if !ok {
@@ -86,10 +127,6 @@ func Refresh(s flatten.Storage) error {
 		cTags      = make(map[string]Logger)
 	)
 
-	// Set root logger
-	cLoggers[RootLoggerName] = cRoot
-
-	// Initialize appenders
 	for name := range appenders {
 		v, err := newPlugin("appender." + name + ".type")
 		if err != nil {
@@ -98,7 +135,6 @@ func Refresh(s flatten.Storage) error {
 		cAppenders[name] = v.Interface().(Appender)
 	}
 
-	// initialize appender references in a logger
 	initAppenderRefs := func(v reflect.Value) error {
 		i, ok := v.Interface().(AppenderRefs)
 		if !ok {
@@ -110,7 +146,7 @@ func Refresh(s flatten.Storage) error {
 			if !ok {
 				return errutil.Explain(nil, "appender %s not found", r.Ref)
 			}
-			// 同步 logger 必须搭配并发安全的 appender
+			// If synchronization mode is enabled, the appender must be concurrent-safe
 			if syncMode && !a.ConcurrentSafe() {
 				return errutil.Explain(nil, "appender %s is not concurrent-safe", r.Ref)
 			}
@@ -119,7 +155,7 @@ func Refresh(s flatten.Storage) error {
 		return nil
 	}
 
-	// Initialize all other loggers
+	cLoggers[RootLoggerName] = cRoot
 	for name := range loggers {
 		v, err := newPlugin("logger." + name + ".type")
 		if err != nil {
@@ -142,7 +178,6 @@ func Refresh(s flatten.Storage) error {
 			continue
 		}
 
-		// Parse and validate tag list
 		var tags []string
 		for _, tag := range logger.GetTags() {
 			if tag = strings.TrimSpace(tag); tag == "" {
@@ -171,21 +206,18 @@ func Refresh(s flatten.Storage) error {
 		}
 	}
 
-	// Start all appenders
 	for _, a := range cAppenders {
 		if err := a.Start(); err != nil {
 			return errutil.Stack(err, "appender %s start error", a.GetName())
 		}
 	}
 
-	// Start all loggers
 	for _, l := range cLoggers {
 		if err := l.Start(); err != nil {
 			return errutil.Stack(err, "logger %s start error", l.GetName())
 		}
 	}
 
-	// Update logger references in `loggerMap`
 	for _, l := range loggerMap {
 		v, ok := cLoggers[l.name]
 		if !ok {
@@ -205,17 +237,15 @@ func Refresh(s flatten.Storage) error {
 			if i <= 0 {
 				return cRoot
 			}
-			tag = tag[:i-1] + "_*" // 去掉最后一段
+			tag = tag[:i-1] + "_*"
 		}
 	}
 
-	// Update `tagMap` with corresponding loggers
 	for tag, obj := range tagRegistry {
 		v := findLoggerForTag(tag)
 		obj.logger.Store(&loggerValue{v})
 	}
 
-	// Update global loggers and appenders
 	for _, l := range cLoggers {
 		global.loggers = append(global.loggers, l)
 	}

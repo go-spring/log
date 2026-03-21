@@ -89,7 +89,9 @@ func defaultLogLevel() Level {
 	return r.MinLevel
 }
 
-// RegisterAppTag registers or retrieves a Tag intended for application-layer logs.
+// RegisterAppTag registers or retrieves a Tag intended for application-layer logs,
+// which are typically used to log events related to the application lifecycle,
+// such as startup, shutdown, or health checks.
 //   - subType: component or module name
 //   - action: lifecycle phase or behavior (optional)
 func RegisterAppTag(subType, action string) *Tag {
@@ -229,12 +231,11 @@ func Record(ctx context.Context, level Level, tag *Tag, skip int, fields ...Fiel
 
 // record performs the actual logging logic after level checking.
 func record(ctx context.Context, level Level, tag string, logger Logger, skip int, fields ...Field) {
-
-	// Step 2: capture caller information.
 	var (
 		file string
 		line int
 	)
+
 	switch callerType {
 	case CallerTypeDefault:
 		_, file, line, _ = runtime.Caller(skip)
@@ -243,13 +244,11 @@ func record(ctx context.Context, level Level, tag string, logger Logger, skip in
 	default: // for linter
 	}
 
-	// Step 3: get log timestamp.
 	now := time.Now()
 	if TimeNow != nil {
 		now = TimeNow(ctx)
 	}
 
-	// Step 4: extract metadata from context.
 	var ctxString string
 	if StringFromContext != nil {
 		ctxString = StringFromContext(ctx)
@@ -260,7 +259,6 @@ func record(ctx context.Context, level Level, tag string, logger Logger, skip in
 		ctxFields = FieldsFromContext(ctx)
 	}
 
-	// Step 5: populate event.
 	e := getEvent()
 	e.Level = level
 	e.Time = now
@@ -270,7 +268,5 @@ func record(ctx context.Context, level Level, tag string, logger Logger, skip in
 	e.Fields = fields
 	e.CtxString = ctxString
 	e.CtxFields = ctxFields
-
-	// Step 6: publish the event.
 	logger.Append(e)
 }

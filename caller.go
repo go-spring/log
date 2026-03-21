@@ -25,7 +25,7 @@ import (
 	"github.com/go-spring/stdlib/errutil"
 )
 
-// callerType indicates whether to enable caller information.
+// callerType indicates the type of caller information to use.
 var callerType = CallerTypeFast
 
 func init() {
@@ -76,17 +76,17 @@ var frameCache sync.Map
 // FastCaller returns the file name and line number of the calling function.
 // It uses a cache to speed up the lookup.
 func FastCaller(skip int) (file string, line int) {
-	rpc := make([]uintptr, 1)
+	var rpc [1]uintptr
 	n := runtime.Callers(skip+2, rpc[:])
 	if n < 1 {
 		return
 	}
 	pc := rpc[0]
 	if v, ok := frameCache.Load(pc); ok {
-		e := v.(*runtime.Frame)
+		e := v.(runtime.Frame)
 		return e.File, e.Line
 	}
-	frame, _ := runtime.CallersFrames(rpc).Next()
-	frameCache.Store(pc, &frame)
+	frame, _ := runtime.CallersFrames(rpc[:]).Next()
+	frameCache.Store(pc, frame)
 	return frame.File, frame.Line
 }

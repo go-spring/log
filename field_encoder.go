@@ -190,7 +190,7 @@ func (enc *JSONEncoder) AppendReflect(v any) {
 }
 
 // TextEncoder encodes fields as "key=value" pairs separated by a delimiter.
-// Nested arrays/objects are serialized as JSON using an internal JSONEncoder.
+// For nested objects and arrays, it delegates to the embedded JSONEncoder.
 type TextEncoder struct {
 	out         Writer       // Buffer to write the encoded output
 	separator   string       // Separator used between top-level key-value pairs

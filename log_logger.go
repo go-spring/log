@@ -34,6 +34,7 @@ type LoggerWrapper struct {
 // Write forwards the given byte slice to the currently active Logger.
 // It implements the io.Writer interface, allowing LoggerWrapper to be
 // used anywhere an io.Writer is expected.
+// The log level is always set to MaxLevel for this method.
 func (m *LoggerWrapper) Write(b []byte) (n int, err error) {
 	m.WriteLevel(MaxLevel, b)
 	return len(b), nil
@@ -50,10 +51,7 @@ func (m *LoggerWrapper) WriteLevel(level Level, b []byte) {
 
 // GetLogger retrieves an existing LoggerWrapper by name,
 // or creates a new one if it does not exist yet.
-//
 // This function must be called only during the initialization phase.
-// It panics if called after global.init is set, indicating that
-// the logging system has already been finalized.
 func GetLogger(name string) *LoggerWrapper {
 	m, ok := loggerMap[name]
 	if !ok {
