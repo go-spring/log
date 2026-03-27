@@ -26,7 +26,7 @@ import (
 func TestRegisterLevel(t *testing.T) {
 	customLevel := RegisterLevel(800, "custom")
 	assert.Number(t, customLevel.Code()).Equal(int32(800))
-	assert.String(t, customLevel.Name()).Equal("CUSTOM")
+	assert.String(t, customLevel.UpperName()).Equal("CUSTOM")
 }
 
 func TestParseLevelRange(t *testing.T) {

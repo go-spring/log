@@ -2,7 +2,7 @@
  * Copyright 2025 The Go-Spring Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ * You may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
  *      https://www.apache.org/licenses/LICENSE-2.0
@@ -17,172 +17,97 @@
 package log
 
 import (
-	"bytes"
 	"strconv"
-	"strings"
-	"sync"
-	"sync/atomic"
-	"unicode"
-
-	"github.com/go-spring/stdlib/errutil"
 )
-
-var (
-	bufferPool sync.Pool    // Pool to reuse byte buffers for layouts
-	BufferCap  atomic.Int32 // Maximum buffer capacity allowed for reuse
-)
-
-func init() {
-	// Default buffer capacity is 10KB
-	BufferCap.Store(10 * 1024)
-	RegisterProperty("bufferCap", func(s string) error {
-		n, err := ParseHumanizeBytes(s)
-		if err != nil {
-			return errutil.Stack(err, "invalid bufferCap: %q", s)
-		}
-		BufferCap.Store(int32(n))
-		return nil
-	})
-}
-
-// Supported size units for human-readable byte values
-var bytesSizeTable = map[string]int64{
-	"B":  1,
-	"KB": 1024,
-	"MB": 1024 * 1024,
-}
 
 func init() {
 	RegisterPlugin[TextLayout]("TextLayout")
 	RegisterPlugin[JSONLayout]("JSONLayout")
 }
 
-// HumanizeBytes represents a human-readable byte size
-type HumanizeBytes int
-
-// ParseHumanizeBytes converts a human-readable byte string (e.g., "10KB") to an integer.
-func ParseHumanizeBytes(s string) (HumanizeBytes, error) {
-	lastDigit := 0
-	for _, r := range s {
-		if !unicode.IsDigit(r) {
-			break
-		}
-		lastDigit++
-	}
-	num := s[:lastDigit]
-	f, err := strconv.ParseInt(num, 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	extra := strings.ToUpper(strings.TrimSpace(s[lastDigit:]))
-	if m, ok := bytesSizeTable[extra]; ok {
-		f *= m
-		return HumanizeBytes(f), nil
-	}
-	return 0, errutil.Explain(nil, "unhandled size name: %q", extra)
-}
-
-// Layout defines how a log event is formatted into bytes.
+// Layout defines how a log event is encoded into a writer.
+// Implementations should write fully formatted log data to `w`.
+// Layouts do NOT manage memory or buffering; callers are responsible.
 type Layout interface {
-	ToBytes(e *Event) []byte
+	EncodeTo(e *Event, w Writer)
 }
 
-// BaseLayout provides common functionality for layouts.
+// BaseLayout provides common utilities for layouts, e.g., file:line formatting.
 type BaseLayout struct {
-	FileLineLength int `PluginAttribute:"fileLineLength,default=48"`
+	FileLineMaxLength int `PluginAttribute:"fileLineMaxLength,default=48"`
 }
 
-// GetBuffer returns a buffer from the pool (or a new one if empty).
-func (c *BaseLayout) GetBuffer() *bytes.Buffer {
-	if v := bufferPool.Get(); v != nil {
-		return v.(*bytes.Buffer)
-	}
-	return bytes.NewBuffer(nil)
-}
-
-// PutBuffer resets and returns a buffer to the pool,
-// but only if it does not exceed the configured capacity.
-func (c *BaseLayout) PutBuffer(buf *bytes.Buffer) {
-	if buf.Cap() <= int(BufferCap.Load()) {
-		buf.Reset()
-		bufferPool.Put(buf)
-	}
-}
-
-// GetFileLine returns "file:line" string for the log event.
-// If the string is too long, it is truncated and prefixed with "...".
+// GetFileLine returns the "file:line" string for a log event.
+// If the result exceeds FileLineMaxLength,
+// the leading part is truncated and replaced with "...".
 func (c *BaseLayout) GetFileLine(e *Event) string {
 	fileLine := e.File + ":" + strconv.Itoa(e.Line)
-	if n := len(fileLine); n > c.FileLineLength {
-		fileLine = "..." + fileLine[n-c.FileLineLength+3:]
+	if c.FileLineMaxLength <= 16 {
+		return fileLine
+	}
+	if n := len(fileLine); n > c.FileLineMaxLength {
+		fileLine = "..." + fileLine[n-c.FileLineMaxLength+3:]
 	}
 	return fileLine
 }
 
-// TextLayout formats a log event as a human-readable text line.
+// TextLayout encodes a log event as a human-readable text line.
 type TextLayout struct {
 	BaseLayout
 }
 
-// ToBytes converts a log event into a plain-text line with separators.
-func (c *TextLayout) ToBytes(e *Event) []byte {
+// EncodeTo writes the log event to the provided writer in plain-text format.
+func (c *TextLayout) EncodeTo(e *Event, w Writer) {
 	const separator = "||"
 
-	buf := c.GetBuffer()
-	defer c.PutBuffer(buf)
-
-	buf.WriteString("[")
-	buf.WriteString(strings.ToUpper(e.Level.Name()))
-	buf.WriteString("][")
-	buf.WriteString(e.Time.Format("2006-01-02T15:04:05.000"))
-	buf.WriteString("][")
-	buf.WriteString(c.GetFileLine(e))
-	buf.WriteString("] ")
-	buf.WriteString(e.Tag)
-	buf.WriteString(separator)
-
+	// Write basic header fields
+	_, _ = w.WriteString("[")
+	_, _ = w.WriteString(e.Level.UpperName())
+	_, _ = w.WriteString("][")
+	_, _ = w.WriteString(e.Time.Format("2006-01-02T15:04:05.000"))
+	_, _ = w.WriteString("][")
+	_, _ = w.WriteString(c.GetFileLine(e))
+	_, _ = w.WriteString("] ")
+	_, _ = w.WriteString(e.Tag)
+	_, _ = w.WriteString(separator)
 	if e.CtxString != "" {
-		buf.WriteString(e.CtxString)
-		buf.WriteString(separator)
+		_, _ = w.WriteString(e.CtxString)
+		_, _ = w.WriteString(separator)
 	}
 
-	enc := NewTextEncoder(buf, separator)
+	// Encode structured fields
+	enc := NewTextEncoder(w, separator)
 	enc.AppendEncoderBegin()
 	EncodeFields(enc, e.CtxFields)
 	EncodeFields(enc, e.Fields)
 	enc.AppendEncoderEnd()
 
-	buf.WriteByte('\n')
-	return buf.Bytes()
+	_ = w.WriteByte('\n')
 }
 
-// JSONLayout formats a log event as a structured JSON object.
+// JSONLayout encodes a log event as a structured JSON object.
 type JSONLayout struct {
 	BaseLayout
 }
 
-// ToBytes converts a log event to JSON representation.
-func (c *JSONLayout) ToBytes(e *Event) []byte {
-	buf := c.GetBuffer()
-	defer c.PutBuffer(buf)
+// EncodeTo writes the log event to the provided writer in JSON format.
+func (c *JSONLayout) EncodeTo(e *Event, w Writer) {
+	enc := NewJSONEncoder(w)
+	enc.AppendEncoderBegin()
 
-	headers := make([]Field, 0, 5)
-	headers = append(headers, String("level", strings.ToLower(e.Level.Name())))
-	headers = append(headers, String("time", e.Time.Format("2006-01-02T15:04:05.000")))
-	headers = append(headers, String("fileLine", c.GetFileLine(e)))
-	headers = append(headers, String("tag", e.Tag))
-
+	// Write basic header fields
+	String("level", e.Level.LowerName()).Encode(enc)
+	String("time", e.Time.Format("2006-01-02T15:04:05.000")).Encode(enc)
+	String("fileLine", c.GetFileLine(e)).Encode(enc)
+	String("tag", e.Tag).Encode(enc)
 	if e.CtxString != "" {
-		headers = append(headers, String("ctxString", e.CtxString))
+		String("ctxString", e.CtxString).Encode(enc)
 	}
 
-	enc := NewJSONEncoder(buf)
-	enc.AppendEncoderBegin()
-	EncodeFields(enc, headers)
+	// Encode structured fields
 	EncodeFields(enc, e.CtxFields)
 	EncodeFields(enc, e.Fields)
 	enc.AppendEncoderEnd()
 
-	buf.WriteByte('\n')
-	return buf.Bytes()
+	_ = w.WriteByte('\n')
 }

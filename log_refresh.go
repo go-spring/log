@@ -17,71 +17,136 @@
 package log
 
 import (
+	"maps"
 	"reflect"
+	"slices"
 	"strings"
+	"sync"
 
+	"github.com/go-spring/log/expr"
 	"github.com/go-spring/stdlib/errutil"
 	"github.com/go-spring/stdlib/flatten"
 )
 
 // RootLoggerName defines the reserved name for the root logger.
+// This is the default logger used when no specific logger is matched.
 const RootLoggerName = "root"
 
-// global holds all runtime logger and appender instances.
+// global maintains all active loggers and appenders at runtime.
+// Access must be synchronized via the embedded mutex.
 var global struct {
-	refreshed bool // 目前暂不实现动态刷新的能力
+	mutex     sync.Mutex
 	loggers   []Logger
 	appenders []Appender
 }
 
-// Refresh loads a logging configuration from a *flatten.Storage.
+// RefreshConfig loads logging configuration from a flat map.
+// It first expands inline expressions, then converts the result
+// into a flatten.Storage and delegates to Refresh.
+func RefreshConfig(m map[string]string) error {
+	m, err := parseExpr(m)
+	if err != nil {
+		return err
+	}
+	p := flatten.NewProperties(m)
+	return Refresh(flatten.NewPropertiesStorage(p))
+}
+
+// parseExpr expands inline map expressions embedded in values.
+//
+// A key ending with "!" indicates that its value is a map expression.
+// The "!" suffix is stripped, and the parsed entries are flattened
+// into "<key>.<subKey>" form.
+//
+// Example:
+//
+//	input:
+//	  {
+//	    "app.name": "MyApp",
+//	    "db!": "{host: localhost, port: 5432}",
+//	  }
+//
+//	output:
+//	  {
+//	    "app.name": "MyApp",
+//	    "db.host":  "localhost",
+//	    "db.port":  "5432",
+//	  }
+//
+// Returns an error if expression parsing fails or duplicate keys are detected.
+func parseExpr(m map[string]string) (map[string]string, error) {
+	ret := make(map[string]string)
+	for k, v := range m {
+		var ok bool
+		k, ok = strings.CutSuffix(k, "!")
+		if !ok {
+			ret[k] = v
+			continue
+		}
+		// Parse inline map expression
+		subMap, err := expr.Parse(v)
+		if err != nil {
+			return nil, errutil.Explain(err, "parseExpr error")
+		}
+		for k2, v2 := range subMap {
+			subKey := k + "." + k2
+			if _, exists := ret[subKey]; exists {
+				return nil, errutil.Explain(nil, "duplicate key '%s'", subKey)
+			}
+			ret[subKey] = v2
+		}
+	}
+	return ret, nil
+}
+
+// Refresh rebuilds all loggers and appenders from the given configuration storage.
+// It replaces the current runtime configuration atomically.
+//
+// The process includes:
+//  1. Parsing logger and appender definitions
+//  2. Instantiating plugins
+//  3. Wiring appender references
+//  4. Starting new components
+//  5. Swapping in the new configuration
+//  6. Stopping old components
+//
+// Returns an error if any step fails.
 func Refresh(s flatten.Storage) error {
 
-	// Ensure this refresh is executed only once
-	if global.refreshed {
-		return errutil.Explain(nil, "log refresh already done")
-	}
-	global.refreshed = true
+	global.mutex.Lock()
+	defer global.mutex.Unlock()
 
-	//s, err := toStorage(data)
-	//if err != nil {
-	//	return errutil.Stack(err, "toStorage error")
-	//}
+	oldLoggers := global.loggers
+	oldAppenders := global.appenders
 
-	// Read appenders
+	loggerNames := make(map[string]struct{})
+	appenderNames := make(map[string]struct{})
 
-	appenders := make(map[string]struct{})
-	s.MapKeys("appender", appenders)
-	//appenders, err := s.SubKeys("appender")
-	//if err != nil {
-	//	return errutil.Stack(err, "read appenders section error")
-	//}
-	if len(appenders) == 0 {
+	s.MapKeys("logger", loggerNames)
+	s.MapKeys("appender", appenderNames)
+	if len(appenderNames) == 0 {
 		return errutil.Explain(nil, "appenders section not found")
 	}
 
-	// Read loggers
-	loggers := make(map[string]struct{})
-	s.MapKeys("logger", loggers)
-	//loggers, err := s.SubKeys("logger")
-	//if err != nil {
-	//	return errutil.Stack(err, "read loggers section error")
-	//}
+	// Check logger definitions
+	for _, l := range loggerMap {
+		if _, ok := loggerNames[l.name]; !ok {
+			return errutil.Explain(nil, "logger %s not found", l.name)
+		}
+	}
 
-	// Factory function to create plugin instances
-	newPlugin := func(typeKey string) (reflect.Value, error) {
-		if !s.Exists(typeKey) {
-			return reflect.Value{}, errutil.Explain(nil, "attribute 'type' not found")
-		}
-		strType, ok := s.Value(typeKey)
+	// newPluginFromType creates a plugin instance from configuration.
+	newPluginFromType := func(prefix string) (reflect.Value, error) {
+		// type 不能使用属性引用
+		plugin, ok := s.Value(prefix + ".type")
 		if !ok {
 			return reflect.Value{}, errutil.Explain(nil, "attribute 'type' not found")
 		}
-		p, ok := pluginRegistry[strType]
+		p, ok := pluginRegistry[plugin]
 		if !ok {
-			return reflect.Value{}, errutil.Explain(nil, "plugin %s not found", strType)
+			return reflect.Value{}, errutil.Explain(nil, "plugin %s not found", plugin)
 		}
-		return NewPlugin(p.Class, typeKey[:strings.LastIndex(typeKey, ".")], s)
+		return newPlugin(p.Class, prefix, s)
 	}
 
 	var (
@@ -91,139 +156,167 @@ func Refresh(s flatten.Storage) error {
 		cTags      = make(map[string]Logger)
 	)
 
-	// Set root logger
-	cLoggers[RootLoggerName] = cRoot
-
-	// Initialize appenders
-	for name := range appenders {
-		v, err := newPlugin("appender." + name + ".type")
+	for name := range appenderNames {
+		v, err := newPluginFromType("appender." + name)
 		if err != nil {
-			return errutil.Stack(err, "create appender %s error", name)
+			return errutil.Explain(err, "create appender %s error", name)
 		}
 		cAppenders[name] = v.Interface().(Appender)
 	}
 
-	// Initialize all other loggers
-	for name := range loggers {
-		v, err := newPlugin("logger." + name + ".type")
-		if err != nil {
-			return errutil.Stack(err, "create logger %s error", name)
+	// initAppenderRefs resolves and injects referenced appenders.
+	initAppenderRefs := func(v reflect.Value) error {
+		i, ok := v.Interface().(AppenderRefs)
+		if !ok {
+			return nil
 		}
-		base, err := initAppenderRefs(v, cAppenders)
+		syncMode, appenderRefs := i.GetAppenderRefs()
+		for _, r := range appenderRefs {
+			a, ok := cAppenders[r.Ref]
+			if !ok {
+				return errutil.Explain(nil, "appender %s not found", r.Ref)
+			}
+			// If sync mode is enabled, the appender must be concurrency-safe.
+			if syncMode && !a.ConcurrentSafe() {
+				return errutil.Explain(nil, "appender %s is not concurrent-safe", r.Ref)
+			}
+			r.Appender = a // assign resolved appender
+		}
+		return nil
+	}
+
+	cLoggers[RootLoggerName] = cRoot
+	for name := range loggerNames {
+
+		v, err := newPluginFromType("logger." + name)
 		if err != nil {
-			return errutil.Stack(err, "init appender refs for logger %s error", name)
+			return errutil.Explain(err, "create logger %s error", name)
+		}
+		if err = initAppenderRefs(v); err != nil {
+			return errutil.Explain(err, "init appender refs for logger %s error", name)
 		}
 		logger := v.Interface().(Logger)
 		cLoggers[name] = logger
 
-		// Skip the root logger
+		// Special handling for root logger
 		if name == RootLoggerName {
-			if len(base.Tags) > 0 {
-				err = errutil.Explain(nil, "root logger must not define any tags")
-				return errutil.Stack(err, "create logger %s error", name)
-			}
 			cRoot = logger
 			continue
 		}
 
-		// Parse and validate tag list
 		var tags []string
-		for _, tag := range base.Tags {
+		for _, tag := range logger.GetTags() {
 			if tag = strings.TrimSpace(tag); tag == "" {
 				continue
 			}
+			// Only suffix wildcard patterns like "xxx_*" are allowed.
 			if strings.Contains(tag, "*") {
 				if !strings.HasSuffix(tag, "_*") {
 					err = errutil.Explain(nil, "tag '%s' is invalid", tag)
-					return errutil.Stack(err, "create logger %s error", name)
+					return errutil.Explain(err, "create logger %s error", name)
 				}
 			}
 			tags = append(tags, tag)
 		}
-
 		if len(tags) == 0 {
-			err = errutil.Explain(nil, "logger must have attribute 'tags'")
-			return errutil.Stack(err, "create logger %s error", name)
+			err = errutil.Explain(nil, "logger must have attribute 'tag'")
+			return errutil.Explain(err, "create logger %s error", name)
 		}
 
+		// Register tag → logger mapping
 		for _, strTag := range tags {
 			if l, ok := cTags[strTag]; ok && l != logger {
 				err = errutil.Explain(nil, "tag '%s' already config in logger %s", strTag, l)
-				return errutil.Stack(err, "create logger %s error", name)
+				return errutil.Explain(err, "create logger %s error", name)
 			}
 			cTags[strTag] = logger
 		}
 	}
 
-	// Start all appenders
+	var (
+		success    bool
+		sLoggers   []Logger
+		sAppenders []Appender
+	)
+
+	defer func() {
+		if !success {
+			// Stop temp loggers and appenders
+			for _, l := range sLoggers {
+				l.Stop()
+			}
+			for _, a := range sAppenders {
+				a.Stop()
+			}
+		}
+	}()
+
+	// Start new appenders and loggers
 	for _, a := range cAppenders {
 		if err := a.Start(); err != nil {
-			return errutil.Stack(err, "appender %s start error", a.GetName())
+			return errutil.Explain(err, "appender %s start error", a.GetName())
 		}
+		sAppenders = append(sAppenders, a)
 	}
-
-	// Start all loggers
 	for _, l := range cLoggers {
 		if err := l.Start(); err != nil {
-			return errutil.Stack(err, "logger %s start error", l.GetName())
+			return errutil.Explain(err, "logger %s start error", l.GetName())
 		}
+		sLoggers = append(sLoggers, l)
 	}
+	success = true
 
-	// Update logger references in `loggerMap`
+	// Bind named loggers
 	for _, l := range loggerMap {
-		v, ok := cLoggers[l.name]
-		if !ok {
-			return errutil.Explain(nil, "logger %s not found", l.name)
-		}
-		l.logger = v
+		l.logger.Store(&loggerValue{cLoggers[l.name]})
 	}
 
-	// Helper to find the most appropriate logger for a given tag.
-	var findLoggerForTag func(tag string) Logger
-	findLoggerForTag = func(tag string) Logger {
-		if l, ok := cTags[tag]; ok {
-			return l
-		}
-		tag, _ = strings.CutSuffix(tag, "_*")
-		i := strings.LastIndex(tag, "_")
-		if i <= 0 {
-			return cRoot
-		}
-		tag = strings.TrimSuffix(tag[:i], "_") + "_*"
-		return findLoggerForTag(tag)
-	}
-
-	// Update `tagMap` with corresponding loggers
-	for tag, obj := range tagRegistry {
-		obj.logger = findLoggerForTag(tag)
-	}
-
-	// Inject properties
-	for k, f := range propertyRegistry {
-		if v, ok := s.Value(toCamelKey(k)); !ok {
-			continue
-		} else if err := f(v); err != nil {
-			return errutil.Stack(err, "inject property %s error", k)
+	// findLogger selects the most specific logger for a given tag,
+	// falling back hierarchically using "_*" patterns.
+	findLogger := func(tag string) Logger {
+		for {
+			if l, ok := cTags[tag]; ok {
+				return l
+			}
+			tag, _ = strings.CutSuffix(tag, "_*")
+			i := strings.LastIndex(tag, "_")
+			if i <= 0 {
+				return cRoot
+			}
+			tag = tag[:i] + "_*"
 		}
 	}
 
-	// Update global loggers and appenders
-	for _, l := range cLoggers {
-		global.loggers = append(global.loggers, l)
+	// Bind tag-based loggers
+	for tag, l := range tagRegistry {
+		l.logger.Store(&loggerValue{findLogger(tag)})
 	}
-	for _, a := range cAppenders {
-		global.appenders = append(global.appenders, a)
+
+	global.loggers = slices.Collect(maps.Values(cLoggers))
+	global.appenders = slices.Collect(maps.Values(cAppenders))
+
+	// Stop old loggers and appenders
+	for _, l := range oldLoggers {
+		l.Stop()
+	}
+	for _, a := range oldAppenders {
+		a.Stop()
 	}
 
 	return nil
 }
 
 // Destroy gracefully shuts down all loggers and appenders,
-// releasing resources and resetting the global state.
+// releases resources, and resets global state.
 func Destroy() {
-	if !global.refreshed {
-		return
+	global.mutex.Lock()
+	defer global.mutex.Unlock()
+
+	for _, obj := range tagRegistry {
+		obj.reset()
 	}
+
+	// Stop all loggers and appenders
 	for _, l := range global.loggers {
 		l.Stop()
 	}
@@ -232,37 +325,4 @@ func Destroy() {
 	}
 	global.loggers = nil
 	global.appenders = nil
-	global.refreshed = false
-}
-
-// initAppenderRefs Initialize appender references in a logger
-func initAppenderRefs(v reflect.Value, cAppenders map[string]Appender) (*LoggerBase, error) {
-	var (
-		sync bool
-		base *LoggerBase
-		ref  *AppenderRefs
-	)
-	switch config := v.Interface().(type) {
-	case *SyncLogger:
-		sync = true
-		base = &config.LoggerBase
-		ref = &config.AppenderRefs
-	case *AsyncLogger:
-		sync = false
-		base = &config.LoggerBase
-		ref = &config.AppenderRefs
-	default: // for linter
-	}
-	for _, r := range ref.AppenderRefs {
-		appender, ok := cAppenders[r.Ref]
-		if !ok {
-			return nil, errutil.Explain(nil, "appender %s not found", r.Ref)
-		}
-		// 同步 logger 必须搭配并发安全的 appender
-		if sync && !appender.ConcurrentSafe() {
-			return nil, errutil.Explain(nil, "appender %s is not concurrent-safe", r.Ref)
-		}
-		r.Appender = appender
-	}
-	return base, nil
 }

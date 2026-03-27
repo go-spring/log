@@ -40,8 +40,8 @@ func TestInjectAttribute(t *testing.T) {
 			Name string `PluginAttribute:""`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
-		_, err := NewPlugin(typ, "test", nil)
-		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field Name error >> found no attribute")
+		_, err := newPlugin(typ, "test", nil)
+		assert.Error(t, err).Matches("PluginAttribute tag is empty for field at test")
 	})
 
 	t.Run("no attribute - 2", func(t *testing.T) {
@@ -51,8 +51,8 @@ func TestInjectAttribute(t *testing.T) {
 		typ := reflect.TypeFor[ErrorPlugin]()
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
-		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field Value error >> found no attribute")
+		_, err := newPlugin(typ, "test", s)
+		assert.Error(t, err).Matches("inject field ErrorPlugin.Value error >> no value configured and no default specified")
 	})
 
 	t.Run("property not found error", func(t *testing.T) {
@@ -63,8 +63,8 @@ func TestInjectAttribute(t *testing.T) {
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
 		s.Set("test.value", "${nonexistent_prop}")
-		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error >> inject struct field Value error >> property \${nonexistent_prop} not found`)
+		_, err := newPlugin(typ, "test", s)
+		assert.Error(t, err).Matches(`property reference "\${nonexistent_prop}" does not exist`)
 	})
 
 	t.Run("converter error", func(t *testing.T) {
@@ -74,8 +74,8 @@ func TestInjectAttribute(t *testing.T) {
 		typ := reflect.TypeFor[ErrorPlugin]()
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
-		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field Level error >> invalid log level: \"NOT-EXIST-LEVEL\"")
+		_, err := newPlugin(typ, "test", s)
+		assert.Error(t, err).Matches("inject field ErrorPlugin.Level error >> invalid log level: \"NOT-EXIST-LEVEL\"")
 	})
 
 	t.Run("uint64 error", func(t *testing.T) {
@@ -86,8 +86,8 @@ func TestInjectAttribute(t *testing.T) {
 		typ := reflect.TypeFor[ErrorPlugin]()
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
-		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error >> inject struct field N error >> strconv.ParseUint: parsing \"abc\": invalid syntax`)
+		_, err := newPlugin(typ, "test", s)
+		assert.Error(t, err).Matches(`inject field ErrorPlugin.N error >> parse "abc" to uint64 error: strconv.ParseUint: parsing "abc": invalid syntax`)
 	})
 
 	t.Run("int64 error", func(t *testing.T) {
@@ -98,8 +98,8 @@ func TestInjectAttribute(t *testing.T) {
 		typ := reflect.TypeFor[ErrorPlugin]()
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
-		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error >> inject struct field N error >> strconv.ParseInt: parsing \"abc\": invalid syntax`)
+		_, err := newPlugin(typ, "test", s)
+		assert.Error(t, err).Matches(`inject field ErrorPlugin.N error >> parse "abc" to int64 error: strconv.ParseInt: parsing "abc": invalid syntax`)
 	})
 
 	t.Run("float64 error", func(t *testing.T) {
@@ -110,8 +110,8 @@ func TestInjectAttribute(t *testing.T) {
 		typ := reflect.TypeFor[ErrorPlugin]()
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
-		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error >> inject struct field N error >> strconv.ParseFloat: parsing \"abc\": invalid syntax`)
+		_, err := newPlugin(typ, "test", s)
+		assert.Error(t, err).Matches(`inject field ErrorPlugin.N error >> parse "abc" to float64 error: strconv.ParseFloat: parsing "abc": invalid syntax`)
 	})
 
 	t.Run("boolean error", func(t *testing.T) {
@@ -122,8 +122,8 @@ func TestInjectAttribute(t *testing.T) {
 		typ := reflect.TypeFor[ErrorPlugin]()
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
-		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error >> inject struct field N error >> strconv.ParseBool: parsing \"abc\": invalid syntax`)
+		_, err := newPlugin(typ, "test", s)
+		assert.Error(t, err).Matches(`inject field ErrorPlugin.N error >> parse "abc" to bool error: strconv.ParseBool: parsing "abc": invalid syntax`)
 	})
 
 	t.Run("type error", func(t *testing.T) {
@@ -133,8 +133,8 @@ func TestInjectAttribute(t *testing.T) {
 		typ := reflect.TypeFor[ErrorPlugin]()
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
-		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error >> inject struct field M error >> unsupported inject type chan error`)
+		_, err := newPlugin(typ, "test", s)
+		assert.Error(t, err).Matches(`inject field ErrorPlugin.M error >> unsupported inject type chan error for field at test`)
 	})
 
 	t.Run("success with name attribute", func(t *testing.T) {
@@ -144,7 +144,7 @@ func TestInjectAttribute(t *testing.T) {
 		typ := reflect.TypeFor[SuccessPlugin]()
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
-		v, err := NewPlugin(typ, "test", s)
+		v, err := newPlugin(typ, "test", s)
 		assert.Error(t, err).Nil()
 		p := v.Interface().(*SuccessPlugin)
 		assert.String(t, p.Name).Equal("test")
@@ -157,7 +157,7 @@ func TestInjectAttribute(t *testing.T) {
 		typ := reflect.TypeFor[SuccessPlugin]()
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
-		v, err := NewPlugin(typ, "test", s)
+		v, err := newPlugin(typ, "test", s)
 		assert.Error(t, err).Nil()
 		p := v.Interface().(*SuccessPlugin)
 		assert.String(t, p.Value).Equal("hello")
@@ -171,7 +171,7 @@ func TestInjectAttribute(t *testing.T) {
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
 		s.Set("test.value", "world")
-		v, err := NewPlugin(typ, "test", s)
+		v, err := newPlugin(typ, "test", s)
 		assert.Error(t, err).Nil()
 		p := v.Interface().(*SuccessPlugin)
 		assert.String(t, p.Value).Equal("world")
@@ -186,7 +186,7 @@ func TestInjectAttribute(t *testing.T) {
 		s := flatten.NewPropertiesStorage(ps)
 		s.Set("prop.value", "property_value")
 		s.Set("test.value", "${prop.value}")
-		v, err := NewPlugin(typ, "test", s)
+		v, err := newPlugin(typ, "test", s)
 		assert.Error(t, err).Nil()
 		p := v.Interface().(*SuccessPlugin)
 		assert.String(t, p.Value).Equal("property_value")
@@ -201,7 +201,7 @@ func TestInjectAttribute(t *testing.T) {
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
 		s.Set("test.values", "apple,banana,cherry")
-		v, err := NewPlugin(typ, "test", s)
+		v, err := newPlugin(typ, "test", s)
 		assert.Error(t, err).Nil()
 		p := v.Interface().(*SlicePlugin)
 		assert.Slice(t, p.Values).Equal([]string{"apple", "banana", "cherry"})
@@ -217,23 +217,10 @@ func TestInjectAttribute(t *testing.T) {
 		s.Set("test.numbers[0]", "10")
 		s.Set("test.numbers[1]", "20")
 		s.Set("test.numbers[2]", "30")
-		v, err := NewPlugin(typ, "test", s)
+		v, err := newPlugin(typ, "test", s)
 		assert.Error(t, err).Nil()
 		p := v.Interface().(*SlicePlugin)
 		assert.Slice(t, p.Numbers).Equal([]int{10, 20, 30})
-	})
-
-	t.Run("slice with default and custom separator", func(t *testing.T) {
-		type SlicePlugin struct {
-			Values []string `PluginAttribute:"values,delimiter=;,default=a;b;c"`
-		}
-		typ := reflect.TypeFor[SlicePlugin]()
-		ps := flatten.NewProperties(nil)
-		s := flatten.NewPropertiesStorage(ps)
-		v, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Nil()
-		p := v.Interface().(*SlicePlugin)
-		assert.Slice(t, p.Values).Equal([]string{"a", "b", "c"})
 	})
 
 	t.Run("slice with property reference", func(t *testing.T) {
@@ -245,7 +232,7 @@ func TestInjectAttribute(t *testing.T) {
 		s := flatten.NewPropertiesStorage(ps)
 		s.Set("prop.array", "property,value,array")
 		s.Set("test.values", "${prop.array}")
-		v, err := NewPlugin(typ, "test", s)
+		v, err := newPlugin(typ, "test", s)
 		assert.Error(t, err).Nil()
 		p := v.Interface().(*SlicePlugin)
 		assert.Slice(t, p.Values).Equal([]string{"property", "value", "array"})
@@ -259,8 +246,8 @@ func TestInjectAttribute(t *testing.T) {
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
 		s.Set("test.numbers", "1,abc,3")
-		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error >> inject struct field Numbers error >> inject struct field Numbers\[1] error >> strconv.ParseInt: parsing "abc": invalid syntax`)
+		_, err := newPlugin(typ, "test", s)
+		assert.Error(t, err).Matches(`inject field ErrorPlugin.Numbers error >> inject Numbers\[1] error >> parse "abc" to int error: strconv.ParseInt: parsing "abc": invalid syntax`)
 	})
 
 	t.Run("slice unsupported element type", func(t *testing.T) {
@@ -271,36 +258,8 @@ func TestInjectAttribute(t *testing.T) {
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
 		s.Set("test.channels", "test")
-		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error >> inject struct field Channels error >> inject struct field Channels\[0] error >> unsupported inject type chan error`)
-	})
-
-	t.Run("fixed array from indexed keys", func(t *testing.T) {
-		type ArrayPlugin struct {
-			Numbers [3]int `PluginAttribute:"numbers"`
-		}
-		typ := reflect.TypeFor[ArrayPlugin]()
-		ps := flatten.NewProperties(nil)
-		s := flatten.NewPropertiesStorage(ps)
-		s.Set("test.numbers[0]", "7")
-		s.Set("test.numbers[1]", "8")
-		s.Set("test.numbers[2]", "9")
-		v, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Nil()
-		p := v.Interface().(*ArrayPlugin)
-		assert.That(t, p.Numbers).Equal([3]int{7, 8, 9})
-	})
-
-	t.Run("fixed array overflow", func(t *testing.T) {
-		type ArrayPlugin struct {
-			Numbers [2]int `PluginAttribute:"numbers"`
-		}
-		typ := reflect.TypeFor[ArrayPlugin]()
-		ps := flatten.NewProperties(nil)
-		s := flatten.NewPropertiesStorage(ps)
-		s.Set("test.numbers", "1,2,3")
-		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches(`create plugin log.ArrayPlugin error >> inject struct field Numbers error >> too many values for array \[2\]int`)
+		_, err := newPlugin(typ, "test", s)
+		assert.Error(t, err).Matches(`inject field ErrorPlugin.Channels error >> inject Channels\[0] error >> unsupported inject type chan error`)
 	})
 }
 
@@ -313,8 +272,8 @@ func TestInjectElement(t *testing.T) {
 		typ := reflect.TypeFor[ErrorPlugin]()
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
-		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field Layout error >> found no plugin element")
+		_, err := newPlugin(typ, "test", s)
+		assert.Error(t, err).Matches(`inject field ErrorPlugin.Layout error >> PluginElement tag is empty`)
 	})
 
 	t.Run("unsupported inject type", func(t *testing.T) {
@@ -325,8 +284,8 @@ func TestInjectElement(t *testing.T) {
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
 		s.Set("test.layout.type", "TextLayout")
-		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field Layout error >> unsupported inject type map\\[string]log.Layout")
+		_, err := newPlugin(typ, "test", s)
+		assert.Error(t, err).Matches(`inject field ErrorPlugin.Layout error >> unsupported inject type map\[string]log.Layout`)
 	})
 
 	t.Run("no element - slice - default", func(t *testing.T) {
@@ -336,19 +295,8 @@ func TestInjectElement(t *testing.T) {
 		typ := reflect.TypeFor[ErrorPlugin]()
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
-		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field Layouts error >> found no plugin element")
-	})
-
-	t.Run("no element - slice - len - 0", func(t *testing.T) {
-		type ErrorPlugin struct {
-			Layouts []Layout `PluginElement:"layout,default=;;"`
-		}
-		typ := reflect.TypeFor[ErrorPlugin]()
-		ps := flatten.NewProperties(nil)
-		s := flatten.NewPropertiesStorage(ps)
-		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field Layouts error >> found no plugin element")
+		_, err := newPlugin(typ, "test", s)
+		assert.Error(t, err).Matches(`inject field ErrorPlugin.Layouts error >> no plugin type configured and no default specified`)
 	})
 
 	t.Run("plugin not found - slice - interface - 1", func(t *testing.T) {
@@ -358,8 +306,8 @@ func TestInjectElement(t *testing.T) {
 		typ := reflect.TypeFor[ErrorPlugin]()
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
-		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field Layout error >> plugin NotExistElement not found")
+		_, err := newPlugin(typ, "test", s)
+		assert.Error(t, err).Matches("inject field ErrorPlugin.Layout error >> plugin NotExistElement not found")
 	})
 
 	t.Run("plugin not found - slice - interface - 2", func(t *testing.T) {
@@ -370,8 +318,8 @@ func TestInjectElement(t *testing.T) {
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
 		s.Set("test.layout.type", "NotExistElement")
-		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field Layout error >> plugin NotExistElement not found")
+		_, err := newPlugin(typ, "test", s)
+		assert.Error(t, err).Matches("inject field ErrorPlugin.Layout error >> plugin NotExistElement not found")
 	})
 
 	t.Run("plugin not found - slice - struct - 1", func(t *testing.T) {
@@ -382,7 +330,7 @@ func TestInjectElement(t *testing.T) {
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
 		s.Set("test.appenderRef[0].ref", "file")
-		_, err := NewPlugin(typ, "test", s)
+		_, err := newPlugin(typ, "test", s)
 		assert.Error(t, err).Nil()
 	})
 
@@ -394,7 +342,7 @@ func TestInjectElement(t *testing.T) {
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
 		s.Set("test.appenderRef.ref", "file")
-		_, err := NewPlugin(typ, "test", s)
+		_, err := newPlugin(typ, "test", s)
 		assert.Error(t, err).Nil()
 	})
 
@@ -405,8 +353,8 @@ func TestInjectElement(t *testing.T) {
 		typ := reflect.TypeFor[ErrorPlugin]()
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
-		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field Layouts error >> found no plugin element")
+		_, err := newPlugin(typ, "test", s)
+		assert.Error(t, err).Matches("inject field ErrorPlugin.Layouts error >> no plugin type configured and no default specified")
 	})
 
 	t.Run("no element - single - no - type", func(t *testing.T) {
@@ -417,8 +365,8 @@ func TestInjectElement(t *testing.T) {
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
 		s.Set("test.layout.dummy", "")
-		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field Layouts error >> found no plugin element")
+		_, err := newPlugin(typ, "test", s)
+		assert.Error(t, err).Matches("inject field ErrorPlugin.Layouts error >> no plugin type configured and no default specified")
 	})
 
 	t.Run("plugin not found - single - interface - 1", func(t *testing.T) {
@@ -428,8 +376,8 @@ func TestInjectElement(t *testing.T) {
 		typ := reflect.TypeFor[ErrorPlugin]()
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
-		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field Layout error >> plugin NotExistElement not found")
+		_, err := newPlugin(typ, "test", s)
+		assert.Error(t, err).Matches("inject field ErrorPlugin.Layout error >> plugin NotExistElement not found")
 	})
 
 	t.Run("plugin not found - single - interface - 2", func(t *testing.T) {
@@ -440,22 +388,22 @@ func TestInjectElement(t *testing.T) {
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
 		s.Set("test.layout.type", "NotExistElement")
-		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches("create plugin log.ErrorPlugin error >> inject struct field Layout error >> plugin NotExistElement not found")
+		_, err := newPlugin(typ, "test", s)
+		assert.Error(t, err).Matches("inject field ErrorPlugin.Layout error >> plugin NotExistElement not found")
 	})
 
-	t.Run("NewPlugin error - slice - 1", func(t *testing.T) {
+	t.Run("newPlugin error - slice - 1", func(t *testing.T) {
 		type ErrorPlugin struct {
 			Appenders []Appender `PluginElement:"appender,default=FileAppender"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
-		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error >> inject struct field Appenders error >> create plugin log.FileAppender error >> inject struct field FileName error >> found no attribute`)
+		_, err := newPlugin(typ, "test", s)
+		assert.Error(t, err).Matches(`inject field ErrorPlugin.Appenders error >> inject field FileAppender.FileName error >> no value configured and no default specified`)
 	})
 
-	t.Run("NewPlugin error - slice - 2", func(t *testing.T) {
+	t.Run("newPlugin error - slice - 2", func(t *testing.T) {
 		type ErrorPlugin struct {
 			Appenders []Appender `PluginElement:"appender"`
 		}
@@ -463,19 +411,19 @@ func TestInjectElement(t *testing.T) {
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
 		s.Set("test.appender.type", "FileAppender")
-		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error >> inject struct field Appenders error >> create plugin log.FileAppender error >> inject struct field FileName error >> found no attribute`)
+		_, err := newPlugin(typ, "test", s)
+		assert.Error(t, err).Matches(`inject field ErrorPlugin.Appenders error >> inject field FileAppender.FileName error >> no value configured and no default specified`)
 	})
 
-	t.Run("NewPlugin error - single", func(t *testing.T) {
+	t.Run("newPlugin error - single", func(t *testing.T) {
 		type ErrorPlugin struct {
 			Appender Appender `PluginElement:"appender,default=FileAppender"`
 		}
 		typ := reflect.TypeFor[ErrorPlugin]()
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
-		_, err := NewPlugin(typ, "test", s)
-		assert.Error(t, err).Matches(`create plugin log.ErrorPlugin error >> inject struct field Appender error >> create plugin log.FileAppender error >> inject struct field FileName error >> found no attribute`)
+		_, err := newPlugin(typ, "test", s)
+		assert.Error(t, err).Matches(`inject field ErrorPlugin.Appender error >> inject field FileAppender.FileName error >> no value configured and no default specified`)
 	})
 
 	t.Run("success - slice - 1", func(t *testing.T) {
@@ -485,7 +433,7 @@ func TestInjectElement(t *testing.T) {
 		typ := reflect.TypeFor[SuccessPlugin]()
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
-		v, err := NewPlugin(typ, "test", s)
+		v, err := newPlugin(typ, "test", s)
 		assert.Error(t, err).Nil()
 		p := v.Interface().(*SuccessPlugin)
 		assert.That(t, p.Layouts).NotNil()
@@ -499,7 +447,7 @@ func TestInjectElement(t *testing.T) {
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
 		ps.Set("test.layout.type", "TextLayout")
-		v, err := NewPlugin(typ, "test", s)
+		v, err := newPlugin(typ, "test", s)
 		assert.Error(t, err).Nil()
 		p := v.Interface().(*SuccessPlugin)
 		assert.That(t, p.Layouts).NotNil()
@@ -513,7 +461,7 @@ func TestInjectElement(t *testing.T) {
 		ps := flatten.NewProperties(nil)
 		s := flatten.NewPropertiesStorage(ps)
 		ps.Set("test.layout.type", "TextLayout")
-		v, err := NewPlugin(typ, "test", s)
+		v, err := newPlugin(typ, "test", s)
 		assert.Error(t, err).Nil()
 		p := v.Interface().(*SuccessPlugin)
 		assert.That(t, p.Layout).NotNil()

@@ -166,10 +166,10 @@ func TestParse(t *testing.T) {
 		},
 		{
 			name:  "field with multiple dots",
-			input: `File{fileName="log.txt", layout.type=JSONLayout}`,
+			input: `File{file="log.txt", layout.type=JSONLayout}`,
 			want: map[string]string{
 				"type":        "File",
-				"fileName":    "log.txt",
+				"file":        "log.txt",
 				"layout.type": "JSONLayout",
 			},
 		},

@@ -17,14 +17,62 @@
 package log
 
 import (
+	"encoding/json"
 	"testing"
 
+	"github.com/go-spring/stdlib/flatten"
 	"github.com/go-spring/stdlib/testing/assert"
 )
 
+func readConfig() map[string]string {
+	s := `
+	{
+	  "bufferCap": "1KB",
+	  "bufferSize": 1000,
+	  "appender": {
+	    "file": {
+	      "type": "FileAppender",
+	      "file": "log.txt",
+	      "layout!": "JSONLayout{}"
+	    },
+	    "console!": "ConsoleAppender{layout=TextLayout{}}",
+	    "sample!": "SampleAppender{layout.type=TextLayout}"
+	  },
+	  "logger": {
+	    "root": {
+	      "type": "Logger",
+	      "level": "warn",
+	      "appenderRef": {
+	        "ref": "console"
+	      }
+	    },
+	    "myLogger": {
+	      "type": "AsyncLogger",
+	      "level": "trace",
+	      "tag": "_com_request_in,_com_request_*",
+	      "bufferSize": "${bufferSize}",
+	      "appenderRef": [
+	        {
+	          "ref": "file"
+	        },
+	        {
+	          "ref": "sample"
+	        }
+	      ]
+	    }
+	  }
+	}`
+
+	var m map[string]any
+	if err := json.Unmarshal([]byte(s), &m); err != nil {
+		panic(err)
+	}
+	return flatten.Flatten(m)
+}
+
 func TestGetLogger(t *testing.T) {
 	l := GetLogger("logger-not-exist")
-	err := Refresh(readConfig())
+	err := RefreshConfig(readConfig())
 	assert.Error(t, err).Matches(`logger logger-not-exist not found`)
 	delete(loggerMap, l.name)
 	Destroy()

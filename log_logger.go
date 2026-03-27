@@ -16,6 +16,8 @@
 
 package log
 
+import "sync/atomic"
+
 // loggerMap stores LoggerWrapper instances keyed by their names.
 // Note: This map is not concurrency-safe. It is expected to be modified
 // only during the initialization phase.
@@ -26,27 +28,22 @@ var loggerMap = map[string]*LoggerWrapper{}
 // readers always see a consistent Logger reference without needing locks.
 type LoggerWrapper struct {
 	name   string // Logical name of the logger
-	logger Logger // Underlying Logger instance
+	logger atomic.Pointer[loggerValue]
 }
 
-// Write forwards the given byte slice to the currently active Logger.
-// It implements the io.Writer interface, allowing LoggerWrapper to be
-// used anywhere an io.Writer is expected.
-func (m *LoggerWrapper) Write(b []byte) (n int, err error) {
-	m.logger.Write(b)
-	return len(b), nil
+// Write forwards the given byte slice to the currently active Logger
+// with the specified level.
+func (m *LoggerWrapper) Write(level Level, b []byte) {
+	e := getEvent()
+	e.Level = level
+	e.RawBytes = b
+	m.logger.Load().Append(e)
 }
 
 // GetLogger retrieves an existing LoggerWrapper by name,
 // or creates a new one if it does not exist yet.
-//
 // This function must be called only during the initialization phase.
-// It panics if called after global.init is set, indicating that
-// the logging system has already been finalized.
 func GetLogger(name string) *LoggerWrapper {
-	if global.refreshed {
-		panic("log refresh already done")
-	}
 	m, ok := loggerMap[name]
 	if !ok {
 		m = &LoggerWrapper{name: name}

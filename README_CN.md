@@ -108,7 +108,7 @@ bufferCap=1KB
 bufferSize=1000
 
 appender.file.type=File
-appender.file.fileName=log.txt
+appender.file.file=log.txt
 appender.file.layout.type=JSONLayout
 
 appender.console.type=Console
@@ -120,7 +120,7 @@ logger.root.appenderRef.ref=console
 
 logger.myLogger.type=AsyncLogger
 logger.myLogger.level=trace
-logger.myLogger.tags=_com_request_in,_com_request_*
+logger.myLogger.tag=_com_request_in,_com_request_*
 logger.myLogger.bufferSize=${bufferSize}
 logger.myLogger.appenderRef[0].ref=file
 ```

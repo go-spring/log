@@ -44,10 +44,22 @@ const (
 
 // Field represents a structured log field with a key and a typed value.
 type Field struct {
-	Key  string    // The field key
-	Type ValueType // The type of the value
-	Num  uint64    // Holds numeric values or length/bit-representation
-	Any  any       // Holds pointers, references, or arbitrary values
+
+	// The name of the field (e.g., "level", "message").
+	Key string
+
+	// The type of the value stored in the field (e.g., bool, int, string, etc.).
+	Type ValueType
+
+	// For numeric types, it stores the actual value.
+	// For strings and arrays, it stores the length or relevant metadata.
+	Num uint64
+
+	// Holds the actual value based on the type:
+	// - For strings, it stores a pointer to the string data.
+	// - For arrays, it stores the slice of array elements.
+	// - For other types, it stores the value directly.
+	Any any
 }
 
 // Msg creates a string Field with the fixed key "msg".

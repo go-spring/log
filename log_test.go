@@ -55,13 +55,11 @@ type SampleAppender struct {
 	Layout log.Layout `PluginElement:"layout,default=TextLayout"`
 }
 
-func (a *SampleAppender) Start() error   { return nil }
-func (a *SampleAppender) Stop()          {}
-func (a *SampleAppender) Write(b []byte) {}
+func (a *SampleAppender) Start() error { return nil }
+func (a *SampleAppender) Stop()        {}
 func (a *SampleAppender) Append(e *log.Event) {
-	data := a.Layout.ToBytes(e)
-	_, _ = os.Stdout.Write(data)
-	_, _ = os.Stderr.Write(data)
+	log.WriteEvent(os.Stdout, e, a.Layout)
+	log.WriteEvent(os.Stderr, e, a.Layout)
 }
 func (a *SampleAppender) ConcurrentSafe() bool { return true }
 
@@ -71,7 +69,7 @@ func init() {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-func readConfig() flatten.Storage {
+func readConfig() map[string]string {
 	s := `
 	{
 	  "bufferCap": "1KB",
@@ -79,7 +77,7 @@ func readConfig() flatten.Storage {
 	  "appender": {
 	    "file": {
 	      "type": "FileAppender",
-	      "fileName": "log.txt",
+	      "file": "log.txt",
 	      "layout!": "JSONLayout{}"
 	    },
 	    "console!": "ConsoleAppender{layout=TextLayout{}}",
@@ -96,7 +94,7 @@ func readConfig() flatten.Storage {
 	    "myLogger": {
 	      "type": "AsyncLogger",
 	      "level": "trace",
-	      "tags": "_com_request_in,_com_request_*",
+	      "tag": "_com_request_in,_com_request_*",
 	      "bufferSize": "${bufferSize}",
 	      "appenderRef": [
 	        {
@@ -114,12 +112,7 @@ func readConfig() flatten.Storage {
 	if err := json.Unmarshal([]byte(s), &m); err != nil {
 		panic(err)
 	}
-	ret, err := log.ToStorage(flatten.Flatten(m))
-	if err != nil {
-		return nil
-	}
-	p := flatten.NewProperties(ret)
-	return flatten.NewPropertiesStorage(p)
+	return flatten.Flatten(m)
 }
 
 func TestLog(t *testing.T) {
@@ -157,13 +150,8 @@ func TestLog(t *testing.T) {
 	log.Info(ctx, TagDefault, log.Msgf("hello %s", "world"))
 	log.Info(ctx, TagRequestIn, log.Msgf("hello %s", "world"))
 
-	err := log.Refresh(readConfig())
+	err := log.RefreshConfig(readConfig())
 	assert.Error(t, err).Nil()
-
-	// should panic after init.
-	assert.Panic(t, func() {
-		log.GetLogger("myLogger")
-	}, "log refresh already done")
 
 	ctx = context.WithValue(ctx, &keyTraceID, "0a882193682db71edd48044db54cae88")
 	ctx = context.WithValue(ctx, &keySpanID, "50ef0724418c0a66")
@@ -214,16 +202,16 @@ func TestLog(t *testing.T) {
 		"key2": "value2",
 	}))
 
-	_, _ = rootLogger.Write([]byte("this message is written directly\n"))
-	_, _ = rootLogger.Write([]byte("this message is written directly\n"))
+	rootLogger.Write(log.WarnLevel, []byte("this message is written directly\n"))
+	rootLogger.Write(log.WarnLevel, []byte("this message is written directly\n"))
 
 	expectLog := `
-[INFO][2025-06-01T00:00:00.000][<<file>>:157] _def||trace_id=||span_id=||msg=hello world
-[INFO][2025-06-01T00:00:00.000][<<file>>:158] _com_request_in||trace_id=||span_id=||msg=hello world
-[WARN][2025-06-01T00:00:00.000][<<file>>:207] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||msg=hello world
-[ERROR][2025-06-01T00:00:00.000][<<file>>:208] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||msg=hello world
-[PANIC][2025-06-01T00:00:00.000][<<file>>:209] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||msg=hello world
-[ERROR][2025-06-01T00:00:00.000][<<file>>:212] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||key1=value1||key2=value2
+[INFO][2025-06-01T00:00:00.000][<<file>>:150] _def||trace_id=||span_id=||msg=hello world
+[INFO][2025-06-01T00:00:00.000][<<file>>:151] _com_request_in||trace_id=||span_id=||msg=hello world
+[WARN][2025-06-01T00:00:00.000][<<file>>:195] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||msg=hello world
+[ERROR][2025-06-01T00:00:00.000][<<file>>:196] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||msg=hello world
+[PANIC][2025-06-01T00:00:00.000][<<file>>:197] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||msg=hello world
+[ERROR][2025-06-01T00:00:00.000][<<file>>:200] _def||trace_id=0a882193682db71edd48044db54cae88||span_id=50ef0724418c0a66||key1=value1||key2=value2
 this message is written directly
 this message is written directly
 `
@@ -232,28 +220,24 @@ this message is written directly
 	expectLog = strings.ReplaceAll(expectLog, "<<file>>", currFile)
 	assert.String(t, logBuf.String()).Equal(strings.TrimLeft(expectLog, "\n"))
 
-	assert.Panic(t, func() {
-		log.RegisterRPCTag("def", "")
-	}, "log refresh already done")
-
-	_, _ = myLogger.Write([]byte("this message is written directly\n"))
-	_, _ = myLoggerV2.Write([]byte("this message is written directly\n"))
+	myLogger.Write(log.InfoLevel, []byte("this message is written directly\n"))
+	myLoggerV2.Write(log.InfoLevel, []byte("this message is written directly\n"))
 
 	expectLog = `
-{"level":"trace","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:172","tag":"_com_request_out","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"debug","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:179","tag":"_com_request_out","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"trace","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:186","tag":"_com_request_out","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"debug","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:187","tag":"_com_request_out","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"info","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:190","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"warn","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:191","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"error","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:192","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"panic","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:193","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"fatal","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:194","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"info","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:197","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"warn","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:198","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"error","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:199","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"panic","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:200","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
-{"level":"fatal","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:201","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"trace","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:160","tag":"_com_request_out","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"debug","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:167","tag":"_com_request_out","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"trace","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:174","tag":"_com_request_out","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"debug","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:175","tag":"_com_request_out","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"info","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:178","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"warn","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:179","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"error","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:180","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"panic","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:181","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"fatal","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:182","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"info","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:185","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"warn","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:186","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"error","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:187","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"panic","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:188","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
+{"level":"fatal","time":"2025-06-01T00:00:00.000","fileLine":"<<file>>:189","tag":"_com_request_in","trace_id":"0a882193682db71edd48044db54cae88","span_id":"50ef0724418c0a66","msg":"hello world"}
 this message is written directly
 this message is written directly
 `
