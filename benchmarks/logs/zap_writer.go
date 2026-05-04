@@ -22,9 +22,10 @@ package benchmarks
 
 import (
 	"bytes"
-	"errors"
 	"io"
 	"strings"
+
+	"github.com/go-spring/stdlib/errutil"
 )
 
 // A Syncer is a spy for the Sync portion of zapcore.WriteSyncer.
@@ -63,7 +64,7 @@ type FailWriter struct{ Syncer }
 
 // Write implements io.Writer.
 func (w FailWriter) Write(b []byte) (int, error) {
-	return len(b), errors.New("failed")
+	return len(b), errutil.Explain(nil, "failed")
 }
 
 // ShortWriter is a WriteSyncer whose write method never fails, but

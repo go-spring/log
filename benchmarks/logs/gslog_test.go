@@ -17,21 +17,17 @@
 package benchmarks
 
 import (
-	"strings"
 	"time"
 
 	"github.com/go-spring/log"
 )
 
 func fakeGSAppenders() {
-	err := log.RefreshReader(strings.NewReader(`
-		appender.discard.type=Discard
-		appender.discard.layout.type=JSONLayout
-		
-		logger.root.type=Logger
-		logger.root.level=warn
-		logger.root.appenderRef.ref=discard
-	`), ".properties")
+	err := log.RefreshConfig(map[string]string{
+		"logger.root.type":  "DiscardLogger",
+		"logger.root.level": "warn",
+	})
+
 	if err != nil {
 		panic(err)
 	}

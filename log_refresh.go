@@ -124,9 +124,9 @@ func Refresh(s flatten.Storage) error {
 
 	s.MapKeys("logger", loggerNames)
 	s.MapKeys("appender", appenderNames)
-	if len(appenderNames) == 0 {
-		return errutil.Explain(nil, "appenders section not found")
-	}
+	// if len(appenderNames) == 0 {
+	// 	return errutil.Explain(nil, "appenders section not found")
+	// }
 
 	// Check logger definitions
 	for _, l := range loggerMap {

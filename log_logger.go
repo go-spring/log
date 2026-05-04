@@ -31,6 +31,12 @@ type LoggerWrapper struct {
 	logger atomic.Pointer[loggerValue]
 }
 
+// Enable returns true if the given Level 'l' is enabled for this Logger.
+// The check is inclusive of MinLevel and exclusive of MaxLevel.
+func (m *LoggerWrapper) Enable(l Level) bool {
+	return m.logger.Load().GetLevel().Enable(l)
+}
+
 // Write forwards the given byte slice to the currently active Logger
 // with the specified level.
 func (m *LoggerWrapper) Write(level Level, b []byte) {

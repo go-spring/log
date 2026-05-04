@@ -21,17 +21,17 @@
 package benchmarks
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
+	"github.com/go-spring/stdlib/errutil"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
 var (
-	errExample = errors.New("fail")
+	errExample = errutil.Explain(nil, "fail")
 
 	_messages   = fakeMessages(1000)
 	_tenInts    = []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
