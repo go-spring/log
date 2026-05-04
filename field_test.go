@@ -23,13 +23,6 @@ import (
 	"github.com/go-spring/stdlib/testing/assert"
 )
 
-// ptr returns a pointer to the given value.
-//
-//go:fix inline
-func ptr[T any](i T) *T {
-	return new(i)
-}
-
 var testFields = []Field{
 	Msgf("hello %s", "中国"),
 	Msg("hello world\n\\\t\"\r"),
